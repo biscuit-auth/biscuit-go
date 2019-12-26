@@ -3,6 +3,7 @@ package sig
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"testing"
 )
@@ -69,7 +70,7 @@ func TestThreeMessages(t *testing.T) {
 	if z := t1.sig.Z.Encode(nil); !bytes.Equal(z, rustz) {
 		t.Errorf("wrong z: got %x, want %x", z, rustz)
 	}
-	for i, param := range t1.sig.Parameters {
+	for i, param := range t1.sig.Params {
 		if p := param.Encode(nil); !bytes.Equal(p, rustParams[i]) {
 			t.Errorf("wrong param[%d]: got %x, want %x", i, p, rustParams[i])
 		}
@@ -100,5 +101,28 @@ func TestChangeMessage(t *testing.T) {
 	t1.append(k3, m3)
 	if t1.verify() != ErrInvalidSignature {
 		t.Error("token should not verify")
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
+	k := GenerateKeypair(nil)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		(&TokenSignature{}).Sign(nil, k, []byte("hello"))
+	}
+}
+
+func BenchmarkVerify(b *testing.B) {
+	for _, n := range []int{1, 2, 3, 5, 10} {
+		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
+			t := newToken(nil, GenerateKeypair(nil), []byte("hello"))
+			for i := 1; i < n; i++ {
+				t.append(GenerateKeypair(nil), []byte("foo"))
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				t.verify()
+			}
+		})
 	}
 }

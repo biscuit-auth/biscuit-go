@@ -78,8 +78,8 @@ func (k PublicKey) Bytes() []byte {
 
 // TokenSignature holds a signature across one or more token messages.
 type TokenSignature struct {
-	Parameters []*r255.Element
-	Z          *r255.Scalar
+	Params []*r255.Element
+	Z      *r255.Scalar
 }
 
 // Sign adds a signature to s across msg using k and returns s. If rng is nil, a
@@ -87,11 +87,11 @@ type TokenSignature struct {
 func (s *TokenSignature) Sign(rng io.Reader, k Keypair, msg []byte) *TokenSignature {
 	r := randomScalar(rng)
 	A := r255.NewElement().ScalarBaseMult(r)
-	d := hashPoints(A)
+	d := hashPoint(A)
 	e := hashMessage(k.public.e, msg)
 	z := r255.NewScalar()
 	z = z.Multiply(r, d).Subtract(z, e.Multiply(e, k.Private().s))
-	s.Parameters = append(s.Parameters, A)
+	s.Params = append(s.Params, A)
 	if s.Z == nil {
 		s.Z = z
 	} else {
@@ -112,7 +112,7 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 	if len(pubkeys) != len(msgs) {
 		return errors.New("sig: wrong number of keys or messages")
 	}
-	if len(msgs) != len(s.Parameters) {
+	if len(msgs) != len(s.Params) {
 		return errors.New("sig: wrong number of params or messages")
 	}
 	if s.Z == nil {
@@ -121,14 +121,15 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 
 	zP := r255.NewElement().ScalarBaseMult(s.Z)
 	eiXi := r255.NewElement()
+	temp := r255.NewElement()
 	for i, k := range pubkeys {
-		eiXi = eiXi.Add(eiXi, r255.NewElement().ScalarMult(hashMessage(k.e, msgs[i]), k.e))
+		eiXi = eiXi.Add(eiXi, temp.ScalarMult(hashMessage(k.e, msgs[i]), k.e))
 	}
 
 	diAi := r255.NewElement()
-	for _, A := range s.Parameters {
-		d := hashPoints(A)
-		diAi = diAi.Add(diAi, r255.NewElement().ScalarMult(d, A))
+	for _, A := range s.Params {
+		d := hashPoint(A)
+		diAi = diAi.Add(diAi, temp.ScalarMult(d, A))
 	}
 
 	res := zP.Add(zP, eiXi).Subtract(zP, diAi)
@@ -149,12 +150,10 @@ func randomScalar(rng io.Reader) *r255.Scalar {
 	return r255.NewScalar().FromUniformBytes(k[:])
 }
 
-func hashPoints(points ...*r255.Element) *r255.Scalar {
+func hashPoint(p *r255.Element) *r255.Scalar {
 	h := sha512.New()
 	buf := make([]byte, 0, sha512.Size)
-	for _, p := range points {
-		h.Write(p.Encode(buf[:0]))
-	}
+	h.Write(p.Encode(buf[:0]))
 	return r255.NewScalar().FromUniformBytes(h.Sum(buf[:0]))
 }
 
