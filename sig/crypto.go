@@ -120,17 +120,19 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 	}
 
 	zP := r255.NewElement().ScalarBaseMult(s.Z)
-	eiXi := r255.NewElement()
-	temp := r255.NewElement()
-	for i, k := range pubkeys {
-		eiXi = eiXi.Add(eiXi, temp.ScalarMult(hashMessage(k.e, msgs[i]), k.e))
-	}
 
-	diAi := r255.NewElement()
-	for _, A := range s.Params {
-		d := hashPoint(A)
-		diAi = diAi.Add(diAi, temp.ScalarMult(d, A))
+	pubs := make([]*r255.Element, len(pubkeys))
+	hashes := make([]*r255.Scalar, len(msgs))
+	for i, k := range pubkeys {
+		pubs[i] = k.e
+		hashes[i] = hashMessage(k.e, msgs[i])
 	}
+	eiXi := r255.NewElement().MultiScalarMult(hashes, pubs)
+
+	for i, A := range s.Params {
+		hashes[i] = hashPoint(A)
+	}
+	diAi := r255.NewElement().MultiScalarMult(hashes, s.Params)
 
 	res := zP.Add(zP, eiXi).Subtract(zP, diAi)
 	if ristrettoIdentity.Equal(res) != 1 {
