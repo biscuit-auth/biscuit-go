@@ -22,7 +22,7 @@ func GenerateKeypair(rng io.Reader) Keypair {
 func NewKeypair(k PrivateKey) Keypair {
 	return Keypair{
 		private: k,
-		public:  PublicKey{e: r255.NewElement().ScalarBaseMult(k.s)},
+		public:  PublicKey{e: (&r255.Element{}).ScalarBaseMult(k.s)},
 	}
 }
 
@@ -45,7 +45,7 @@ func (k Keypair) Public() PublicKey {
 // NewPrivateKey returns a PrivateKey built from a 32-byte compressed private
 // key (the output of Bytes).
 func NewPrivateKey(k []byte) (PrivateKey, error) {
-	pk := PrivateKey{s: r255.NewScalar()}
+	pk := PrivateKey{s: &r255.Scalar{}}
 	return pk, pk.s.Decode(k)
 }
 
@@ -62,7 +62,7 @@ func (k PrivateKey) Bytes() []byte {
 // NewPublicKey returns a PublicKey built from a 32-byte compressed public key
 // (the output of Bytes).
 func NewPublicKey(k []byte) (PublicKey, error) {
-	pk := PublicKey{e: r255.NewElement()}
+	pk := PublicKey{e: &r255.Element{}}
 	return pk, pk.e.Decode(k)
 }
 
@@ -86,10 +86,10 @@ type TokenSignature struct {
 // safe CSPRNG is used. It is safe to call Sign against a zero TokenSignature.
 func (s *TokenSignature) Sign(rng io.Reader, k Keypair, msg []byte) *TokenSignature {
 	r := randomScalar(rng)
-	A := r255.NewElement().ScalarBaseMult(r)
+	A := (&r255.Element{}).ScalarBaseMult(r)
 	d := hashPoint(A)
 	e := hashMessage(k.public.e, msg)
-	z := r255.NewScalar()
+	z := &r255.Scalar{}
 	z = z.Multiply(r, d).Subtract(z, e.Multiply(e, k.Private().s))
 	s.Params = append(s.Params, A)
 	if s.Z == nil {
@@ -119,7 +119,7 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 		return errors.New("sig: missing Z")
 	}
 
-	zP := r255.NewElement().ScalarBaseMult(s.Z)
+	zP := (&r255.Element{}).ScalarBaseMult(s.Z)
 
 	pubs := make([]*r255.Element, len(pubkeys))
 	hashes := make([]*r255.Scalar, len(msgs))
@@ -149,14 +149,14 @@ func randomScalar(rng io.Reader) *r255.Scalar {
 	if _, err := io.ReadFull(rng, k[:]); err != nil {
 		panic(err)
 	}
-	return r255.NewScalar().FromUniformBytes(k[:])
+	return (&r255.Scalar{}).FromUniformBytes(k[:])
 }
 
 func hashPoint(p *r255.Element) *r255.Scalar {
 	h := sha512.New()
 	buf := make([]byte, 0, sha512.Size)
 	h.Write(p.Encode(buf[:0]))
-	return r255.NewScalar().FromUniformBytes(h.Sum(buf[:0]))
+	return (&r255.Scalar{}).FromUniformBytes(h.Sum(buf[:0]))
 }
 
 func hashMessage(point *r255.Element, data []byte) *r255.Scalar {
@@ -164,5 +164,5 @@ func hashMessage(point *r255.Element, data []byte) *r255.Scalar {
 	buf := make([]byte, 0, sha512.Size)
 	h.Write(point.Encode(buf))
 	h.Write(data)
-	return r255.NewScalar().FromUniformBytes(h.Sum(buf[:0]))
+	return (&r255.Scalar{}).FromUniformBytes(h.Sum(buf[:0]))
 }
