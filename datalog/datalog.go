@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type Matcher interface {
@@ -32,6 +33,10 @@ type Variable uint32
 
 func (Variable) Type() IDType { return IDTypeVariable }
 
+func (v Variable) String() string {
+	return fmt.Sprintf("%d?", v)
+}
+
 type Integer int64
 
 func (Integer) Type() IDType { return IDTypeInteger }
@@ -40,9 +45,17 @@ type String string
 
 func (String) Type() IDType { return IDTypeString }
 
+func (s String) String() string {
+	return fmt.Sprintf("%q", string(s))
+}
+
 type Date uint64
 
 func (Date) Type() IDType { return IDTypeDate }
+
+func (d Date) String() string {
+	return time.Unix(int64(d), 0).Format(time.RFC3339)
+}
 
 type IntegerComparison byte
 
@@ -94,6 +107,18 @@ func (m *IntegerInMatcher) Match(id ID) bool {
 	return match == !m.Not
 }
 
+func (m *IntegerInMatcher) String() string {
+	strs := make([]string, 0, len(m.Set))
+	for s := range m.Set {
+		strs = append(strs, fmt.Sprintf("%d", int64(s)))
+	}
+	prefix := ""
+	if m.Not {
+		prefix = "not "
+	}
+	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
+}
+
 type StringComparison byte
 
 const (
@@ -104,7 +129,7 @@ const (
 
 type StringComparisonMatcher struct {
 	Comparison StringComparison
-	String     String
+	Str        String
 }
 
 func (m *StringComparisonMatcher) Match(id ID) bool {
@@ -114,14 +139,27 @@ func (m *StringComparisonMatcher) Match(id ID) bool {
 	}
 	switch m.Comparison {
 	case StringComparisonEqual:
-		return m.String == v
+		return m.Str == v
 	case StringComparisonPrefix:
-		return strings.HasPrefix(string(v), string(m.String))
+		return strings.HasPrefix(string(v), string(m.Str))
 	case StringComparisonSuffix:
-		return strings.HasSuffix(string(v), string(m.String))
+		return strings.HasSuffix(string(v), string(m.Str))
 	default:
 		return false
 	}
+}
+
+func (m *StringComparisonMatcher) String() string {
+	var op string
+	switch m.Comparison {
+	case StringComparisonEqual:
+		op = "=="
+	case StringComparisonPrefix:
+		op = "has prefix"
+	case StringComparisonSuffix:
+		op = "has suffix"
+	}
+	return fmt.Sprintf("%s %q", op, string(m.Str))
 }
 
 type StringInMatcher struct {
@@ -138,6 +176,18 @@ func (m *StringInMatcher) Match(id ID) bool {
 	return match == !m.Not
 }
 
+func (m *StringInMatcher) String() string {
+	strs := make([]string, 0, len(m.Set))
+	for s := range m.Set {
+		strs = append(strs, fmt.Sprintf("%q", string(s)))
+	}
+	prefix := ""
+	if m.Not {
+		prefix = "not "
+	}
+	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
+}
+
 type StringRegexpMatcher regexp.Regexp
 
 func (m *StringRegexpMatcher) Match(id ID) bool {
@@ -146,6 +196,10 @@ func (m *StringRegexpMatcher) Match(id ID) bool {
 		return false
 	}
 	return (*regexp.Regexp)(m).MatchString(string(s))
+}
+
+func (m *StringRegexpMatcher) String() string {
+	return fmt.Sprintf("matches /%s/", (*regexp.Regexp)(m))
 }
 
 type DateComparison byte
@@ -175,6 +229,17 @@ func (m *DateComparisonMatcher) Match(id ID) bool {
 	}
 }
 
+func (m *DateComparisonMatcher) String() string {
+	var op string
+	switch m.Comparison {
+	case DateComparisonBefore:
+		op = "<="
+	case DateComparisonAfter:
+		op = ">="
+	}
+	return fmt.Sprintf("%s %s", op, m.Date)
+}
+
 type SymbolInMatcher struct {
 	Set map[Symbol]struct{}
 	Not bool
@@ -187,6 +252,18 @@ func (m *SymbolInMatcher) Match(id ID) bool {
 	}
 	_, match := m.Set[sym]
 	return match == !m.Not
+}
+
+func (m *SymbolInMatcher) String() string {
+	strs := make([]string, 0, len(m.Set))
+	for s := range m.Set {
+		strs = append(strs, fmt.Sprintf("%q", uint32(s)))
+	}
+	prefix := ""
+	if m.Not {
+		prefix = "not "
+	}
+	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
 }
 
 type InvalidMatcher struct{}
@@ -253,6 +330,10 @@ func (c Constraint) Check(name Variable, id ID) bool {
 	return c.Match(id)
 }
 
+func (c Constraint) String() string {
+	return fmt.Sprintf("%v? %v", c.Name, c.Matcher)
+}
+
 type Rule struct {
 	Head        Predicate
 	Body        []Predicate
@@ -265,7 +346,7 @@ type InvalidRuleError struct {
 }
 
 func (e InvalidRuleError) Error() string {
-	return fmt.Sprintf("datalog: variable %d in head is missing from body and/or constraints")
+	return fmt.Sprintf("datalog: variable %d in head is missing from body and/or constraints", e.MissingVariable)
 }
 
 func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
@@ -326,6 +407,10 @@ type World struct {
 	rules []Rule
 }
 
+func NewWorld() *World {
+	return &World{facts: &FactSet{}}
+}
+
 func (w *World) AddFact(f Fact) {
 	w.facts.Insert(f)
 }
@@ -338,13 +423,13 @@ func (w *World) Run() error {
 	for i := 0; i < 100; i++ {
 		var newFacts FactSet
 		for _, r := range w.rules {
-			if err := r.Apply(r.facts, &newFacts); err != nil {
+			if err := r.Apply(w.facts, &newFacts); err != nil {
 				return err
 			}
 		}
 		l := len(newFacts)
 		w.facts.InsertAll([]Fact(newFacts))
-		if len(w.facts) == l {
+		if len(*w.facts) == l {
 			return nil
 		}
 	}
@@ -364,7 +449,7 @@ func (w *World) Query(pred Predicate) *FactSet {
 		for i := 0; i < minLen; i++ {
 			fID := f.Predicate.IDs[i]
 			pID := pred.IDs[i]
-			if fID.Type() != IDTypeVariable && fid.Type() == pid.Type() {
+			if fID.Type() != IDTypeVariable && fID.Type() == pID.Type() {
 				if fID != pID {
 					continue
 				}
@@ -500,4 +585,88 @@ func (c *Combinator) Combine() []map[Variable]*ID {
 		}
 	}
 	return variables
+}
+
+type SymbolTable []string
+
+func (t *SymbolTable) Insert(s string) Symbol {
+	for i, v := range *t {
+		if string(v) == s {
+			return Symbol(i)
+		}
+	}
+	*t = append(*t, s)
+	return Symbol(len(*t) - 1)
+}
+
+func (t *SymbolTable) Sym(s string) ID {
+	for i, v := range *t {
+		if string(v) == s {
+			return Symbol(i)
+		}
+	}
+	return nil
+}
+
+func (t *SymbolTable) Str(sym Symbol) string {
+	if int(sym) > len(*t)-1 {
+		return fmt.Sprintf("<invalid symbol %d>", sym)
+	}
+	return (*t)[int(sym)]
+}
+
+func (t *SymbolTable) PrintPredicate(p Predicate) string {
+	strs := make([]string, len(p.IDs))
+	for i, id := range p.IDs {
+		var s string
+		if sym, ok := id.(Symbol); ok {
+			s = "#" + t.Str(sym)
+		} else {
+			s = fmt.Sprintf("%v", id)
+		}
+		strs[i] = s
+	}
+	return fmt.Sprintf("#%s(%s)", t.Str(p.Name), strings.Join(strs, ", "))
+}
+
+func (t *SymbolTable) PrintRule(r Rule) string {
+	head := t.PrintPredicate(r.Head)
+	preds := make([]string, len(r.Body))
+	for i, p := range r.Body {
+		preds[i] = t.PrintPredicate(p)
+	}
+	constraints := make([]string, len(r.Constraints))
+	for i, c := range r.Constraints {
+		constraints[i] = c.String()
+	}
+
+	return fmt.Sprintf("%s <- %s | %s", head, strings.Join(preds, " && "), strings.Join(constraints, " && "))
+}
+
+func (t *SymbolTable) PrintCaveat(c Caveat) string {
+	queries := make([]string, len(c.Queries))
+	for i, q := range c.Queries {
+		queries[i] = t.PrintRule(q)
+	}
+	return strings.Join(queries, " || ")
+}
+
+func (t *SymbolTable) PrintWorld(w *World) string {
+	facts := make([]string, len(*w.facts))
+	for i, f := range *w.facts {
+		facts[i] = t.PrintPredicate(f.Predicate)
+	}
+	rules := make([]string, len(w.rules))
+	for i, r := range w.rules {
+		rules[i] = t.PrintRule(r)
+	}
+	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
+}
+
+func (t *SymbolTable) PrintFactSet(s *FactSet) string {
+	strs := make([]string, len(*s))
+	for i, f := range *s {
+		strs[i] = t.PrintPredicate(f.Predicate)
+	}
+	return fmt.Sprintf("%v", strs)
 }
