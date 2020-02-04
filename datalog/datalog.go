@@ -72,7 +72,7 @@ type IntegerComparisonMatcher struct {
 	Integer    Integer
 }
 
-func (m *IntegerComparisonMatcher) Match(id ID) bool {
+func (m IntegerComparisonMatcher) Match(id ID) bool {
 	if id.Type() != IDTypeInteger {
 		return false
 	}
@@ -98,7 +98,7 @@ type IntegerInMatcher struct {
 	Not bool
 }
 
-func (m *IntegerInMatcher) Match(id ID) bool {
+func (m IntegerInMatcher) Match(id ID) bool {
 	i, ok := id.(Integer)
 	if !ok {
 		return false
@@ -107,7 +107,7 @@ func (m *IntegerInMatcher) Match(id ID) bool {
 	return match == !m.Not
 }
 
-func (m *IntegerInMatcher) String() string {
+func (m IntegerInMatcher) String() string {
 	strs := make([]string, 0, len(m.Set))
 	for s := range m.Set {
 		strs = append(strs, fmt.Sprintf("%d", int64(s)))
@@ -132,7 +132,7 @@ type StringComparisonMatcher struct {
 	Str        String
 }
 
-func (m *StringComparisonMatcher) Match(id ID) bool {
+func (m StringComparisonMatcher) Match(id ID) bool {
 	v, ok := id.(String)
 	if !ok {
 		return false
@@ -149,7 +149,7 @@ func (m *StringComparisonMatcher) Match(id ID) bool {
 	}
 }
 
-func (m *StringComparisonMatcher) String() string {
+func (m StringComparisonMatcher) String() string {
 	var op string
 	switch m.Comparison {
 	case StringComparisonEqual:
@@ -167,7 +167,7 @@ type StringInMatcher struct {
 	Not bool
 }
 
-func (m *StringInMatcher) Match(id ID) bool {
+func (m StringInMatcher) Match(id ID) bool {
 	s, ok := id.(String)
 	if !ok {
 		return false
@@ -176,7 +176,7 @@ func (m *StringInMatcher) Match(id ID) bool {
 	return match == !m.Not
 }
 
-func (m *StringInMatcher) String() string {
+func (m StringInMatcher) String() string {
 	strs := make([]string, 0, len(m.Set))
 	for s := range m.Set {
 		strs = append(strs, fmt.Sprintf("%q", string(s)))
@@ -214,7 +214,7 @@ type DateComparisonMatcher struct {
 	Date       Date
 }
 
-func (m *DateComparisonMatcher) Match(id ID) bool {
+func (m DateComparisonMatcher) Match(id ID) bool {
 	v, ok := id.(Date)
 	if !ok {
 		return false
@@ -229,7 +229,7 @@ func (m *DateComparisonMatcher) Match(id ID) bool {
 	}
 }
 
-func (m *DateComparisonMatcher) String() string {
+func (m DateComparisonMatcher) String() string {
 	var op string
 	switch m.Comparison {
 	case DateComparisonBefore:
@@ -245,7 +245,7 @@ type SymbolInMatcher struct {
 	Not bool
 }
 
-func (m *SymbolInMatcher) Match(id ID) bool {
+func (m SymbolInMatcher) Match(id ID) bool {
 	sym, ok := id.(Symbol)
 	if !ok {
 		return false
@@ -254,7 +254,7 @@ func (m *SymbolInMatcher) Match(id ID) bool {
 	return match == !m.Not
 }
 
-func (m *SymbolInMatcher) String() string {
+func (m SymbolInMatcher) String() string {
 	strs := make([]string, 0, len(m.Set))
 	for s := range m.Set {
 		strs = append(strs, fmt.Sprintf("%q", uint32(s)))
@@ -402,6 +402,25 @@ func (s *FactSet) InsertAll(facts []Fact) {
 	}
 }
 
+func (s *FactSet) Equal(x *FactSet) bool {
+	if len(*s) != len(*x) {
+		return false
+	}
+	for _, f1 := range *x {
+		found := false
+		for _, f2 := range *s {
+			if f1.Predicate.Equal(f2.Predicate) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 type World struct {
 	facts *FactSet
 	rules []Rule
@@ -427,7 +446,7 @@ func (w *World) Run() error {
 				return err
 			}
 		}
-		l := len(newFacts)
+		l := len(*w.facts)
 		w.facts.InsertAll([]Fact(newFacts))
 		if len(*w.facts) == l {
 			return nil
@@ -456,7 +475,7 @@ func (w *World) Query(pred Predicate) *FactSet {
 			} else if fID.Type() != IDTypeSymbol && pID.Type() != IDTypeVariable {
 				continue
 			}
-			*res = append(*res, f)
+			res.Insert(f)
 		}
 	}
 	return res
@@ -576,7 +595,11 @@ func (c *Combinator) Combine() []map[Variable]*ID {
 			}
 
 			if len(c.predicates) > i+1 {
-				variables = append(variables, NewCombinator(vars, c.predicates[i+1:], c.constraints, c.allFacts).Combine()...)
+				next := NewCombinator(vars, c.predicates[i+1:], c.constraints, c.allFacts).Combine()
+				if len(next) == 0 {
+					return variables
+				}
+				variables = append(variables, next...)
 			} else {
 				if v := vars.Complete(); v != nil {
 					variables = append(variables, v)
@@ -615,25 +638,29 @@ func (t *SymbolTable) Str(sym Symbol) string {
 	return (*t)[int(sym)]
 }
 
-func (t *SymbolTable) PrintPredicate(p Predicate) string {
+type SymbolDebugger struct {
+	*SymbolTable
+}
+
+func (d SymbolDebugger) Predicate(p Predicate) string {
 	strs := make([]string, len(p.IDs))
 	for i, id := range p.IDs {
 		var s string
 		if sym, ok := id.(Symbol); ok {
-			s = "#" + t.Str(sym)
+			s = "#" + d.Str(sym)
 		} else {
 			s = fmt.Sprintf("%v", id)
 		}
 		strs[i] = s
 	}
-	return fmt.Sprintf("#%s(%s)", t.Str(p.Name), strings.Join(strs, ", "))
+	return fmt.Sprintf("%s(%s)", d.Str(p.Name), strings.Join(strs, ", "))
 }
 
-func (t *SymbolTable) PrintRule(r Rule) string {
-	head := t.PrintPredicate(r.Head)
+func (d SymbolDebugger) Rule(r Rule) string {
+	head := d.Predicate(r.Head)
 	preds := make([]string, len(r.Body))
 	for i, p := range r.Body {
-		preds[i] = t.PrintPredicate(p)
+		preds[i] = d.Predicate(p)
 	}
 	constraints := make([]string, len(r.Constraints))
 	for i, c := range r.Constraints {
@@ -643,30 +670,30 @@ func (t *SymbolTable) PrintRule(r Rule) string {
 	return fmt.Sprintf("%s <- %s | %s", head, strings.Join(preds, " && "), strings.Join(constraints, " && "))
 }
 
-func (t *SymbolTable) PrintCaveat(c Caveat) string {
+func (d SymbolDebugger) Caveat(c Caveat) string {
 	queries := make([]string, len(c.Queries))
 	for i, q := range c.Queries {
-		queries[i] = t.PrintRule(q)
+		queries[i] = d.Rule(q)
 	}
 	return strings.Join(queries, " || ")
 }
 
-func (t *SymbolTable) PrintWorld(w *World) string {
+func (d SymbolDebugger) World(w *World) string {
 	facts := make([]string, len(*w.facts))
 	for i, f := range *w.facts {
-		facts[i] = t.PrintPredicate(f.Predicate)
+		facts[i] = d.Predicate(f.Predicate)
 	}
 	rules := make([]string, len(w.rules))
 	for i, r := range w.rules {
-		rules[i] = t.PrintRule(r)
+		rules[i] = d.Rule(r)
 	}
 	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
 }
 
-func (t *SymbolTable) PrintFactSet(s *FactSet) string {
+func (d SymbolDebugger) FactSet(s *FactSet) string {
 	strs := make([]string, len(*s))
 	for i, f := range *s {
-		strs[i] = t.PrintPredicate(f.Predicate)
+		strs[i] = d.Predicate(f.Predicate)
 	}
 	return fmt.Sprintf("%v", strs)
 }
