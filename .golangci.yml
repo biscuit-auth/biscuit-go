@@ -1,0 +1,3 @@
+linters:
+  disable:
+    - errcheck # TODO: ignore hmac Write error and enable this
