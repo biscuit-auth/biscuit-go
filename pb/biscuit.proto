@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+option go_package = ".;pb";
+
+message Biscuit {
+  bytes authority = 1;
+  repeated bytes blocks = 2;
+  repeated bytes keys = 3;
+  Signature signature = 4;
+}
+
+message SealedBiscuit {
+  bytes authority = 1;
+  repeated bytes blocks = 2;
+  bytes signature = 3;
+}
+
+message Signature {
+  repeated bytes parameters = 1;
+  bytes z = 2;
+}
+
+message Block {
+  uint32 index = 1;
+  repeated string symbols = 2;
+  repeated Fact   facts = 3;
+  repeated Rule   rules = 4;
+  repeated Caveat caveats = 5;
+  string context = 6;
+}
+
+message Fact {
+  Predicate predicate = 1;
+}
+
+message Rule {
+  Predicate head = 1;
+  repeated Predicate body = 2;
+  repeated Constraint constraints = 3;
+}
+
+message Caveat {
+  repeated Rule queries = 1;
+}
+
+message Predicate {
+  uint64 name = 1;
+  repeated ID ids = 2;
+}
+
+message ID {
+  enum Kind {
+    SYMBOL = 0;
+    VARIABLE = 1;
+    INTEGER = 2;
+    STR = 3;
+    DATE = 4;
+  }
+
+  Kind kind = 1;
+  uint64 symbol = 2;
+  uint32 variable = 3;
+  int64 integer = 4;
+  string str = 5;
+  uint64 date = 6;
+}
+
+message Constraint {
+  uint32 id = 1;
+
+  enum Kind {
+    INT = 0;
+    STRING = 1;
+    DATE = 2;
+    SYMBOL = 3;
+  }
+
+  Kind kind = 2;
+
+  IntConstraint int = 3;
+  StringConstraint str = 4;
+  DateConstraint date = 5;
+  SymbolConstraint symbol = 6;
+}
+
+message IntConstraint {
+  enum Kind {
+    LOWER = 0;
+    LARGER = 1;
+    LOWER_OR_EQUAL = 2;
+    LARGER_OR_EQUAL = 3;
+    EQUAL = 4;
+    IN = 5;
+    NOT_IN = 6;
+  }
+
+  Kind kind = 1;
+
+  int64 lower = 2;
+  int64 larger = 3;
+  int64 lower_or_equal = 4;
+  int64 larger_or_equal = 5;
+  int64 equal = 6;
+  repeated int64 in_set = 7 [packed=true];
+  repeated int64 not_in_set = 8 [packed=true];
+}
+
+message StringConstraint {
+  enum Kind {
+    PREFIX = 0;
+    SUFFIX = 1;
+    EQUAL = 2;
+    IN = 3;
+    NOT_IN = 4;
+    REGEX = 5;
+  }
+
+  Kind kind = 1;
+
+  string prefix = 2;
+  string suffix = 3;
+  string equal = 4;
+  repeated string in_set = 5;
+  repeated string not_in_set = 6;
+  string regex = 7;
+}
+
+message DateConstraint {
+  enum Kind {
+    BEFORE = 0;
+    AFTER = 1;
+  }
+
+  Kind kind = 1;
+
+  uint64 before = 2;
+  uint64 after = 3;
+}
+
+message SymbolConstraint {
+  enum Kind {
+    IN = 0;
+    NOT_IN = 1;
+  }
+
+  Kind kind = 1;
+
+  repeated uint64 in_set = 2;
+  repeated uint64 not_in_set = 3;
+}
