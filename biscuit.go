@@ -11,8 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-
-
 // Biscuit represents a valid Biscuit token
 // It contains multiple `Block` elements, the associated symbol table,
 // and a serialized version of this data
@@ -25,12 +23,16 @@ type Biscuit struct {
 
 var (
 	// ErrSymbolTableOverlap is returned when multiple blocks declare the same symbols
-	ErrSymbolTableOverlap = errors.New("symbol table overlap")
+	ErrSymbolTableOverlap = errors.New("biscuit: symbol table overlap")
 	// ErrInvalidAuthorityIndex occurs when an authority block index is not 0
-	ErrInvalidAuthorityIndex = errors.New("invalid authority index")
+	ErrInvalidAuthorityIndex = errors.New("biscuit: invalid authority index")
 )
 
 func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
+	if rng == nil {
+		rng = rand.Reader
+	}
+
 	if !symbols.IsDisjoint(authority.symbols) {
 		return nil, ErrSymbolTableOverlap
 	}
@@ -47,7 +49,7 @@ func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authorit
 	}
 
 	ts := &sig.TokenSignature{}
-	ts.Sign(rand.Reader, root, pbAuthority)
+	ts.Sign(rng, root, pbAuthority)
 
 	container := &pb.Biscuit{
 		Authority: pbAuthority,

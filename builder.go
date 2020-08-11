@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrDuplicateFact = errors.New("fact already exists")
+	ErrDuplicateFact = errors.New("biscuit: fact already exists")
 )
 
 type Builder interface {
@@ -48,8 +48,8 @@ func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.Symbol
 }
 
 func (b *builder) AddAuthorityFact(fact *Fact) error {
-	if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] != Symbol("authority") {
-		fact.Predicate.IDs[0] = Symbol("authority")
+	if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] != SymAuthority {
+		fact.Predicate.IDs[0] = SymAuthority
 	}
 
 	dlFact := fact.convert(b.symbols)
@@ -61,8 +61,8 @@ func (b *builder) AddAuthorityFact(fact *Fact) error {
 }
 
 func (b *builder) AddAuthorityRule(rule *Rule) error {
-	if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] != Symbol("authority") {
-		rule.Head.IDs[0] = Symbol("authority")
+	if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] != SymAuthority {
+		rule.Head.IDs[0] = SymAuthority
 	}
 
 	dlRule := rule.convert(b.symbols)
@@ -80,7 +80,7 @@ func (b *builder) AddRight(resource, right string) error {
 		Predicate: Predicate{
 			Name: "right",
 			IDs: []Atom{
-				Symbol("authority"),
+				SymAuthority,
 				String(resource),
 				Symbol(right),
 			},

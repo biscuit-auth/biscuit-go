@@ -6,6 +6,8 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
+var SymAuthority = Symbol("authority")
+
 // DefaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
 var DefaultSymbolTable = &datalog.SymbolTable{
