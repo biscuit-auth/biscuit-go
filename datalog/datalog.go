@@ -630,6 +630,45 @@ func (t *SymbolTable) Str(sym Symbol) string {
 	return (*t)[int(sym)]
 }
 
+// SplitOff returns a newly allocated slice containing the elements in the range
+// [at, len). After the call, the receiver will be left containing
+// the elements [0, at) with its previous capacity unchanged.
+func (t *SymbolTable) SplitOff(at int) *SymbolTable {
+	if at > len(*t) {
+		panic("split index out of bound")
+	}
+
+	new := (*t)[at:]
+	*t = (*t)[:at]
+
+	return &new
+}
+
+func (t *SymbolTable) Len() int {
+	return len(*t)
+}
+
+// IsDisjoint returns true if receiver has no elements in common with other.
+// This is equivalent to checking for an empty intersection.
+func (t *SymbolTable) IsDisjoint(other *SymbolTable) bool {
+	m := make(map[string]struct{}, len(*t))
+	for _, s := range *t {
+		m[s] = struct{}{}
+	}
+
+	for _, os := range *other {
+		if _, ok := m[os]; ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (t *SymbolTable) Extend(other *SymbolTable) {
+	*t = append(*t, *other...)
+}
+
 type SymbolDebugger struct {
 	*SymbolTable
 }
