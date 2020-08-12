@@ -5,11 +5,14 @@ import (
 	"io"
 
 	"github.com/flynn/biscuit-go/datalog"
+	"github.com/flynn/biscuit-go/pb"
 	"github.com/flynn/biscuit-go/sig"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
-	ErrDuplicateFact = errors.New("biscuit: fact already exists")
+	ErrDuplicateFact     = errors.New("biscuit: fact already exists")
+	ErrInvalidBlockIndex = errors.New("biscuit: invalid block index")
 )
 
 type Builder interface {
@@ -97,4 +100,68 @@ func (b *builder) Build() (*Biscuit, error) {
 		caveats: b.caveats,
 		context: b.context,
 	})
+}
+
+func From(serialized []byte) (*Biscuit, error) {
+	return FromWithSymbols(serialized, DefaultSymbolTable)
+}
+
+func FromWithSymbols(serialized []byte, symbols *datalog.SymbolTable) (*Biscuit, error) {
+	container := new(pb.Biscuit)
+	if err := proto.Unmarshal(serialized, container); err != nil {
+		return nil, err
+	}
+
+	pbAuthority := new(pb.Block)
+	if err := proto.Unmarshal(container.Authority, pbAuthority); err != nil {
+		return nil, err
+	}
+
+	signature, err := protoSignatureToTokenSignate(container.Signature)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKeys := make([]sig.PublicKey, len(container.Keys))
+	for i, pk := range container.Keys {
+		pubKey, err := sig.NewPublicKey(pk)
+		if err != nil {
+			return nil, err
+		}
+		pubKeys[i] = pubKey
+	}
+
+	signedBlocks := [][]byte{container.Authority}
+	signedBlocks = append(signedBlocks, container.Blocks...)
+	if err := signature.Verify(pubKeys, signedBlocks); err != nil {
+		return nil, err
+	}
+
+	authority := protoBlockToTokenBlock(pbAuthority)
+	if authority.index != 0 {
+		return nil, ErrInvalidAuthorityIndex
+	}
+	symbols.Extend(authority.symbols)
+
+	blocks := make([]*Block, len(container.Blocks))
+	for i, sb := range container.Blocks {
+		pbBlock := new(pb.Block)
+		if err := proto.Unmarshal(sb, pbBlock); err != nil {
+			return nil, err
+		}
+
+		if int(pbBlock.Index) != i+1 {
+			return nil, ErrInvalidBlockIndex
+		}
+
+		blocks[i] = protoBlockToTokenBlock(pbBlock)
+		symbols.Extend(blocks[i].symbols)
+	}
+
+	return &Biscuit{
+		authority: authority,
+		symbols:   symbols,
+		blocks:    blocks,
+		container: container,
+	}, nil
 }

@@ -16,20 +16,57 @@ func ExampleBiscuit() {
 	builder := biscuit.NewBuilder(rng, root)
 
 	// `right(#authority, "/a/file1.txt", #read)`,
-	err := builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{Name: "right", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.String("/a/file1.txt"), biscuit.Symbol("read")}}})
+	err := builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+		Name: "right",
+		IDs: []biscuit.Atom{
+			biscuit.Symbol("authority"),
+			biscuit.String("/a/file1.txt"),
+			biscuit.Symbol("read"),
+		},
+	}})
 	if err != nil {
 		panic(fmt.Errorf("failed to add authority facts: %v", err))
 	}
-	// `right(#authority, "/a/file1.txt", #write)`,
-	// `right(#authority, "/a/file2.txt", #read)`,
-	// `right(#authority, "/a/file3.txt", #write)`,
+	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+		Name: "right",
+		IDs: []biscuit.Atom{
+			biscuit.Symbol("authority"),
+			biscuit.String("/a/file1.txt"),
+			biscuit.Symbol("write"),
+		},
+	}})
+	if err != nil {
+		panic(fmt.Errorf("failed to add authority facts: %v", err))
+	}
+	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+		Name: "right",
+		IDs: []biscuit.Atom{
+			biscuit.Symbol("authority"),
+			biscuit.String("/a/file2.txt"),
+			biscuit.Symbol("read"),
+		},
+	}})
+	if err != nil {
+		panic(fmt.Errorf("failed to add authority facts: %v", err))
+	}
+	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+		Name: "right",
+		IDs: []biscuit.Atom{
+			biscuit.Symbol("authority"),
+			biscuit.String("/a/file3.txt"),
+			biscuit.Symbol("write"),
+		},
+	}})
+	if err != nil {
+		panic(fmt.Errorf("failed to add authority facts: %v", err))
+	}
 
-	bisc, err := builder.Build()
+	b, err := builder.Build()
 	if err != nil {
 		panic(fmt.Errorf("failed to build biscuit: %v", err))
 	}
 
-	token, err := bisc.Serialize()
+	token, err := b.Serialize()
 	if err != nil {
 		panic(fmt.Errorf("failed to serialize biscuit: %v", err))
 	}

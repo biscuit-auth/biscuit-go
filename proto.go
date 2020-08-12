@@ -10,21 +10,56 @@ import (
 )
 
 func tokenBlockToProtoBlock(input *Block) *pb.Block {
-	var pbFacts []*pb.Fact
-	for _, fact := range *input.facts {
-		pbFacts = append(pbFacts, tokenFactToProtoFact(fact))
+	pbFacts := make([]*pb.Fact, len(*input.facts))
+	for i, fact := range *input.facts {
+		pbFacts[i] = tokenFactToProtoFact(fact)
 	}
 
-	var pbRules []*pb.Rule
-	for _, rule := range input.rules {
-		pbRules = append(pbRules, tokenRuleToProtoRule(rule))
+	pbRules := make([]*pb.Rule, len(input.rules))
+	for i, rule := range input.rules {
+		pbRules[i] = tokenRuleToProtoRule(rule)
+	}
+
+	pbCaveats := make([]*pb.Caveat, len(input.caveats))
+	for i, caveat := range input.caveats {
+		pbCaveats[i] = tokenCaveatToProtoCaveat(caveat)
 	}
 
 	return &pb.Block{
-		Index:   uint32(input.index),
+		Index:   input.index,
 		Symbols: *input.symbols,
 		Facts:   pbFacts,
 		Rules:   pbRules,
+		Caveats: pbCaveats,
+		Context: input.context,
+	}
+}
+
+func protoBlockToTokenBlock(input *pb.Block) *Block {
+	symbols := datalog.SymbolTable(input.Symbols)
+
+	facts := make(datalog.FactSet, len(input.Facts))
+	for i, pbFact := range input.Facts {
+		facts[i] = protoFactToTokenFact(pbFact)
+	}
+
+	rules := make([]*datalog.Rule, len(input.Rules))
+	for i, pbRule := range input.Rules {
+		rules[i] = protoRuleToTokenRule(pbRule)
+	}
+
+	caveats := make([]*datalog.Caveat, len(input.Caveats))
+	for i, pbCaveat := range input.Caveats {
+		caveats[i] = protoCaveatToTokenCaveat(pbCaveat)
+	}
+
+	return &Block{
+		index:   input.Index,
+		symbols: &symbols,
+		facts:   &facts,
+		rules:   rules,
+		caveats: caveats,
+		context: input.Context,
 	}
 }
 
@@ -34,15 +69,33 @@ func tokenFactToProtoFact(input datalog.Fact) *pb.Fact {
 	}
 }
 
+func protoFactToTokenFact(input *pb.Fact) datalog.Fact {
+	return datalog.Fact{
+		Predicate: protoPredicateToTokenPredicate(input.Predicate),
+	}
+}
+
 func tokenPredicateToProtoPredicate(input datalog.Predicate) *pb.Predicate {
-	var pbIds []*pb.ID
-	for _, id := range input.IDs {
-		pbIds = append(pbIds, tokenIDToProtoID(id))
+	pbIds := make([]*pb.ID, len(input.IDs))
+	for i, id := range input.IDs {
+		pbIds[i] = tokenIDToProtoID(id)
 	}
 
 	return &pb.Predicate{
 		Name: uint64(input.Name),
 		Ids:  pbIds,
+	}
+}
+
+func protoPredicateToTokenPredicate(input *pb.Predicate) datalog.Predicate {
+	ids := make([]datalog.ID, len(input.Ids))
+	for i, id := range input.Ids {
+		ids[i] = protoIDToTokenID(id)
+	}
+
+	return datalog.Predicate{
+		Name: datalog.Symbol(input.Name),
+		IDs:  ids,
 	}
 }
 
@@ -80,20 +133,58 @@ func tokenIDToProtoID(input datalog.ID) *pb.ID {
 	return pbId
 }
 
-func tokenRuleToProtoRule(input *datalog.Rule) *pb.Rule {
-	var pbBody []*pb.Predicate
-	for _, p := range input.Body {
-		pbBody = append(pbBody, tokenPredicateToProtoPredicate(p))
+func protoIDToTokenID(input *pb.ID) datalog.ID {
+	var id datalog.ID
+	switch input.Kind {
+	case pb.ID_STR:
+		id = datalog.String(input.Str)
+	case pb.ID_DATE:
+		id = datalog.Date(input.Date)
+	case pb.ID_INTEGER:
+		id = datalog.Integer(input.Integer)
+	case pb.ID_SYMBOL:
+		id = datalog.Symbol(input.Symbol)
+	case pb.ID_VARIABLE:
+		id = datalog.Variable(input.Variable)
+	default:
+		panic(fmt.Sprintf("unsupported id kind: %v", input.Kind))
 	}
 
-	var pbConstraints []*pb.Constraint
-	for _, c := range input.Constraints {
-		pbConstraints = append(pbConstraints, tokenConstraintToProtoConstraint(c))
+	return id
+}
+
+func tokenRuleToProtoRule(input *datalog.Rule) *pb.Rule {
+	pbBody := make([]*pb.Predicate, len(input.Body))
+	for i, p := range input.Body {
+		pbBody[i] = tokenPredicateToProtoPredicate(p)
+	}
+
+	pbConstraints := make([]*pb.Constraint, len(input.Constraints))
+	for i, c := range input.Constraints {
+		pbConstraints[i] = tokenConstraintToProtoConstraint(c)
 	}
 	return &pb.Rule{
 		Head:        tokenPredicateToProtoPredicate(input.Head),
 		Body:        pbBody,
 		Constraints: pbConstraints,
+	}
+}
+
+func protoRuleToTokenRule(input *pb.Rule) *datalog.Rule {
+	body := make([]datalog.Predicate, len(input.Body))
+	for i, pb := range input.Body {
+		body[i] = protoPredicateToTokenPredicate(pb)
+	}
+
+	constraints := make([]datalog.Constraint, len(input.Constraints))
+	for i, pbConstraint := range input.Constraints {
+		constraints[i] = protoConstraintToTokenConstraint(pbConstraint)
+	}
+
+	return &datalog.Rule{
+		Head:        protoPredicateToTokenPredicate(input.Head),
+		Body:        body,
+		Constraints: constraints,
 	}
 }
 
@@ -118,6 +209,8 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 				Kind: pb.Constraint_INT,
 				Int:  tokenIntInConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerInChecker)),
 			}
+		default:
+			panic(fmt.Sprintf("invalid int contraint type: %T", input.Checker))
 		}
 	case datalog.IDTypeString:
 		switch input.Checker.(type) {
@@ -139,8 +232,9 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 					Regex: (*regexp.Regexp)(input.Checker.(*datalog.StringRegexpChecker)).String(),
 				},
 			}
+		default:
+			panic(fmt.Sprintf("invalid string contraint type: %T", input.Checker))
 		}
-
 	case datalog.IDTypeSymbol:
 		pbConstraint = &pb.Constraint{
 			Kind:   pb.Constraint_SYMBOL,
@@ -151,6 +245,36 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 	}
 
 	return pbConstraint
+}
+
+func protoConstraintToTokenConstraint(input *pb.Constraint) datalog.Constraint {
+	var constraint datalog.Constraint
+	switch input.Kind {
+	case pb.Constraint_DATE:
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(datalog.IDTypeDate),
+			Checker: protoDateConstraintToTokenDateConstraint(input.Date),
+		}
+	case pb.Constraint_INT:
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(datalog.IDTypeInteger),
+			Checker: protoIntConstraintToTokenIntConstraint(input.Int),
+		}
+	case pb.Constraint_STRING:
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(datalog.IDTypeString),
+			Checker: protoStrConstraintToTokenStrConstraint(input.Str),
+		}
+	case pb.Constraint_SYMBOL:
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(datalog.IDTypeSymbol),
+			Checker: protoSymbolConstraintToTokenSymbolConstraint(input.Symbol),
+		}
+	default:
+		panic(fmt.Sprintf("unsupported constraint kind: %v", input.Kind))
+	}
+
+	return constraint
 }
 
 func tokenDateConstraintToProtoDateConstraint(input datalog.DateComparisonChecker) *pb.DateConstraint {
@@ -171,6 +295,25 @@ func tokenDateConstraintToProtoDateConstraint(input datalog.DateComparisonChecke
 	}
 
 	return pbDateConstraint
+}
+
+func protoDateConstraintToTokenDateConstraint(input *pb.DateConstraint) datalog.Checker {
+	var checker datalog.Checker
+	switch input.Kind {
+	case pb.DateConstraint_BEFORE:
+		checker = datalog.DateComparisonChecker{
+			Comparison: datalog.DateComparisonBefore,
+			Date:       datalog.Date(input.Before),
+		}
+	case pb.DateConstraint_AFTER:
+		checker = datalog.DateComparisonChecker{
+			Comparison: datalog.DateComparisonAfter,
+			Date:       datalog.Date(input.After),
+		}
+	default:
+		panic(fmt.Sprintf("unsupported date constraint kind: %v", input.Kind))
+	}
+	return checker
 }
 
 func tokenIntConstraintToProtoIntConstraint(input datalog.IntegerComparisonChecker) *pb.IntConstraint {
@@ -229,6 +372,58 @@ func tokenIntInConstraintToProtoIntConstraint(input datalog.IntegerInChecker) *p
 	return pbIntConstraint
 }
 
+func protoIntConstraintToTokenIntConstraint(input *pb.IntConstraint) datalog.Checker {
+	var checker datalog.Checker
+	switch input.Kind {
+	case pb.IntConstraint_EQUAL:
+		checker = datalog.IntegerComparisonChecker{
+			Comparison: datalog.IntegerComparisonEqual,
+			Integer:    datalog.Integer(input.Equal),
+		}
+	case pb.IntConstraint_IN:
+		set := make(map[datalog.Integer]struct{}, len(input.InSet))
+		for _, i := range input.InSet {
+			set[datalog.Integer(i)] = struct{}{}
+		}
+		checker = datalog.IntegerInChecker{
+			Set: set,
+			Not: false,
+		}
+	case pb.IntConstraint_NOT_IN:
+		set := make(map[datalog.Integer]struct{}, len(input.NotInSet))
+		for _, i := range input.InSet {
+			set[datalog.Integer(i)] = struct{}{}
+		}
+		checker = datalog.IntegerInChecker{
+			Set: set,
+			Not: true,
+		}
+	case pb.IntConstraint_LARGER:
+		checker = datalog.IntegerComparisonChecker{
+			Comparison: datalog.IntegerComparisonGT,
+			Integer:    datalog.Integer(input.Larger),
+		}
+	case pb.IntConstraint_LARGER_OR_EQUAL:
+		checker = datalog.IntegerComparisonChecker{
+			Comparison: datalog.IntegerComparisonGTE,
+			Integer:    datalog.Integer(input.LargerOrEqual),
+		}
+	case pb.IntConstraint_LOWER:
+		checker = datalog.IntegerComparisonChecker{
+			Comparison: datalog.IntegerComparisonLT,
+			Integer:    datalog.Integer(input.Lower),
+		}
+	case pb.IntConstraint_LOWER_OR_EQUAL:
+		checker = datalog.IntegerComparisonChecker{
+			Comparison: datalog.IntegerComparisonLTE,
+			Integer:    datalog.Integer(input.LowerOrEqual),
+		}
+	default:
+		panic(fmt.Sprintf("unsupported int constraint kind: %v", input.Kind))
+	}
+	return checker
+}
+
 func tokenStrConstraintToProtoStrConstraint(input datalog.StringComparisonChecker) *pb.StringConstraint {
 	var pbStrConstraint *pb.StringConstraint
 	switch input.Comparison {
@@ -275,6 +470,52 @@ func tokenStrInConstraintToProtoStrConstraint(input datalog.StringInChecker) *pb
 	return pbStringConstraint
 }
 
+func protoStrConstraintToTokenStrConstraint(input *pb.StringConstraint) datalog.Checker {
+	var checker datalog.Checker
+	switch input.Kind {
+	case pb.StringConstraint_EQUAL:
+		checker = datalog.StringComparisonChecker{
+			Comparison: datalog.StringComparisonEqual,
+			Str:        datalog.String(input.Equal),
+		}
+	case pb.StringConstraint_IN:
+		set := make(map[datalog.String]struct{}, len(input.InSet))
+		for _, s := range input.InSet {
+			set[datalog.String(s)] = struct{}{}
+		}
+		checker = datalog.StringInChecker{
+			Set: set,
+			Not: false,
+		}
+	case pb.StringConstraint_NOT_IN:
+		set := make(map[datalog.String]struct{}, len(input.NotInSet))
+		for _, s := range input.InSet {
+			set[datalog.String(s)] = struct{}{}
+		}
+		checker = datalog.StringInChecker{
+			Set: set,
+			Not: true,
+		}
+	case pb.StringConstraint_PREFIX:
+		checker = datalog.StringComparisonChecker{
+			Comparison: datalog.StringComparisonPrefix,
+			Str:        datalog.String(input.Prefix),
+		}
+	case pb.StringConstraint_REGEX:
+		re := datalog.StringRegexpChecker(*regexp.MustCompile(input.Regex))
+		checker = &re
+	case pb.StringConstraint_SUFFIX:
+		checker = datalog.StringComparisonChecker{
+			Comparison: datalog.StringComparisonSuffix,
+			Str:        datalog.String(input.Suffix),
+		}
+	default:
+		panic(fmt.Sprintf("unsupported string constraint king: %v", input.Kind))
+	}
+
+	return checker
+}
+
 func tokenSymbolConstraintToProtoSymbolConstraint(input datalog.SymbolInChecker) *pb.SymbolConstraint {
 	var pbSymbolConstraint *pb.SymbolConstraint
 
@@ -297,13 +538,63 @@ func tokenSymbolConstraintToProtoSymbolConstraint(input datalog.SymbolInChecker)
 	return pbSymbolConstraint
 }
 
-func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
-	var protoParams [][]byte
-	for _, p := range ts.Params {
-		protoParams = append(protoParams, p.Encode([]byte{}))
+func protoSymbolConstraintToTokenSymbolConstraint(input *pb.SymbolConstraint) datalog.Checker {
+	var checker datalog.Checker
+	switch input.Kind {
+	case pb.SymbolConstraint_IN:
+		set := make(map[datalog.Symbol]struct{}, len(input.InSet))
+		for _, s := range input.InSet {
+			set[datalog.Symbol(s)] = struct{}{}
+		}
+		checker = datalog.SymbolInChecker{
+			Set: set,
+			Not: false,
+		}
+	case pb.SymbolConstraint_NOT_IN:
+		set := make(map[datalog.Symbol]struct{}, len(input.NotInSet))
+		for _, s := range input.NotInSet {
+			set[datalog.Symbol(s)] = struct{}{}
+		}
+		checker = datalog.SymbolInChecker{
+			Set: set,
+			Not: true,
+		}
+	default:
+		panic(fmt.Sprintf("unsupported symbol constraint kind: %v", input.Kind))
 	}
+	return checker
+}
+
+func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
+	params, z := ts.Serialize()
 	return &pb.Signature{
-		Parameters: protoParams,
-		Z:          ts.Z.Encode([]byte{}),
+		Parameters: params,
+		Z:          z,
+	}
+}
+
+func protoSignatureToTokenSignate(ps *pb.Signature) (*sig.TokenSignature, error) {
+	return sig.Deserialize(ps.Parameters, ps.Z)
+}
+
+func tokenCaveatToProtoCaveat(input *datalog.Caveat) *pb.Caveat {
+	pbQueries := make([]*pb.Rule, len(input.Queries))
+	for i, query := range input.Queries {
+		pbQueries[i] = tokenRuleToProtoRule(&query)
+	}
+
+	return &pb.Caveat{
+		Queries: pbQueries,
+	}
+}
+
+func protoCaveatToTokenCaveat(input *pb.Caveat) *datalog.Caveat {
+	queries := make([]datalog.Rule, len(input.Queries))
+	for i, query := range input.Queries {
+		queries[i] = *protoRuleToTokenRule(query)
+	}
+
+	return &datalog.Caveat{
+		Queries: queries,
 	}
 }

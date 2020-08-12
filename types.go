@@ -22,7 +22,7 @@ var DefaultSymbolTable = &datalog.SymbolTable{
 }
 
 type Block struct {
-	index   int
+	index   uint32
 	symbols *datalog.SymbolTable
 	facts   *datalog.FactSet
 	rules   []*datalog.Rule
