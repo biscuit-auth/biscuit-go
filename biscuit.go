@@ -3,6 +3,7 @@ package biscuit
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/flynn/biscuit-go/datalog"
@@ -68,4 +69,22 @@ func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authorit
 
 func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
+}
+
+func (b *Biscuit) Print() string {
+	blocks := make([]string, len(b.blocks))
+	for i, block := range b.blocks {
+		blocks[i] = block.Print(b.symbols)
+	}
+
+	return fmt.Sprintf(`
+Biscuit {
+	symbols: %+q
+	authority: %s
+	blocks: %v
+}`,
+		*b.symbols,
+		b.authority.Print(b.symbols),
+		blocks,
+	)
 }
