@@ -487,6 +487,15 @@ func (w *World) QueryRule(rule Rule) *FactSet {
 	return newFacts
 }
 
+func (w *World) Clone() *World {
+	newFacts := new(FactSet)
+	*newFacts = *w.facts
+	return &World{
+		facts: newFacts,
+		rules: append([]Rule{}, w.rules...),
+	}
+}
+
 type MatchedVariables map[Variable]*ID
 
 func (m MatchedVariables) Insert(k Variable, v ID) bool {

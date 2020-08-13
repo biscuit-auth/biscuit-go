@@ -117,7 +117,7 @@ func FromWithSymbols(serialized []byte, symbols *datalog.SymbolTable) (*Biscuit,
 		return nil, err
 	}
 
-	signature, err := protoSignatureToTokenSignate(container.Signature)
+	signature, err := protoSignatureToTokenSignature(container.Signature)
 	if err != nil {
 		return nil, err
 	}

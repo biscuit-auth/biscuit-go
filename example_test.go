@@ -11,7 +11,6 @@ import (
 func ExampleBiscuit() {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
-	// publicKey := root.Public()
 
 	builder := biscuit.NewBuilder(rng, root)
 
@@ -70,6 +69,63 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to serialize biscuit: %v", err))
 	}
 
-	fmt.Printf("Token length: %d\n", len(token))
-	// Output: Token length: 240
+	fmt.Printf("Token1 length: %d\n", len(token))
+
+	deser, err := biscuit.From(token)
+	if err != nil {
+		panic(fmt.Errorf("failed to deserialize biscuit: %v", err))
+	}
+
+	blockBuilder := deser.CreateBlock()
+	blockBuilder.AddCaveat(biscuit.Caveat{
+		Queries: []biscuit.Rule{
+			{
+				Head: biscuit.Predicate{
+					Name: "caveat",
+					IDs:  []biscuit.Atom{biscuit.String("/a/file1.txt")},
+				},
+				Body: []biscuit.Predicate{
+					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}},
+					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("read")}},
+				},
+			},
+		},
+	})
+
+	newKeyPair := sig.GenerateKeypair(rng)
+	b2, err := deser.Append(rng, newKeyPair, blockBuilder.Build())
+	if err != nil {
+		panic(fmt.Errorf("failed to append: %v", err))
+	}
+
+	token2, err := b2.Serialize()
+	if err != nil {
+		panic(fmt.Errorf("failed to serialize biscuit: %v", err))
+	}
+
+	fmt.Printf("Token2 length: %d\n", len(token2))
+
+	// Verify
+	b2, err = biscuit.From(token2)
+	if err != nil {
+		panic(fmt.Errorf("failed to deserialize token: %v", err))
+	}
+
+	v1, err := b2.Verify(root.Public())
+	if err != nil {
+		panic(fmt.Errorf("failed to create verifier: %v", err))
+	}
+
+	v1.AddResource("/a/file1.txt")
+	v1.AddOperation("read")
+
+	if err := v1.Verify(); err != nil {
+		fmt.Printf("failed to verify token: %v\n", err)
+	} else {
+		fmt.Println("verified token")
+	}
+
+	// Output: Token1 length: 226
+	// Token2 length: 362
+	// verified token
 }

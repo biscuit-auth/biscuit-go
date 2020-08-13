@@ -1,6 +1,7 @@
 package biscuit
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -27,6 +28,16 @@ var (
 	ErrSymbolTableOverlap = errors.New("biscuit: symbol table overlap")
 	// ErrInvalidAuthorityIndex occurs when an authority block index is not 0
 	ErrInvalidAuthorityIndex = errors.New("biscuit: invalid authority index")
+	// ErrInvalidAuthorityFact occurs when an authority fact is an ambient fact
+	ErrInvalidAuthorityFact = errors.New("biscuit: invalid authority fact")
+	// ErrInvalidBlockFact occurs when a block fact provides an authority or ambient fact
+	ErrInvalidBlockFact = errors.New("biscuit: invalid block fact")
+	// ErrInvalidBlockRule occurs when a block rule generate an authority or ambient fact
+	ErrInvalidBlockRule = errors.New("biscuit: invalid block rule")
+	// ErrEmptyKeys is returned when verifying a biscuit having no keys
+	ErrEmptyKeys = errors.New("biscuit: empty keys")
+	// ErrUnknownPublicKey is returned when verifying a biscuit with the wrong public key
+	ErrUnknownPublicKey = errors.New("biscuit: unknown public key")
 )
 
 func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
@@ -104,7 +115,10 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 		return nil, err
 	}
 
-	ts := &sig.TokenSignature{}
+	ts, err := protoSignatureToTokenSignature(b.container.Signature)
+	if err != nil {
+		return nil, err
+	}
 	ts.Sign(rng, keypair, pbBlock)
 
 	// clone container and append new marshalled block and public key
@@ -124,7 +138,22 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 		symbols:   symbols,
 		container: container,
 	}, nil
+}
 
+func (b *Biscuit) Verify(root sig.PublicKey) (Verifier, error) {
+	if err := b.checkRootKey(root); err != nil {
+		return nil, err
+	}
+
+	return NewVerifier(b)
+}
+
+func (b *Biscuit) Caveats() [][]*datalog.Caveat {
+	result := append([][]*datalog.Caveat{}, b.authority.caveats)
+	for _, block := range b.blocks {
+		result = append(result, block.caveats)
+	}
+	return result
 }
 
 func (b *Biscuit) Serialize() ([]byte, error) {
@@ -147,4 +176,56 @@ Biscuit {
 		b.authority.Print(b.symbols),
 		blocks,
 	)
+}
+
+func (b *Biscuit) checkRootKey(root sig.PublicKey) error {
+	if len(b.container.Keys) == 0 {
+		return ErrEmptyKeys
+	}
+	if !bytes.Equal(b.container.Keys[0], root.Bytes()) {
+		return ErrUnknownPublicKey
+	}
+
+	return nil
+}
+
+func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
+	world := datalog.NewWorld()
+
+	idAuthority := symbols.Sym("authority")
+	idAmbient := symbols.Sym("ambient")
+
+	for _, fact := range *b.authority.facts {
+		if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] == idAmbient {
+			return nil, ErrInvalidAuthorityFact
+		}
+
+		world.AddFact(fact)
+	}
+
+	for _, rule := range b.authority.rules {
+		world.AddRule(*rule)
+	}
+
+	for _, block := range b.blocks {
+		for _, fact := range *block.facts {
+			if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] == idAuthority || fact.Predicate.IDs[0] == idAmbient {
+				return nil, ErrInvalidBlockFact
+			}
+			world.AddFact(fact)
+		}
+
+		for _, rule := range block.rules {
+			if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] == idAuthority || rule.Head.IDs[0] == idAmbient {
+				return nil, ErrInvalidBlockRule
+			}
+			world.AddRule(*rule)
+		}
+	}
+
+	if err := world.Run(); err != nil {
+		return nil, err
+	}
+
+	return world, nil
 }

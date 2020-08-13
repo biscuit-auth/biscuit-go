@@ -573,7 +573,7 @@ func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
 	}
 }
 
-func protoSignatureToTokenSignate(ps *pb.Signature) (*sig.TokenSignature, error) {
+func protoSignatureToTokenSignature(ps *pb.Signature) (*sig.TokenSignature, error) {
 	return sig.Deserialize(ps.Parameters, ps.Z)
 }
 
