@@ -165,3 +165,71 @@ func FromWithSymbols(serialized []byte, symbols *datalog.SymbolTable) (*Biscuit,
 		container: container,
 	}, nil
 }
+
+type BlockBuilder interface {
+	AddFact(fact Fact) error
+	AddRule(rule Rule) error
+	AddCaveat(caveat Caveat) error
+	SetContext(string)
+	Build() *Block
+}
+
+type blockBuilder struct {
+	index        uint32
+	symbolsStart int
+	symbols      *datalog.SymbolTable
+	facts        *datalog.FactSet
+	rules        []*datalog.Rule
+	caveats      []*datalog.Caveat
+	context      string
+}
+
+var _ BlockBuilder = (*blockBuilder)(nil)
+
+func NewBlockBuilder(index uint32, baseSymbols *datalog.SymbolTable) BlockBuilder {
+	return &blockBuilder{
+		index:        index,
+		symbolsStart: baseSymbols.Len(),
+		symbols:      baseSymbols,
+		facts:        new(datalog.FactSet),
+	}
+}
+
+func (b *blockBuilder) AddFact(fact Fact) error {
+	dlFact := fact.convert(b.symbols)
+	if !b.facts.Insert(dlFact) {
+		return ErrDuplicateFact
+	}
+
+	return nil
+}
+
+func (b *blockBuilder) AddRule(rule Rule) error {
+	dlRule := rule.convert(b.symbols)
+	b.rules = append(b.rules, &dlRule)
+
+	return nil
+}
+
+func (b *blockBuilder) AddCaveat(caveat Caveat) error {
+	dlCaveat := caveat.convert(b.symbols)
+	b.caveats = append(b.caveats, &dlCaveat)
+
+	return nil
+}
+
+func (b *blockBuilder) SetContext(context string) {
+	b.context = context
+}
+
+func (b *blockBuilder) Build() *Block {
+	b.symbols = b.symbols.SplitOff(b.symbolsStart)
+	return &Block{
+		index:   b.index,
+		symbols: b.symbols,
+		facts:   b.facts,
+		rules:   b.rules,
+		caveats: b.caveats,
+		context: b.context,
+	}
+}

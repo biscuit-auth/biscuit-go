@@ -67,6 +67,66 @@ func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authorit
 	}, nil
 }
 
+func (b *Biscuit) CreateBlock() BlockBuilder {
+	return NewBlockBuilder(uint32(len(b.blocks)+1), b.symbols.Clone())
+}
+
+func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Biscuit, error) {
+	if b.container == nil {
+		return nil, errors.New("biscuit: append failed, token is sealed")
+	}
+
+	if !b.symbols.IsDisjoint(block.symbols) {
+		return nil, ErrSymbolTableOverlap
+	}
+
+	if int(block.index) != len(b.blocks)+1 {
+		return nil, ErrInvalidBlockIndex
+	}
+
+	// clone biscuit fields and append new block
+	authority := new(Block)
+	*authority = *b.authority
+
+	blocks := make([]*Block, len(b.blocks)+1)
+	for i, oldBlock := range b.blocks {
+		blocks[i] = new(Block)
+		*blocks[i] = *oldBlock
+	}
+	blocks[len(b.blocks)] = block
+
+	symbols := b.symbols.Clone()
+	symbols.Extend(block.symbols)
+
+	// serialize and sign the new block
+	pbBlock, err := proto.Marshal(tokenBlockToProtoBlock(block))
+	if err != nil {
+		return nil, err
+	}
+
+	ts := &sig.TokenSignature{}
+	ts.Sign(rng, keypair, pbBlock)
+
+	// clone container and append new marshalled block and public key
+	container := &pb.Biscuit{
+		Authority: append([]byte{}, b.container.Authority...),
+		Blocks:    append([][]byte{}, b.container.Blocks...),
+		Keys:      append([][]byte{}, b.container.Keys...),
+		Signature: tokenSignatureToProtoSignature(ts),
+	}
+
+	container.Blocks = append(container.Blocks, pbBlock)
+	container.Keys = append(container.Keys, keypair.Public().Bytes())
+
+	return &Biscuit{
+		authority: authority,
+		blocks:    blocks,
+		symbols:   symbols,
+		container: container,
+	}, nil
+
+}
+
 func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
 }

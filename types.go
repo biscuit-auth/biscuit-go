@@ -93,6 +93,21 @@ func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
 	}
 }
 
+type Caveat struct {
+	Queries []Rule
+}
+
+func (c Caveat) convert(symbols *datalog.SymbolTable) datalog.Caveat {
+	queries := make([]datalog.Rule, len(c.Queries))
+	for i, q := range c.Queries {
+		queries[i] = q.convert(symbols)
+	}
+
+	return datalog.Caveat{
+		Queries: queries,
+	}
+}
+
 type Constraint struct {
 	Name Variable
 	Checker

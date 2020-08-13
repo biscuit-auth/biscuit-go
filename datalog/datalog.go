@@ -630,6 +630,11 @@ func (t *SymbolTable) Str(sym Symbol) string {
 	return (*t)[int(sym)]
 }
 
+func (t *SymbolTable) Clone() *SymbolTable {
+	newTable := *t
+	return &newTable
+}
+
 // SplitOff returns a newly allocated slice containing the elements in the range
 // [at, len). After the call, the receiver will be left containing
 // the elements [0, at) with its previous capacity unchanged.

@@ -15,7 +15,6 @@ func ExampleBiscuit() {
 
 	builder := biscuit.NewBuilder(rng, root)
 
-	// `right(#authority, "/a/file1.txt", #read)`,
 	err := builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Atom{
@@ -72,5 +71,5 @@ func ExampleBiscuit() {
 	}
 
 	fmt.Printf("Token length: %d\n", len(token))
-	// Output: Token length: 266
+	// Output: Token length: 240
 }
