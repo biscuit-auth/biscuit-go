@@ -2,6 +2,7 @@ package biscuit
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/flynn/biscuit-go/datalog"
@@ -120,19 +121,7 @@ func (c Constraint) convert(symbols *datalog.SymbolTable) datalog.Constraint {
 	}
 }
 
-type CheckerType byte
-
-const (
-	CheckerTypeIntegerComparison CheckerType = iota
-	CheckerTypeIntegerIn
-	CheckerTypeStringComparison
-	CheckerTypeStringIn
-	CheckerTypeDateComparison
-	CheckerTypeSymbolIn
-)
-
 type Checker interface {
-	Type() CheckerType
 	convert(symbols *datalog.SymbolTable) datalog.Checker
 }
 
@@ -141,7 +130,6 @@ type IntegerComparisonChecker struct {
 	Integer    Integer
 }
 
-func (c IntegerComparisonChecker) Type() CheckerType { return CheckerTypeIntegerComparison }
 func (c IntegerComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	return &datalog.IntegerComparisonChecker{
 		Comparison: c.Comparison,
@@ -154,7 +142,6 @@ type IntegerInChecker struct {
 	Not bool
 }
 
-func (c IntegerInChecker) Type() CheckerType { return CheckerTypeIntegerIn }
 func (c IntegerInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	dlSet := make(map[datalog.Integer]struct{}, len(c.Set))
 	for i := range c.Set {
@@ -173,7 +160,6 @@ type StringComparisonChecker struct {
 	Str        String
 }
 
-func (c StringComparisonChecker) Type() CheckerType { return CheckerTypeStringComparison }
 func (c StringComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	return datalog.StringComparisonChecker{
 		Comparison: c.Comparison,
@@ -186,7 +172,6 @@ type StringInChecker struct {
 	Not bool
 }
 
-func (c StringInChecker) Type() CheckerType { return CheckerTypeStringIn }
 func (c StringInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	dlSet := make(map[datalog.String]struct{}, len(c.Set))
 	for i := range c.Set {
@@ -198,6 +183,13 @@ func (c StringInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	}
 }
 
+type StringRegexpChecker regexp.Regexp
+
+func (c StringRegexpChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
+	re := datalog.StringRegexpChecker(c)
+	return &re
+}
+
 type DateComparison byte
 
 type DateComparisonChecker struct {
@@ -205,7 +197,6 @@ type DateComparisonChecker struct {
 	Date       Date
 }
 
-func (c DateComparisonChecker) Type() CheckerType { return CheckerTypeDateComparison }
 func (c DateComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	return datalog.DateComparisonChecker{
 		Comparison: c.Comparison,
@@ -218,7 +209,6 @@ type SymbolInChecker struct {
 	Not bool
 }
 
-func (c SymbolInChecker) Type() CheckerType { return CheckerTypeSymbolIn }
 func (c SymbolInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	dlSet := make(map[datalog.Symbol]struct{}, len(c.Set))
 	for i := range c.Set {
