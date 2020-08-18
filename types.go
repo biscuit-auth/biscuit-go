@@ -8,7 +8,7 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
-const SymAuthority = Symbol("authority")
+const SymbolAuthority = Symbol("authority")
 
 // DefaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
@@ -245,10 +245,6 @@ const (
 	AtomTypeInteger
 	AtomTypeString
 	AtomTypeDate
-)
-
-const (
-	AuthoritySymbol = Symbol("authority")
 )
 
 type Atom interface {

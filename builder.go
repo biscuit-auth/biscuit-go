@@ -52,9 +52,9 @@ func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.Symbol
 
 func (b *builder) AddAuthorityFact(fact *Fact) error {
 	if len(fact.Predicate.IDs) == 0 {
-		fact.Predicate.IDs = []Atom{SymAuthority}
-	} else if fact.Predicate.IDs[0] != SymAuthority {
-		fact.Predicate.IDs[0] = SymAuthority
+		fact.Predicate.IDs = []Atom{SymbolAuthority}
+	} else if fact.Predicate.IDs[0] != SymbolAuthority {
+		fact.Predicate.IDs[0] = SymbolAuthority
 	}
 
 	dlFact := fact.convert(b.symbols)
@@ -67,9 +67,9 @@ func (b *builder) AddAuthorityFact(fact *Fact) error {
 
 func (b *builder) AddAuthorityRule(rule *Rule) error {
 	if len(rule.Head.IDs) == 0 {
-		rule.Head.IDs = []Atom{SymAuthority}
-	} else if rule.Head.IDs[0] != SymAuthority {
-		rule.Head.IDs[0] = SymAuthority
+		rule.Head.IDs = []Atom{SymbolAuthority}
+	} else if rule.Head.IDs[0] != SymbolAuthority {
+		rule.Head.IDs[0] = SymbolAuthority
 	}
 
 	dlRule := rule.convert(b.symbols)
@@ -87,7 +87,7 @@ func (b *builder) AddRight(resource, right string) error {
 		Predicate: Predicate{
 			Name: "right",
 			IDs: []Atom{
-				SymAuthority,
+				SymbolAuthority,
 				String(resource),
 				Symbol(right),
 			},
