@@ -7,9 +7,15 @@ import (
 	"time"
 
 	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/lexer"
 	"github.com/flynn/biscuit-go"
 	"github.com/flynn/biscuit-go/datalog"
 )
+
+var DefaultParserOptions = []participle.Option{
+	participle.Lexer(lexer.DefaultDefinition),
+	participle.UseLookahead(3),
+}
 
 type Parser interface {
 	Fact(fact string) (*biscuit.Fact, error)
@@ -25,11 +31,11 @@ type parser struct {
 
 var _ Parser = (*parser)(nil)
 
-func NewParser() Parser {
+func New() Parser {
 	return &parser{
-		predicateParser: participle.MustBuild(&Predicate{}),
-		ruleParser:      participle.MustBuild(&Rule{}),
-		caveatParser:    participle.MustBuild(&Caveat{}),
+		predicateParser: participle.MustBuild(&Predicate{}, DefaultParserOptions...),
+		ruleParser:      participle.MustBuild(&Rule{}, DefaultParserOptions...),
+		caveatParser:    participle.MustBuild(&Caveat{}, DefaultParserOptions...),
 	}
 }
 
