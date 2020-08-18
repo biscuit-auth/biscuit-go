@@ -51,7 +51,9 @@ func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.Symbol
 }
 
 func (b *builder) AddAuthorityFact(fact *Fact) error {
-	if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] != SymAuthority {
+	if len(fact.Predicate.IDs) == 0 {
+		fact.Predicate.IDs = []Atom{SymAuthority}
+	} else if fact.Predicate.IDs[0] != SymAuthority {
 		fact.Predicate.IDs[0] = SymAuthority
 	}
 
@@ -64,7 +66,9 @@ func (b *builder) AddAuthorityFact(fact *Fact) error {
 }
 
 func (b *builder) AddAuthorityRule(rule *Rule) error {
-	if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] != SymAuthority {
+	if len(rule.Head.IDs) == 0 {
+		rule.Head.IDs = []Atom{SymAuthority}
+	} else if rule.Head.IDs[0] != SymAuthority {
 		rule.Head.IDs[0] = SymAuthority
 	}
 
