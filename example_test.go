@@ -126,6 +126,6 @@ func ExampleBiscuit() {
 	}
 
 	// Output: Token1 length: 226
-	// Token2 length: 362
+	// Token2 length: 370
 	// verified token
 }
