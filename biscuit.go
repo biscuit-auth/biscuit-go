@@ -161,7 +161,7 @@ func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
 }
 
-func (b *Biscuit) Print() string {
+func (b *Biscuit) String() string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
 		blocks[i] = block.Print(b.symbols)
