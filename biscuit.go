@@ -164,7 +164,7 @@ func (b *Biscuit) Serialize() ([]byte, error) {
 func (b *Biscuit) String() string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
-		blocks[i] = block.Print(b.symbols)
+		blocks[i] = block.String(b.symbols)
 	}
 
 	return fmt.Sprintf(`
@@ -174,7 +174,7 @@ Biscuit {
 	blocks: %v
 }`,
 		*b.symbols,
-		b.authority.Print(b.symbols),
+		b.authority.String(b.symbols),
 		blocks,
 	)
 }

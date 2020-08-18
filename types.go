@@ -31,7 +31,7 @@ type Block struct {
 	context string
 }
 
-func (b *Block) Print(symbols *datalog.SymbolTable) string {
+func (b *Block) String(symbols *datalog.SymbolTable) string {
 	debug := &datalog.SymbolDebugger{
 		SymbolTable: symbols,
 	}
