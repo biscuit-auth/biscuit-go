@@ -141,7 +141,7 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 	return nil
 }
 
-func (s *TokenSignature) Serialize() ([][]byte, []byte) {
+func (s *TokenSignature) Encode() ([][]byte, []byte) {
 	params := make([][]byte, len(s.Params))
 	for i, p := range s.Params {
 		params[i] = p.Encode([]byte{})
@@ -150,17 +150,17 @@ func (s *TokenSignature) Serialize() ([][]byte, []byte) {
 	return params, s.Z.Encode([]byte{})
 }
 
-func Deserialize(params [][]byte, z []byte) (*TokenSignature, error) {
+func Decode(params [][]byte, z []byte) (*TokenSignature, error) {
 	decodedParams := make([]*r255.Element, len(params))
 	for i, p := range params {
-		e := r255.NewElement()
+		e := &r255.Element{}
 		if err := e.Decode(p); err != nil {
 			return nil, err
 		}
 		decodedParams[i] = e
 	}
 
-	decodedZ := r255.NewScalar()
+	decodedZ := &r255.Scalar{}
 	if err := decodedZ.Decode(z); err != nil {
 		return nil, err
 	}

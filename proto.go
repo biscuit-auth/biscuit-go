@@ -566,7 +566,7 @@ func protoSymbolConstraintToTokenSymbolConstraint(input *pb.SymbolConstraint) da
 }
 
 func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
-	params, z := ts.Serialize()
+	params, z := ts.Encode()
 	return &pb.Signature{
 		Parameters: params,
 		Z:          z,
@@ -574,7 +574,7 @@ func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
 }
 
 func protoSignatureToTokenSignature(ps *pb.Signature) (*sig.TokenSignature, error) {
-	return sig.Deserialize(ps.Parameters, ps.Z)
+	return sig.Decode(ps.Parameters, ps.Z)
 }
 
 func tokenCaveatToProtoCaveat(input *datalog.Caveat) *pb.Caveat {
