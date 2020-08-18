@@ -31,7 +31,7 @@ func TestBiscuit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, b1ser)
 
-	b1deser, err := From(b1ser)
+	b1deser, err := DefaultUnmarshaler.Unmarshal(b1ser)
 	require.NoError(t, err)
 
 	block2 := b1deser.CreateBlock()
@@ -56,7 +56,7 @@ func TestBiscuit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, b2ser)
 
-	b2deser, err := From(b2ser)
+	b2deser, err := DefaultUnmarshaler.Unmarshal(b2ser)
 	require.NoError(t, err)
 
 	block3 := b2deser.CreateBlock()
@@ -79,7 +79,7 @@ func TestBiscuit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, b3ser)
 
-	b3deser, err := From(b3ser)
+	b3deser, err := DefaultUnmarshaler.Unmarshal(b3ser)
 	require.NoError(t, err)
 
 	v3, err := b3deser.Verify(root.Public())

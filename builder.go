@@ -106,11 +106,19 @@ func (b *builder) Build() (*Biscuit, error) {
 	})
 }
 
-func From(serialized []byte) (*Biscuit, error) {
-	return FromWithSymbols(serialized, DefaultSymbolTable)
+type Unmarshaler struct {
+	Symbols *datalog.SymbolTable
 }
 
-func FromWithSymbols(serialized []byte, symbols *datalog.SymbolTable) (*Biscuit, error) {
+var DefaultUnmarshaler = &Unmarshaler{Symbols: DefaultSymbolTable}
+
+func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
+	if u.Symbols == nil {
+		return nil, errors.New("biscuit: unmarshaler require a symbol table")
+	}
+
+	symbols := u.Symbols.Clone()
+
 	container := new(pb.Biscuit)
 	if err := proto.Unmarshal(serialized, container); err != nil {
 		return nil, err
