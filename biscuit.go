@@ -149,7 +149,8 @@ func (b *Biscuit) Verify(root sig.PublicKey) (Verifier, error) {
 }
 
 func (b *Biscuit) Caveats() [][]*datalog.Caveat {
-	result := append([][]*datalog.Caveat{}, b.authority.caveats)
+	result := make([][]*datalog.Caveat, 0, len(b.blocks)+1)
+	result = append(result, b.authority.caveats)
 	for _, block := range b.blocks {
 		result = append(result, block.caveats)
 	}
