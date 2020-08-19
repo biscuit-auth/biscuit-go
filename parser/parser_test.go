@@ -11,13 +11,13 @@ import (
 func TestParserFact(t *testing.T) {
 	testCases := []struct {
 		Input         string
-		Expected      *biscuit.Fact
+		Expected      biscuit.Fact
 		ExpectFailure bool
 		ExpectErr     error
 	}{
 		{
 			Input: `right(#authority, "/a/file1.txt", #read)`,
-			Expected: &biscuit.Fact{
+			Expected: biscuit.Fact{
 				Predicate: biscuit.Predicate{
 					Name: "right",
 					IDs: []biscuit.Atom{
@@ -46,7 +46,7 @@ func TestParserFact(t *testing.T) {
 	p := New()
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Fact(testCase.Input)
+			fact, err := p.Fact().Parse(testCase.Input)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -64,13 +64,13 @@ func TestParserFact(t *testing.T) {
 func TestParseRule(t *testing.T) {
 	testCases := []struct {
 		Input         string
-		Expected      *biscuit.Rule
+		Expected      biscuit.Rule
 		ExpectFailure bool
 		ExpectErr     error
 	}{
 		{
 			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c), 0? > 42, prefix(1?, "abc")`,
-			Expected: &biscuit.Rule{
+			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
 					IDs: []biscuit.Atom{
@@ -114,7 +114,7 @@ func TestParseRule(t *testing.T) {
 		},
 		{
 			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
-			Expected: &biscuit.Rule{
+			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
 					IDs: []biscuit.Atom{
@@ -154,7 +154,7 @@ func TestParseRule(t *testing.T) {
 	p := New()
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Rule(testCase.Input)
+			fact, err := p.Rule().Parse(testCase.Input)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -172,13 +172,13 @@ func TestParseRule(t *testing.T) {
 func TestParserCaveat(t *testing.T) {
 	testCases := []struct {
 		Input         string
-		Expected      *biscuit.Caveat
+		Expected      biscuit.Caveat
 		ExpectFailure bool
 		ExpectErr     error
 	}{
 		{
 			Input: `[ ?- parent(#a, #b), parent(#b, #c), 0? in [1,2,3], ?- right(#read, "/a/file1.txt") ]`,
-			Expected: &biscuit.Caveat{
+			Expected: biscuit.Caveat{
 				Queries: []biscuit.Rule{
 					{
 						Body: []biscuit.Predicate{
@@ -230,7 +230,7 @@ func TestParserCaveat(t *testing.T) {
 	p := New()
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Caveat(testCase.Input)
+			fact, err := p.Caveat().Parse(testCase.Input)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)

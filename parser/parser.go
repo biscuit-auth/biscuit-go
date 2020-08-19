@@ -22,75 +22,148 @@ var DefaultParserOptions = []participle.Option{
 }
 
 type Parser interface {
-	Fact(fact string) (*biscuit.Fact, error)
-	Rule(rule string) (*biscuit.Rule, error)
-	Caveat(caveat string) (*biscuit.Caveat, error)
+	Fact() FactParser
+	Rule() RuleParser
+	Caveat() CaveatParser
+}
+
+type FactParser interface {
+	MustParse(fact string) biscuit.Fact
+	Parse(fact string) (biscuit.Fact, error)
+}
+
+type RuleParser interface {
+	MustParse(rule string) biscuit.Rule
+	Parse(rule string) (biscuit.Rule, error)
+}
+
+type CaveatParser interface {
+	MustParse(caveat string) biscuit.Caveat
+	Parse(caveat string) (biscuit.Caveat, error)
 }
 
 type parser struct {
-	predicateParser *participle.Parser
-	ruleParser      *participle.Parser
-	caveatParser    *participle.Parser
+	factParser   FactParser
+	ruleParser   RuleParser
+	caveatParser CaveatParser
 }
 
 var _ Parser = (*parser)(nil)
 
 func New() Parser {
 	return &parser{
-		predicateParser: participle.MustBuild(&Predicate{}, DefaultParserOptions...),
-		ruleParser:      participle.MustBuild(&Rule{}, DefaultParserOptions...),
-		caveatParser:    participle.MustBuild(&Caveat{}, DefaultParserOptions...),
+		factParser:   &factParser{participle.MustBuild(&Predicate{}, DefaultParserOptions...)},
+		ruleParser:   &ruleParser{participle.MustBuild(&Rule{}, DefaultParserOptions...)},
+		caveatParser: &caveatParser{participle.MustBuild(&Caveat{}, DefaultParserOptions...)},
 	}
 }
 
-func (p *parser) Fact(fact string) (*biscuit.Fact, error) {
+func (p *parser) Fact() FactParser {
+	return p.factParser
+}
+func (p *parser) Rule() RuleParser {
+	return p.ruleParser
+}
+func (p *parser) Caveat() CaveatParser {
+	return p.caveatParser
+}
+
+type factParser struct {
+	*participle.Parser
+}
+
+var _ FactParser = (*factParser)(nil)
+
+func (p *factParser) MustParse(fact string) biscuit.Fact {
+	f, err := p.Parse(fact)
+	if err != nil {
+		panic(err)
+	}
+
+	return f
+}
+
+func (p *factParser) Parse(fact string) (biscuit.Fact, error) {
 	parsed := &Predicate{}
-	if err := p.predicateParser.ParseString(fact, parsed); err != nil {
-		return nil, err
+	if err := p.ParseString(fact, parsed); err != nil {
+		return biscuit.Fact{}, err
 	}
 
 	pred, err := convertPredicate(parsed)
 	if err != nil {
-		return nil, err
+		return biscuit.Fact{}, err
 	}
 
 	for _, a := range pred.IDs {
 		if a.Type() == biscuit.AtomTypeVariable {
-			return nil, ErrVariableInFact
+			return biscuit.Fact{}, ErrVariableInFact
 		}
 	}
 
-	return &biscuit.Fact{
-		Predicate: *pred,
-	}, nil
+	return biscuit.Fact{Predicate: *pred}, nil
 }
 
-func (p *parser) Rule(rule string) (*biscuit.Rule, error) {
-	parsed := &Rule{}
-	if err := p.ruleParser.ParseString(rule, parsed); err != nil {
-		return nil, err
+type ruleParser struct {
+	*participle.Parser
+}
+
+var _ RuleParser = (*ruleParser)(nil)
+
+func (p *ruleParser) MustParse(rule string) biscuit.Rule {
+	r, err := p.Parse(rule)
+	if err != nil {
+		panic(err)
 	}
 
-	return convertRule(parsed)
+	return r
 }
 
-func (p *parser) Caveat(caveat string) (*biscuit.Caveat, error) {
+func (p *ruleParser) Parse(rule string) (biscuit.Rule, error) {
+	parsed := &Rule{}
+	if err := p.ParseString(rule, parsed); err != nil {
+		return biscuit.Rule{}, err
+	}
+
+	r, err := convertRule(parsed)
+	if err != nil {
+		return biscuit.Rule{}, err
+	}
+
+	return *r, nil
+}
+
+type caveatParser struct {
+	*participle.Parser
+}
+
+var _ CaveatParser = (*caveatParser)(nil)
+
+func (p *caveatParser) MustParse(caveat string) biscuit.Caveat {
+	c, err := p.Parse(caveat)
+	if err != nil {
+		panic(err)
+	}
+
+	return c
+}
+
+func (p *caveatParser) Parse(caveat string) (biscuit.Caveat, error) {
 	parsed := &Caveat{}
-	if err := p.caveatParser.ParseString(caveat, parsed); err != nil {
-		return nil, err
+	if err := p.ParseString(caveat, parsed); err != nil {
+		return biscuit.Caveat{}, err
 	}
 
 	queries := make([]biscuit.Rule, len(parsed.Queries))
 	for i, q := range parsed.Queries {
 		query, err := convertQuery(q)
 		if err != nil {
-			return nil, err
+			return biscuit.Caveat{}, err
 		}
 
 		queries[i] = *query
 	}
 
-	return &biscuit.Caveat{
+	return biscuit.Caveat{
 		Queries: queries,
 	}, nil
 }
