@@ -12,6 +12,10 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
+var (
+	ErrVariableInFact = errors.New("parser: a fact cannot contain any variable")
+)
+
 var DefaultParserOptions = []participle.Option{
 	participle.Lexer(lexer.DefaultDefinition),
 	participle.UseLookahead(3),
@@ -49,6 +53,13 @@ func (p *parser) Fact(fact string) (*biscuit.Fact, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	for _, a := range pred.IDs {
+		if a.Type() == biscuit.AtomTypeVariable {
+			return nil, ErrVariableInFact
+		}
+	}
+
 	return &biscuit.Fact{
 		Predicate: *pred,
 	}, nil
@@ -60,38 +71,28 @@ func (p *parser) Rule(rule string) (*biscuit.Rule, error) {
 		return nil, err
 	}
 
-	var body []biscuit.Predicate
-	for _, p := range parsed.Body {
-		b, err := convertPredicate(p)
-		if err != nil {
-			return nil, err
-		}
-		body = append(body, *b)
-	}
-
-	var constraints []biscuit.Constraint
-	for _, c := range parsed.Constraints {
-		converted, err := convertConstraint(c)
-		if err != nil {
-			return nil, err
-		}
-		constraints = append(constraints, *converted)
-	}
-
-	head, err := convertPredicate(parsed.Head)
-	if err != nil {
-		return nil, err
-	}
-
-	return &biscuit.Rule{
-		Head:        *head,
-		Body:        body,
-		Constraints: constraints,
-	}, nil
+	return convertRule(parsed)
 }
 
 func (p *parser) Caveat(caveat string) (*biscuit.Caveat, error) {
-	return nil, nil // TODO
+	parsed := &Caveat{}
+	if err := p.caveatParser.ParseString(caveat, parsed); err != nil {
+		return nil, err
+	}
+
+	queries := make([]biscuit.Rule, len(parsed.Queries))
+	for i, q := range parsed.Queries {
+		query, err := convertQuery(q)
+		if err != nil {
+			return nil, err
+		}
+
+		queries[i] = *query
+	}
+
+	return &biscuit.Caveat{
+		Queries: queries,
+	}, nil
 }
 
 func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
@@ -260,4 +261,60 @@ func convertFunctionConstraint(c *FunctionConstraint) (*biscuit.Constraint, erro
 	}
 
 	return constraint, nil
+}
+
+func convertRule(r *Rule) (*biscuit.Rule, error) {
+	body := make([]biscuit.Predicate, len(r.Body))
+	for i, p := range r.Body {
+		b, err := convertPredicate(p)
+		if err != nil {
+			return nil, err
+		}
+		body[i] = *b
+	}
+
+	constraints := make([]biscuit.Constraint, len(r.Constraints))
+	for i, c := range r.Constraints {
+		constraint, err := convertConstraint(c)
+		if err != nil {
+			return nil, err
+		}
+		constraints[i] = *constraint
+	}
+
+	head, err := convertPredicate(r.Head)
+	if err != nil {
+		return nil, err
+	}
+
+	return &biscuit.Rule{
+		Head:        *head,
+		Body:        body,
+		Constraints: constraints,
+	}, nil
+}
+
+func convertQuery(q *Query) (*biscuit.Rule, error) {
+	body := make([]biscuit.Predicate, len(q.Body))
+	for i, p := range q.Body {
+		b, err := convertPredicate(p)
+		if err != nil {
+			return nil, err
+		}
+		body[i] = *b
+	}
+
+	constraints := make([]biscuit.Constraint, len(q.Constraints))
+	for i, c := range q.Constraints {
+		constraint, err := convertConstraint(c)
+		if err != nil {
+			return nil, err
+		}
+		constraints[i] = *constraint
+	}
+
+	return &biscuit.Rule{
+		Body:        body,
+		Constraints: constraints,
+	}, nil
 }
