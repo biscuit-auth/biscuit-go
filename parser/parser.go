@@ -16,7 +16,7 @@ var (
 	ErrVariableInFact = errors.New("parser: a fact cannot contain any variable")
 )
 
-var DefaultParserOptions = []participle.Option{
+var defaultParserOptions = []participle.Option{
 	participle.Lexer(lexer.DefaultDefinition),
 	participle.UseLookahead(3),
 }
