@@ -147,7 +147,8 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		pubKeys[i] = pubKey
 	}
 
-	signedBlocks := [][]byte{container.Authority}
+	signedBlocks := make([][]byte, 0, len(container.Blocks)+1)
+	signedBlocks = append(signedBlocks, container.Authority)
 	signedBlocks = append(signedBlocks, container.Blocks...)
 	if err := signature.Verify(pubKeys, signedBlocks); err != nil {
 		return nil, err
