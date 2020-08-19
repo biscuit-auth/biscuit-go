@@ -71,7 +71,7 @@ func ExampleBiscuit() {
 
 	fmt.Printf("Token1 length: %d\n", len(token))
 
-	deser, err := biscuit.DefaultUnmarshaler.Unmarshal(token)
+	deser, err := biscuit.Unmarshal(token)
 	if err != nil {
 		panic(fmt.Errorf("failed to deserialize biscuit: %v", err))
 	}
@@ -106,7 +106,7 @@ func ExampleBiscuit() {
 	fmt.Printf("Token2 length: %d\n", len(token2))
 
 	// Verify
-	b2, err = biscuit.DefaultUnmarshaler.Unmarshal(token2)
+	b2, err = biscuit.Unmarshal(token2)
 	if err != nil {
 		panic(fmt.Errorf("failed to deserialize token: %v", err))
 	}

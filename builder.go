@@ -110,11 +110,15 @@ type Unmarshaler struct {
 	Symbols *datalog.SymbolTable
 }
 
-var DefaultUnmarshaler = &Unmarshaler{Symbols: DefaultSymbolTable}
+var defaultUnmarshaler = &Unmarshaler{Symbols: DefaultSymbolTable}
+
+func Unmarshal(serialized []byte) (*Biscuit, error) {
+	return defaultUnmarshaler.Unmarshal(serialized)
+}
 
 func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 	if u.Symbols == nil {
-		return nil, errors.New("biscuit: unmarshaler require a symbol table")
+		return nil, errors.New("biscuit: unmarshaler requires a symbol table")
 	}
 
 	symbols := u.Symbols.Clone()

@@ -13,7 +13,7 @@ func TestSample1Basic(t *testing.T) {
 	token, err := ioutil.ReadFile("test1_basic.bc")
 	require.NoError(t, err)
 
-	b, err := biscuit.DefaultUnmarshaler.Unmarshal(token)
+	b, err := biscuit.Unmarshal(token)
 	require.NoError(t, err)
 
 	s, err := b.Serialize()
@@ -26,7 +26,7 @@ func TestInvalidSignature(t *testing.T) {
 	token, err := ioutil.ReadFile("test5_invalid_signature.bc")
 	require.NoError(t, err)
 
-	b, err := biscuit.DefaultUnmarshaler.Unmarshal(token)
+	b, err := biscuit.Unmarshal(token)
 	require.Equal(t, sig.ErrInvalidSignature, err)
 	require.Nil(t, b)
 }
