@@ -192,7 +192,13 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 	world := datalog.NewWorld()
 
 	idAuthority := symbols.Sym("authority")
+	if idAuthority == nil {
+		return nil, errors.New("biscuit: failed to generate world, missing 'authority' symbol in symbol table")
+	}
 	idAmbient := symbols.Sym("ambient")
+	if idAmbient == nil {
+		return nil, errors.New("biscuit: failed to generate world, missing 'ambient' symbol in symbol table")
+	}
 
 	for _, fact := range *b.authority.facts {
 		if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] == idAmbient {
