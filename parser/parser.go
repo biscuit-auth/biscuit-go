@@ -22,70 +22,43 @@ var defaultParserOptions = []participle.Option{
 }
 
 type Parser interface {
-	Fact() FactParser
-	Rule() RuleParser
-	Caveat() CaveatParser
+	Fact(fact string) (biscuit.Fact, error)
+	Rule(rule string) (biscuit.Rule, error)
+	Caveat(caveat string) (biscuit.Caveat, error)
+	Must() MustParser
 }
 
-type FactParser interface {
-	MustParse(fact string) biscuit.Fact
-	Parse(fact string) (biscuit.Fact, error)
-}
-
-type RuleParser interface {
-	MustParse(rule string) biscuit.Rule
-	Parse(rule string) (biscuit.Rule, error)
-}
-
-type CaveatParser interface {
-	MustParse(caveat string) biscuit.Caveat
-	Parse(caveat string) (biscuit.Caveat, error)
+type MustParser interface {
+	Fact(fact string) biscuit.Fact
+	Rule(rule string) biscuit.Rule
+	Caveat(caveat string) biscuit.Caveat
 }
 
 type parser struct {
-	factParser   FactParser
-	ruleParser   RuleParser
-	caveatParser CaveatParser
+	factParser   *participle.Parser
+	ruleParser   *participle.Parser
+	caveatParser *participle.Parser
 }
 
 var _ Parser = (*parser)(nil)
 
+type mustParser struct {
+	parser Parser
+}
+
+var _ MustParser = (*mustParser)(nil)
+
 func New() Parser {
 	return &parser{
-		factParser:   &factParser{participle.MustBuild(&Predicate{}, DefaultParserOptions...)},
-		ruleParser:   &ruleParser{participle.MustBuild(&Rule{}, DefaultParserOptions...)},
-		caveatParser: &caveatParser{participle.MustBuild(&Caveat{}, DefaultParserOptions...)},
+		factParser:   participle.MustBuild(&Predicate{}, defaultParserOptions...),
+		ruleParser:   participle.MustBuild(&Rule{}, defaultParserOptions...),
+		caveatParser: participle.MustBuild(&Caveat{}, defaultParserOptions...),
 	}
 }
 
-func (p *parser) Fact() FactParser {
-	return p.factParser
-}
-func (p *parser) Rule() RuleParser {
-	return p.ruleParser
-}
-func (p *parser) Caveat() CaveatParser {
-	return p.caveatParser
-}
-
-type factParser struct {
-	*participle.Parser
-}
-
-var _ FactParser = (*factParser)(nil)
-
-func (p *factParser) MustParse(fact string) biscuit.Fact {
-	f, err := p.Parse(fact)
-	if err != nil {
-		panic(err)
-	}
-
-	return f
-}
-
-func (p *factParser) Parse(fact string) (biscuit.Fact, error) {
+func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 	parsed := &Predicate{}
-	if err := p.ParseString(fact, parsed); err != nil {
+	if err := p.factParser.ParseString(fact, parsed); err != nil {
 		return biscuit.Fact{}, err
 	}
 
@@ -102,25 +75,9 @@ func (p *factParser) Parse(fact string) (biscuit.Fact, error) {
 
 	return biscuit.Fact{Predicate: *pred}, nil
 }
-
-type ruleParser struct {
-	*participle.Parser
-}
-
-var _ RuleParser = (*ruleParser)(nil)
-
-func (p *ruleParser) MustParse(rule string) biscuit.Rule {
-	r, err := p.Parse(rule)
-	if err != nil {
-		panic(err)
-	}
-
-	return r
-}
-
-func (p *ruleParser) Parse(rule string) (biscuit.Rule, error) {
+func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 	parsed := &Rule{}
-	if err := p.ParseString(rule, parsed); err != nil {
+	if err := p.ruleParser.ParseString(rule, parsed); err != nil {
 		return biscuit.Rule{}, err
 	}
 
@@ -131,25 +88,9 @@ func (p *ruleParser) Parse(rule string) (biscuit.Rule, error) {
 
 	return *r, nil
 }
-
-type caveatParser struct {
-	*participle.Parser
-}
-
-var _ CaveatParser = (*caveatParser)(nil)
-
-func (p *caveatParser) MustParse(caveat string) biscuit.Caveat {
-	c, err := p.Parse(caveat)
-	if err != nil {
-		panic(err)
-	}
-
-	return c
-}
-
-func (p *caveatParser) Parse(caveat string) (biscuit.Caveat, error) {
+func (p *parser) Caveat(caveat string) (biscuit.Caveat, error) {
 	parsed := &Caveat{}
-	if err := p.ParseString(caveat, parsed); err != nil {
+	if err := p.caveatParser.ParseString(caveat, parsed); err != nil {
 		return biscuit.Caveat{}, err
 	}
 
@@ -166,6 +107,37 @@ func (p *caveatParser) Parse(caveat string) (biscuit.Caveat, error) {
 	return biscuit.Caveat{
 		Queries: queries,
 	}, nil
+}
+
+func (p *parser) Must() MustParser {
+	return &mustParser{parser: p}
+}
+
+func (m *mustParser) Fact(fact string) biscuit.Fact {
+	f, err := m.parser.Fact(fact)
+	if err != nil {
+		panic(err)
+	}
+
+	return f
+}
+
+func (m *mustParser) Rule(rule string) biscuit.Rule {
+	r, err := m.parser.Rule(rule)
+	if err != nil {
+		panic(err)
+	}
+
+	return r
+}
+
+func (m *mustParser) Caveat(caveat string) biscuit.Caveat {
+	c, err := m.parser.Caveat(caveat)
+	if err != nil {
+		panic(err)
+	}
+
+	return c
 }
 
 func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
