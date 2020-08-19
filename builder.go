@@ -30,8 +30,8 @@ type builder struct {
 	symbolsStart int
 	symbols      *datalog.SymbolTable
 	facts        *datalog.FactSet
-	rules        []*datalog.Rule
-	caveats      []*datalog.Caveat
+	rules        []datalog.Rule
+	caveats      []datalog.Caveat
 	context      string
 }
 
@@ -73,12 +73,12 @@ func (b *builder) AddAuthorityRule(rule Rule) error {
 	}
 
 	dlRule := rule.convert(b.symbols)
-	b.rules = append(b.rules, &dlRule)
+	b.rules = append(b.rules, dlRule)
 	return nil
 }
 
 func (b *builder) AddAuthorityCaveat(rule Rule) error {
-	b.caveats = append(b.caveats, &datalog.Caveat{Queries: []datalog.Rule{rule.convert(b.symbols)}})
+	b.caveats = append(b.caveats, datalog.Caveat{Queries: []datalog.Rule{rule.convert(b.symbols)}})
 	return nil
 }
 
@@ -196,8 +196,8 @@ type blockBuilder struct {
 	symbolsStart int
 	symbols      *datalog.SymbolTable
 	facts        *datalog.FactSet
-	rules        []*datalog.Rule
-	caveats      []*datalog.Caveat
+	rules        []datalog.Rule
+	caveats      []datalog.Caveat
 	context      string
 }
 
@@ -223,14 +223,14 @@ func (b *blockBuilder) AddFact(fact Fact) error {
 
 func (b *blockBuilder) AddRule(rule Rule) error {
 	dlRule := rule.convert(b.symbols)
-	b.rules = append(b.rules, &dlRule)
+	b.rules = append(b.rules, dlRule)
 
 	return nil
 }
 
 func (b *blockBuilder) AddCaveat(caveat Caveat) error {
 	dlCaveat := caveat.convert(b.symbols)
-	b.caveats = append(b.caveats, &dlCaveat)
+	b.caveats = append(b.caveats, dlCaveat)
 
 	return nil
 }
@@ -241,12 +241,22 @@ func (b *blockBuilder) SetContext(context string) {
 
 func (b *blockBuilder) Build() *Block {
 	b.symbols = b.symbols.SplitOff(b.symbolsStart)
+
+	facts := make(datalog.FactSet, len(*b.facts))
+	copy(facts, *b.facts)
+
+	rules := make([]datalog.Rule, len(b.rules))
+	copy(rules, b.rules)
+
+	caveats := make([]datalog.Caveat, len(b.caveats))
+	copy(caveats, b.caveats)
+
 	return &Block{
 		index:   b.index,
-		symbols: b.symbols,
-		facts:   b.facts,
-		rules:   b.rules,
-		caveats: b.caveats,
+		symbols: b.symbols.Clone(),
+		facts:   &facts,
+		rules:   rules,
+		caveats: caveats,
 		context: b.context,
 	}
 }

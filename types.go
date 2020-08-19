@@ -26,8 +26,8 @@ type Block struct {
 	index   uint32
 	symbols *datalog.SymbolTable
 	facts   *datalog.FactSet
-	rules   []*datalog.Rule
-	caveats []*datalog.Caveat
+	rules   []datalog.Rule
+	caveats []datalog.Caveat
 	context string
 }
 
@@ -37,12 +37,12 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 	}
 	rules := make([]string, len(b.rules))
 	for i, r := range b.rules {
-		rules[i] = debug.Rule(*r)
+		rules[i] = debug.Rule(r)
 	}
 
 	caveats := make([]string, len(b.caveats))
 	for i, c := range b.caveats {
-		caveats[i] = debug.Caveat(*c)
+		caveats[i] = debug.Caveat(c)
 	}
 
 	return fmt.Sprintf(`Block[%d] {

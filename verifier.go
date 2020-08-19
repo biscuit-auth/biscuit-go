@@ -125,7 +125,7 @@ func (v *verifier) Verify() error {
 				}
 			}
 			if !successful {
-				errs = append(errs, fmt.Errorf("failed to verify block #%d caveat #%d: %s", bi, ci, debug.Caveat(*caveat)))
+				errs = append(errs, fmt.Errorf("failed to verify block #%d caveat #%d: %s", bi, ci, debug.Caveat(caveat)))
 			}
 		}
 	}

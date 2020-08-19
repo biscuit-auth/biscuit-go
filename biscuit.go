@@ -146,8 +146,8 @@ func (b *Biscuit) Verify(root sig.PublicKey) (Verifier, error) {
 	return NewVerifier(b)
 }
 
-func (b *Biscuit) Caveats() [][]*datalog.Caveat {
-	result := make([][]*datalog.Caveat, 0, len(b.blocks)+1)
+func (b *Biscuit) Caveats() [][]datalog.Caveat {
+	result := make([][]datalog.Caveat, 0, len(b.blocks)+1)
 	result = append(result, b.authority.caveats)
 	for _, block := range b.blocks {
 		result = append(result, block.caveats)
@@ -203,7 +203,7 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 	}
 
 	for _, rule := range b.authority.rules {
-		world.AddRule(*rule)
+		world.AddRule(rule)
 	}
 
 	for _, block := range b.blocks {
@@ -218,7 +218,7 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 			if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] == idAuthority || rule.Head.IDs[0] == idAmbient {
 				return nil, ErrInvalidBlockRule
 			}
-			world.AddRule(*rule)
+			world.AddRule(rule)
 		}
 	}
 

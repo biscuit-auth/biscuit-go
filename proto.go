@@ -43,12 +43,12 @@ func protoBlockToTokenBlock(input *pb.Block) *Block {
 		facts[i] = protoFactToTokenFact(pbFact)
 	}
 
-	rules := make([]*datalog.Rule, len(input.Rules))
+	rules := make([]datalog.Rule, len(input.Rules))
 	for i, pbRule := range input.Rules {
 		rules[i] = protoRuleToTokenRule(pbRule)
 	}
 
-	caveats := make([]*datalog.Caveat, len(input.Caveats))
+	caveats := make([]datalog.Caveat, len(input.Caveats))
 	for i, pbCaveat := range input.Caveats {
 		caveats[i] = protoCaveatToTokenCaveat(pbCaveat)
 	}
@@ -153,7 +153,7 @@ func protoIDToTokenID(input *pb.ID) datalog.ID {
 	return id
 }
 
-func tokenRuleToProtoRule(input *datalog.Rule) *pb.Rule {
+func tokenRuleToProtoRule(input datalog.Rule) *pb.Rule {
 	pbBody := make([]*pb.Predicate, len(input.Body))
 	for i, p := range input.Body {
 		pbBody[i] = tokenPredicateToProtoPredicate(p)
@@ -170,7 +170,7 @@ func tokenRuleToProtoRule(input *datalog.Rule) *pb.Rule {
 	}
 }
 
-func protoRuleToTokenRule(input *pb.Rule) *datalog.Rule {
+func protoRuleToTokenRule(input *pb.Rule) datalog.Rule {
 	body := make([]datalog.Predicate, len(input.Body))
 	for i, pb := range input.Body {
 		body[i] = protoPredicateToTokenPredicate(pb)
@@ -181,7 +181,7 @@ func protoRuleToTokenRule(input *pb.Rule) *datalog.Rule {
 		constraints[i] = protoConstraintToTokenConstraint(pbConstraint)
 	}
 
-	return &datalog.Rule{
+	return datalog.Rule{
 		Head:        protoPredicateToTokenPredicate(input.Head),
 		Body:        body,
 		Constraints: constraints,
@@ -577,10 +577,10 @@ func protoSignatureToTokenSignature(ps *pb.Signature) (*sig.TokenSignature, erro
 	return sig.Decode(ps.Parameters, ps.Z)
 }
 
-func tokenCaveatToProtoCaveat(input *datalog.Caveat) *pb.Caveat {
+func tokenCaveatToProtoCaveat(input datalog.Caveat) *pb.Caveat {
 	pbQueries := make([]*pb.Rule, len(input.Queries))
 	for i, query := range input.Queries {
-		pbQueries[i] = tokenRuleToProtoRule(&query)
+		pbQueries[i] = tokenRuleToProtoRule(query)
 	}
 
 	return &pb.Caveat{
@@ -588,13 +588,13 @@ func tokenCaveatToProtoCaveat(input *datalog.Caveat) *pb.Caveat {
 	}
 }
 
-func protoCaveatToTokenCaveat(input *pb.Caveat) *datalog.Caveat {
+func protoCaveatToTokenCaveat(input *pb.Caveat) datalog.Caveat {
 	queries := make([]datalog.Rule, len(input.Queries))
 	for i, query := range input.Queries {
-		queries[i] = *protoRuleToTokenRule(query)
+		queries[i] = protoRuleToTokenRule(query)
 	}
 
-	return &datalog.Caveat{
+	return datalog.Caveat{
 		Queries: queries,
 	}
 }
