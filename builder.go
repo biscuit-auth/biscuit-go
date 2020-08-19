@@ -54,7 +54,9 @@ func (b *builder) AddAuthorityFact(fact Fact) error {
 	if len(fact.Predicate.IDs) == 0 {
 		fact.Predicate.IDs = []Atom{SymbolAuthority}
 	} else if fact.Predicate.IDs[0] != SymbolAuthority {
-		fact.Predicate.IDs[0] = SymbolAuthority
+		atoms := make([]Atom, 1, len(fact.Predicate.IDs)+1)
+		atoms[0] = SymbolAuthority
+		fact.Predicate.IDs = append(atoms, fact.Predicate.IDs...)
 	}
 
 	dlFact := fact.convert(b.symbols)
@@ -69,7 +71,9 @@ func (b *builder) AddAuthorityRule(rule Rule) error {
 	if len(rule.Head.IDs) == 0 {
 		rule.Head.IDs = []Atom{SymbolAuthority}
 	} else if rule.Head.IDs[0] != SymbolAuthority {
-		rule.Head.IDs[0] = SymbolAuthority
+		atoms := make([]Atom, 1, len(rule.Head.IDs)+1)
+		atoms[0] = SymbolAuthority
+		rule.Head.IDs = append(atoms, rule.Head.IDs...)
 	}
 
 	dlRule := rule.convert(b.symbols)
