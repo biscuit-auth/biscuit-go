@@ -16,9 +16,9 @@ var (
 )
 
 type Builder interface {
-	AddAuthorityFact(fact *Fact) error
-	AddAuthorityRule(rule *Rule) error
-	AddAuthorityCaveat(rule *Rule) error
+	AddAuthorityFact(fact Fact) error
+	AddAuthorityRule(rule Rule) error
+	AddAuthorityCaveat(rule Rule) error
 	AddRight(resource, right string) error
 	Build() (*Biscuit, error)
 }
@@ -50,7 +50,7 @@ func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.Symbol
 	}
 }
 
-func (b *builder) AddAuthorityFact(fact *Fact) error {
+func (b *builder) AddAuthorityFact(fact Fact) error {
 	if len(fact.Predicate.IDs) == 0 {
 		fact.Predicate.IDs = []Atom{SymbolAuthority}
 	} else if fact.Predicate.IDs[0] != SymbolAuthority {
@@ -65,7 +65,7 @@ func (b *builder) AddAuthorityFact(fact *Fact) error {
 	return nil
 }
 
-func (b *builder) AddAuthorityRule(rule *Rule) error {
+func (b *builder) AddAuthorityRule(rule Rule) error {
 	if len(rule.Head.IDs) == 0 {
 		rule.Head.IDs = []Atom{SymbolAuthority}
 	} else if rule.Head.IDs[0] != SymbolAuthority {
@@ -77,13 +77,13 @@ func (b *builder) AddAuthorityRule(rule *Rule) error {
 	return nil
 }
 
-func (b *builder) AddAuthorityCaveat(rule *Rule) error {
+func (b *builder) AddAuthorityCaveat(rule Rule) error {
 	b.caveats = append(b.caveats, &datalog.Caveat{Queries: []datalog.Rule{rule.convert(b.symbols)}})
 	return nil
 }
 
 func (b *builder) AddRight(resource, right string) error {
-	return b.AddAuthorityFact(&Fact{
+	return b.AddAuthorityFact(Fact{
 		Predicate: Predicate{
 			Name: "right",
 			IDs: []Atom{

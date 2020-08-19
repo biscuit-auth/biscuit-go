@@ -14,7 +14,7 @@ func ExampleBiscuit() {
 
 	builder := biscuit.NewBuilder(rng, root)
 
-	err := builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+	err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Atom{
 			biscuit.Symbol("authority"),
@@ -25,7 +25,7 @@ func ExampleBiscuit() {
 	if err != nil {
 		panic(fmt.Errorf("failed to add authority facts: %v", err))
 	}
-	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Atom{
 			biscuit.Symbol("authority"),
@@ -36,7 +36,7 @@ func ExampleBiscuit() {
 	if err != nil {
 		panic(fmt.Errorf("failed to add authority facts: %v", err))
 	}
-	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Atom{
 			biscuit.Symbol("authority"),
@@ -47,7 +47,7 @@ func ExampleBiscuit() {
 	if err != nil {
 		panic(fmt.Errorf("failed to add authority facts: %v", err))
 	}
-	err = builder.AddAuthorityFact(&biscuit.Fact{biscuit.Predicate{
+	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Atom{
 			biscuit.Symbol("authority"),

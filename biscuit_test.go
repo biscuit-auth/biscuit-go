@@ -14,13 +14,13 @@ func TestBiscuit(t *testing.T) {
 
 	builder := NewBuilder(rng, root)
 
-	builder.AddAuthorityFact(&Fact{
+	builder.AddAuthorityFact(Fact{
 		Predicate: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), String("/a/file1"), Symbol("read")}},
 	})
-	builder.AddAuthorityFact(&Fact{
+	builder.AddAuthorityFact(Fact{
 		Predicate: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), String("/a/file1"), Symbol("write")}},
 	})
-	builder.AddAuthorityFact(&Fact{
+	builder.AddAuthorityFact(Fact{
 		Predicate: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), String("/a/file2"), Symbol("read")}},
 	})
 
