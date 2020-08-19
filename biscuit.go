@@ -65,14 +65,12 @@ func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authorit
 
 	container := &pb.Biscuit{
 		Authority: pbAuthority,
-		Blocks:    [][]byte{},
 		Keys:      [][]byte{root.Public().Bytes()},
 		Signature: tokenSignatureToProtoSignature(ts),
 	}
 
 	return &Biscuit{
 		authority: authority,
-		blocks:    []*Block{},
 		symbols:   symbols,
 		container: container,
 	}, nil
