@@ -141,6 +141,36 @@ func (s *TokenSignature) Verify(pubkeys []PublicKey, msgs [][]byte) error {
 	return nil
 }
 
+func (s *TokenSignature) Encode() ([][]byte, []byte) {
+	params := make([][]byte, len(s.Params))
+	for i, p := range s.Params {
+		params[i] = p.Encode([]byte{})
+	}
+
+	return params, s.Z.Encode([]byte{})
+}
+
+func Decode(params [][]byte, z []byte) (*TokenSignature, error) {
+	decodedParams := make([]*r255.Element, len(params))
+	for i, p := range params {
+		e := &r255.Element{}
+		if err := e.Decode(p); err != nil {
+			return nil, err
+		}
+		decodedParams[i] = e
+	}
+
+	decodedZ := &r255.Scalar{}
+	if err := decodedZ.Decode(z); err != nil {
+		return nil, err
+	}
+
+	return &TokenSignature{
+		Params: decodedParams,
+		Z:      decodedZ,
+	}, nil
+}
+
 func randomScalar(rng io.Reader) *r255.Scalar {
 	var k [64]byte
 	if rng == nil {

@@ -487,6 +487,15 @@ func (w *World) QueryRule(rule Rule) *FactSet {
 	return newFacts
 }
 
+func (w *World) Clone() *World {
+	newFacts := new(FactSet)
+	*newFacts = *w.facts
+	return &World{
+		facts: newFacts,
+		rules: append([]Rule{}, w.rules...),
+	}
+}
+
 type MatchedVariables map[Variable]*ID
 
 func (m MatchedVariables) Insert(k Variable, v ID) bool {
@@ -628,6 +637,52 @@ func (t *SymbolTable) Str(sym Symbol) string {
 		return fmt.Sprintf("<invalid symbol %d>", sym)
 	}
 	return (*t)[int(sym)]
+}
+
+func (t *SymbolTable) Clone() *SymbolTable {
+	newTable := *t
+	return &newTable
+}
+
+// SplitOff returns a newly allocated slice containing the elements in the range
+// [at, len). After the call, the receiver will be left containing
+// the elements [0, at) with its previous capacity unchanged.
+func (t *SymbolTable) SplitOff(at int) *SymbolTable {
+	if at > len(*t) {
+		panic("split index out of bound")
+	}
+
+	new := make(SymbolTable, len(*t)-at)
+	copy(new, (*t)[at:])
+
+	*t = (*t)[:at]
+
+	return &new
+}
+
+func (t *SymbolTable) Len() int {
+	return len(*t)
+}
+
+// IsDisjoint returns true if receiver has no elements in common with other.
+// This is equivalent to checking for an empty intersection.
+func (t *SymbolTable) IsDisjoint(other *SymbolTable) bool {
+	m := make(map[string]struct{}, len(*t))
+	for _, s := range *t {
+		m[s] = struct{}{}
+	}
+
+	for _, os := range *other {
+		if _, ok := m[os]; ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (t *SymbolTable) Extend(other *SymbolTable) {
+	*t = append(*t, *other...)
 }
 
 type SymbolDebugger struct {
