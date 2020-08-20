@@ -714,7 +714,7 @@ func (d SymbolDebugger) Rule(r Rule) string {
 		constraints[i] = c.String()
 	}
 
-	constraintStart := ""
+	var constraintStart string
 	if len(constraints) > 0 {
 		constraintStart = " @ "
 	}
