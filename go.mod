@@ -3,6 +3,7 @@ module github.com/flynn/biscuit-go
 go 1.14
 
 require (
+	github.com/alecthomas/participle v0.5.0
 	github.com/golang/protobuf v1.4.2
 	github.com/gtank/ristretto255 v0.1.2
 	github.com/stretchr/testify v1.6.1

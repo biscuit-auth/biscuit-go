@@ -1,3 +1,9 @@
 linters:
   disable:
     - errcheck # TODO: ignore hmac Write error and enable this
+
+
+linters-settings:
+  govet:
+    disable:
+      - structtag
