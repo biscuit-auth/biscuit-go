@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	ErrVariableInFact = errors.New("parser: a fact cannot contain any variable")
+	ErrVariableInFact = errors.New("parser: a fact cannot contain any variables")
 )
 
 var defaultParserOptions = []participle.Option{
@@ -75,6 +75,7 @@ func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 
 	return biscuit.Fact{Predicate: *pred}, nil
 }
+
 func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 	parsed := &Rule{}
 	if err := p.ruleParser.ParseString(rule, parsed); err != nil {
@@ -153,7 +154,7 @@ func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
 		case a.Variable != nil:
 			atoms = append(atoms, biscuit.Variable(*a.Variable))
 		default:
-			return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol or variable")
+			return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, or variable")
 		}
 	}
 
@@ -272,10 +273,10 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 				Not: c.Set.Not,
 			}
 		default:
-			return nil, errors.New("parser: unsupported set type, must be one of symbols, int or string")
+			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, or string")
 		}
 	default:
-		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string or set")
+		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, or set")
 	}
 	return constraint, nil
 }
