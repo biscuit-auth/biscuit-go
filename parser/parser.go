@@ -97,7 +97,7 @@ func (p *parser) Caveat(caveat string) (biscuit.Caveat, error) {
 
 	queries := make([]biscuit.Rule, len(parsed.Queries))
 	for i, q := range parsed.Queries {
-		query, err := convertQuery(q)
+		query, err := convertRule(q)
 		if err != nil {
 			return biscuit.Caveat{}, err
 		}
@@ -335,31 +335,6 @@ func convertRule(r *Rule) (*biscuit.Rule, error) {
 
 	return &biscuit.Rule{
 		Head:        *head,
-		Body:        body,
-		Constraints: constraints,
-	}, nil
-}
-
-func convertQuery(q *Query) (*biscuit.Rule, error) {
-	body := make([]biscuit.Predicate, len(q.Body))
-	for i, p := range q.Body {
-		b, err := convertPredicate(p)
-		if err != nil {
-			return nil, err
-		}
-		body[i] = *b
-	}
-
-	constraints := make([]biscuit.Constraint, len(q.Constraints))
-	for i, c := range q.Constraints {
-		constraint, err := convertConstraint(c)
-		if err != nil {
-			return nil, err
-		}
-		constraints[i] = *constraint
-	}
-
-	return &biscuit.Rule{
 		Body:        body,
 		Constraints: constraints,
 	}, nil

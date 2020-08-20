@@ -16,7 +16,7 @@ func TestGrammarPredicate(t *testing.T) {
 		Expected *Predicate
 	}{
 		{
-			Input: `resource(#ambient, 0?)`,
+			Input: `resource(#ambient, $0)`,
 			Expected: &Predicate{
 				Name: "resource",
 				IDs: []*Atom{
@@ -26,7 +26,7 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
-			Input: `resource(#ambient, 0?, #read)`,
+			Input: `resource(#ambient, $0, #read)`,
 			Expected: &Predicate{
 				Name: "resource",
 				IDs: []*Atom{
@@ -58,7 +58,7 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
-			Input: `right("/a/file1.txt", 1?)`,
+			Input: `right("/a/file1.txt", $1)`,
 			Expected: &Predicate{
 				Name: "right",
 				IDs: []*Atom{
@@ -88,7 +88,7 @@ func TestGrammarConstraint(t *testing.T) {
 		Expected *Constraint
 	}{
 		{
-			Input: `0? == 1`,
+			Input: `$0 == 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -100,7 +100,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `1? > 2`,
+			Input: `$1 > 2`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(1),
@@ -112,7 +112,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? >= 1`,
+			Input: `$0 >= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -124,7 +124,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? < 1`,
+			Input: `$0 < 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -136,7 +136,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? <= 1`,
+			Input: `$0 <= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -148,7 +148,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? in [1, 2, 3]`,
+			Input: `$0 in [1, 2, 3]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -160,7 +160,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? not in [4,5,6]`,
+			Input: `$0 not in [4,5,6]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -172,7 +172,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? == "abc"`,
+			Input: `$0 == "abc"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -184,7 +184,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `prefix(0?, "abc")`,
+			Input: `prefix($0, "abc")`,
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("prefix"),
@@ -194,7 +194,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `suffix(0?, "abc")`,
+			Input: `suffix($0, "abc")`,
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("suffix"),
@@ -204,7 +204,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `match(0?, "^abc[a-z]+$") `,
+			Input: `match($0, "^abc[a-z]+$") `,
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("match"),
@@ -214,7 +214,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? in ["abc", "def"]`,
+			Input: `$0 in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -226,7 +226,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? not in ["abc", "def"]`,
+			Input: `$0 not in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -238,7 +238,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? < "2006-01-02T15:04:05Z07:00"`,
+			Input: `$0 < "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -250,7 +250,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? > "2006-01-02T15:04:05Z07:00"`,
+			Input: `$0 > "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -262,7 +262,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? in [#a, #b, #c]`,
+			Input: `$0 in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -274,7 +274,7 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `0? not in [#a, #b, #c]`,
+			Input: `$0 not in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: ui32ptr(0),
@@ -307,7 +307,7 @@ func TestGrammarRule(t *testing.T) {
 		Expected *Rule
 	}{
 		{
-			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: "grandparent",
@@ -335,7 +335,7 @@ func TestGrammarRule(t *testing.T) {
 			},
 		},
 		{
-			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c), 0? > 42, prefix(1?, "test")`,
+			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: "grandparent",

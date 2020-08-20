@@ -29,7 +29,7 @@ func TestParserFact(t *testing.T) {
 			},
 		},
 		{
-			Input:         `right(#authority, "/a/file1.txt", 0?)`,
+			Input:         `right(#authority, "/a/file1.txt", $0)`,
 			ExpectFailure: true,
 			ExpectErr:     ErrVariableInFact,
 		},
@@ -69,7 +69,7 @@ func TestParseRule(t *testing.T) {
 		ExpectErr     error
 	}{
 		{
-			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c), 0? > 42, prefix(1?, "abc")`,
+			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "abc")`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
@@ -113,7 +113,7 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
-			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
@@ -142,7 +142,7 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
-			Input:         `grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
+			Input:         `*grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
 			ExpectFailure: true,
 		},
 		{
@@ -177,10 +177,14 @@ func TestParserCaveat(t *testing.T) {
 		ExpectErr     error
 	}{
 		{
-			Input: `[ ?- parent(#a, #b), parent(#b, #c), 0? in [1,2,3], ?- right(#read, "/a/file1.txt") ]`,
+			Input: `[ *caveat0($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3] || *caveat1() <- right(#read, "/a/file1.txt") ]`,
 			Expected: biscuit.Caveat{
 				Queries: []biscuit.Rule{
 					{
+						Head: biscuit.Predicate{
+							Name: "caveat0",
+							IDs:  []biscuit.Atom{biscuit.Variable(0)},
+						},
 						Body: []biscuit.Predicate{
 							{
 								Name: "parent",
@@ -207,6 +211,9 @@ func TestParserCaveat(t *testing.T) {
 						},
 					},
 					{
+						Head: biscuit.Predicate{
+							Name: "caveat1",
+						},
 						Body: []biscuit.Predicate{
 							{
 								Name: "right",
@@ -222,7 +229,7 @@ func TestParserCaveat(t *testing.T) {
 			},
 		},
 		{
-			Input:         `[ ?- parent(#a, #b), parent(#b, #c), 0? in [1,2,3]`,
+			Input:         `[ *caveat1($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3]`,
 			ExpectFailure: true,
 		},
 	}

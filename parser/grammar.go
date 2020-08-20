@@ -1,30 +1,25 @@
 package parser
 
 type Rule struct {
-	Head        *Predicate    `@@ "<" "-"`
+	Head        *Predicate    `"*" @@ "<" "-"`
 	Body        []*Predicate  `@@ ("," @@)*`
-	Constraints []*Constraint `("," @@)*`
+	Constraints []*Constraint `("@" @@ ("," @@)*)*`
 }
 
 type Predicate struct {
 	Name string  `@Ident`
-	IDs  []*Atom `"(" (@@ ("," @@)*)? ")"`
+	IDs  []*Atom `"(" (@@ ("," @@)*)* ")"`
 }
 
 type Caveat struct {
-	Queries []*Query `"[" @@ ("," @@)* "]"`
+	Queries []*Rule `"[" @@ ("|" "|" @@)* "]"`
 }
 
 type Atom struct {
 	Symbol   *string `"#" @Ident`
-	Variable *uint32 `| @Int "?" `
+	Variable *uint32 `| "$" @Int`
 	String   *string `| @String`
 	Integer  *int64  `| @Int`
-}
-
-type Query struct {
-	Body        []*Predicate  `"?" "-" @@ ("," @@)*`
-	Constraints []*Constraint `("," @@)*`
 }
 
 type Constraint struct {
@@ -33,7 +28,7 @@ type Constraint struct {
 }
 
 type VariableConstraint struct {
-	Variable *uint32           `@Int "?"`
+	Variable *uint32           `"$" @Int`
 	Date     *DateComparison   `((@@`
 	String   *StringComparison `| @@`
 	Int      *IntComparison    `| @@)`
@@ -42,7 +37,7 @@ type VariableConstraint struct {
 
 type FunctionConstraint struct {
 	Function *string `@( "prefix" | "suffix" | "match" ) "("`
-	Variable *uint32 `@Int "?" ","`
+	Variable *uint32 `"$" @Int ","`
 	Argument *string `@String ")"`
 }
 
