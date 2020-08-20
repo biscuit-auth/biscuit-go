@@ -3,14 +3,13 @@ package biscuit
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/flynn/biscuit-go/datalog"
 )
 
 var (
-	ErrMissingSymbols       = errors.New("biscuit: missing symbols")
-	ErrFailedVerifierCaveat = errors.New("biscuit: failed to verify verifier caveats")
-	ErrFailedBlockCaveat    = errors.New("biscuit: failed to verify block caveats")
+	ErrMissingSymbols = errors.New("biscuit: missing symbols")
 )
 
 type Verifier interface {
@@ -131,11 +130,11 @@ func (v *verifier) Verify() error {
 	}
 
 	if len(errs) > 0 {
-		var errMsg string
-		for _, e := range errs {
-			errMsg = fmt.Sprintf("%s %v, ", errMsg, e)
+		errMsg := make([]string, len(errs))
+		for i, e := range errs {
+			errMsg[i] = e.Error()
 		}
-		return fmt.Errorf("biscuit: verification failed: %s", errMsg)
+		return fmt.Errorf("biscuit: verification failed: %s", strings.Join(errMsg, ", "))
 	}
 
 	return nil

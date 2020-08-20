@@ -34,7 +34,7 @@ type Variable uint32
 func (Variable) Type() IDType { return IDTypeVariable }
 
 func (v Variable) String() string {
-	return fmt.Sprintf("%d?", v)
+	return fmt.Sprintf("$%d", v)
 }
 
 type Integer int64
@@ -714,7 +714,12 @@ func (d SymbolDebugger) Rule(r Rule) string {
 		constraints[i] = c.String()
 	}
 
-	return fmt.Sprintf("%s <- %s | %s", head, strings.Join(preds, " && "), strings.Join(constraints, " && "))
+	constraintStart := ""
+	if len(constraints) > 0 {
+		constraintStart = " @ "
+	}
+
+	return fmt.Sprintf("*%s <- %s%s%s", head, strings.Join(preds, ", "), constraintStart, strings.Join(constraints, ", "))
 }
 
 func (d SymbolDebugger) Caveat(c Caveat) string {
