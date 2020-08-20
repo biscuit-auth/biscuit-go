@@ -331,7 +331,7 @@ func (c Constraint) Check(name Variable, id ID) bool {
 }
 
 func (c Constraint) String() string {
-	return fmt.Sprintf("%v? %v", c.Name, c.Checker)
+	return fmt.Sprintf("%v %v", c.Name, c.Checker)
 }
 
 type Rule struct {
