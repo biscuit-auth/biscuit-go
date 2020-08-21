@@ -128,6 +128,46 @@ func TestSample9_ExpiredToken(t *testing.T) {
 	require.NoError(t, v.Verify())
 }
 
+func TestSample10_AuthorityRules(t *testing.T) {
+	token := loadSampleToken(t, "test10_authority_rules.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	v.AddOperation("read")
+	v.AddResource("file1")
+	v.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{
+			Name: "owner",
+			IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Symbol("alice"),
+				biscuit.String("file1"),
+			},
+		},
+	})
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddOperation("read")
+	v.AddOperation("write")
+	v.AddResource("file1")
+	v.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{
+			Name: "owner",
+			IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Symbol("alice"),
+				biscuit.String("file1"),
+			},
+		},
+	})
+	require.NoError(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
