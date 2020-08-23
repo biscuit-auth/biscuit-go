@@ -152,6 +152,21 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	require.NoError(t, v.Verify())
 
 	v.Reset()
+	v.AddOperation("write")
+	v.AddResource("file1")
+	v.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{
+			Name: "owner",
+			IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Symbol("alice"),
+				biscuit.String("file1"),
+			},
+		},
+	})
+	require.NoError(t, v.Verify())
+
+	v.Reset()
 	v.AddOperation("read")
 	v.AddOperation("write")
 	v.AddResource("file1")
@@ -166,6 +181,21 @@ func TestSample10_AuthorityRules(t *testing.T) {
 		},
 	})
 	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddOperation("delete")
+	v.AddResource("file1")
+	v.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{
+			Name: "owner",
+			IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Symbol("alice"),
+				biscuit.String("file1"),
+			},
+		},
+	})
+	require.Error(t, v.Verify())
 }
 
 func loadSampleToken(t *testing.T, path string) []byte {

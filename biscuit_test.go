@@ -136,6 +136,10 @@ func TestBiscuitRules(t *testing.T) {
 					{Name: "operation", IDs: []Atom{Symbol("ambient"), Variable(1)}},
 				},
 			},
+		},
+	})
+	block.AddCaveat(Caveat{
+		Queries: []Rule{
 			{
 				Head: Predicate{Name: "caveat2", IDs: []Atom{Variable(0)}},
 				Body: []Predicate{
@@ -169,5 +173,4 @@ func TestBiscuitRules(t *testing.T) {
 	fmt.Println(b2.String())
 
 	require.NoError(t, v.Verify())
-	t.Fail()
 }
