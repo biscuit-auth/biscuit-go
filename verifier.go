@@ -17,6 +17,7 @@ type Verifier interface {
 	AddResource(res string)
 	AddOperation(op string)
 	SetTime(t time.Time)
+	AddFact(fact Fact)
 	AddRule(rule Rule)
 	AddCaveat(caveat Caveat)
 	Verify() error
@@ -87,6 +88,10 @@ func (v *verifier) SetTime(t time.Time) {
 			},
 		},
 	}
+	v.world.AddFact(fact.convert(v.symbols))
+}
+
+func (v *verifier) AddFact(fact Fact) {
 	v.world.AddFact(fact.convert(v.symbols))
 }
 

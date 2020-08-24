@@ -350,6 +350,7 @@ func (e InvalidRuleError) Error() string {
 }
 
 func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
+	// extract all variables from the rule body
 	variables := make(MatchedVariables)
 	for _, p := range r.Body {
 		for _, id := range p.IDs {
@@ -551,20 +552,20 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, constrain
 
 func (c *Combinator) Combine() []map[Variable]*ID {
 	var variables []map[Variable]*ID
+	// Stop when no more predicates are available
 	if len(c.predicates) == 0 {
 		if vars := c.variables.Complete(); vars != nil {
 			variables = append(variables, vars)
 		}
 		return variables
 	}
-	if len(*c.currentFacts) == 0 {
-		return variables
-	}
 
 	for i, pred := range c.predicates {
-		for _, currentFact := range *c.currentFacts {
+		for ii, currentFact := range *c.currentFacts {
 			vars := c.variables.Clone()
 			matchIDs := true
+			// minLen is the smallest number of IDs
+			// between the predicate and the current fact
 			minLen := len(pred.IDs)
 			if l := len(currentFact.Predicate.IDs); l < minLen {
 				minLen = l
@@ -598,7 +599,11 @@ func (c *Combinator) Combine() []map[Variable]*ID {
 			if len(c.predicates) > i+1 {
 				next := NewCombinator(vars, c.predicates[i+1:], c.constraints, c.allFacts).Combine()
 				if len(next) == 0 {
-					return variables
+					// returns only if there is no more current facts, otherwise process next one
+					if ii == len(*c.currentFacts)-1 {
+						return variables
+					}
+					continue
 				}
 				variables = append(variables, next...)
 			} else {
