@@ -21,6 +21,7 @@ type Verifier interface {
 	AddRule(rule Rule)
 	AddCaveat(caveat Caveat)
 	Verify() error
+	Query(rule Rule) ([]Fact, error)
 	Reset()
 	PrintWorld() string
 }
@@ -158,6 +159,26 @@ func (v *verifier) Verify() error {
 	}
 
 	return nil
+}
+
+func (v *verifier) Query(rule Rule) ([]Fact, error) {
+	if err := v.world.Run(); err != nil {
+		return nil, err
+	}
+
+	facts := v.world.QueryRule(rule.convert(v.symbols))
+
+	result := make([]Fact, 0, len(*facts))
+	for _, fact := range *facts {
+		f, err := fromDatalogFact(v.symbols, fact)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, *f)
+	}
+
+	return result, nil
 }
 
 func (v *verifier) PrintWorld() string {

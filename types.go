@@ -71,6 +71,42 @@ func (f Fact) convert(symbols *datalog.SymbolTable) datalog.Fact {
 	}
 }
 
+func fromDatalogFact(symbols *datalog.SymbolTable, f datalog.Fact) (*Fact, error) {
+	pred, err := fromDatalogPredicate(symbols, f.Predicate)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Fact{
+		Predicate: *pred,
+	}, nil
+}
+
+func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*Predicate, error) {
+	atoms := make([]Atom, 0, len(p.IDs))
+	for _, a := range p.IDs {
+		switch a.Type() {
+		case datalog.IDTypeSymbol:
+			atoms = append(atoms, Symbol(a.(datalog.Symbol)))
+		case datalog.IDTypeVariable:
+			atoms = append(atoms, Variable(a.(datalog.Variable)))
+		case datalog.IDTypeInteger:
+			atoms = append(atoms, Integer(a.(datalog.Integer)))
+		case datalog.IDTypeString:
+			atoms = append(atoms, String(a.(datalog.String)))
+		case datalog.IDTypeDate:
+			atoms = append(atoms, Date(time.Unix(int64(a.(datalog.Date)), 0)))
+		default:
+			return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
+		}
+	}
+
+	return &Predicate{
+		Name: symbols.Str(p.Name),
+		IDs:  atoms,
+	}, nil
+}
+
 type Rule struct {
 	Head        Predicate
 	Body        []Predicate
