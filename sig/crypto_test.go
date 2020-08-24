@@ -2,10 +2,13 @@ package sig
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // The first 384 bytes from SeedableRng::seed_from_u64(0) so that we can test against biscuit-rust vectors
@@ -101,6 +104,63 @@ func TestChangeMessage(t *testing.T) {
 	t1.append(k3, m3)
 	if t1.verify() != ErrInvalidSignature {
 		t.Error("token should not verify")
+	}
+}
+
+func TestTokenSignatureEncodeDecode(t *testing.T) {
+	rng := rand.Reader
+	keypair := GenerateKeypair(rng)
+
+	ts := &TokenSignature{}
+	ts.Sign(rng, keypair, []byte("message"))
+
+	params, z := ts.Encode()
+
+	decodedTs, err := Decode(params, z)
+	require.NoError(t, err)
+
+	err = decodedTs.Verify([]PublicKey{keypair.Public()}, [][]byte{[]byte("message")})
+	require.NoError(t, err)
+}
+
+func TestTokenSignatureDecodeErrors(t *testing.T) {
+	tooShort := make([]byte, 31)
+	tooLong := make([]byte, 33)
+
+	testCases := []struct {
+		Desc        string
+		Params      [][]byte
+		Z           []byte
+		ExpectedErr error
+	}{
+		{
+			Desc:        "Z too short",
+			Z:           tooShort,
+			ExpectedErr: ErrInvalidZSize,
+		},
+		{
+			Desc:        "Z too big",
+			Z:           tooLong,
+			ExpectedErr: ErrInvalidZSize,
+		},
+		{
+			Desc:   "Param too short",
+			Params: [][]byte{tooShort},
+		},
+		{
+			Desc:   "Param too long",
+			Params: [][]byte{tooLong},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Desc, func(t *testing.T) {
+			_, err := Decode(testCase.Params, testCase.Z)
+			require.Error(t, err)
+			if testCase.ExpectedErr != nil {
+				require.Equal(t, testCase.ExpectedErr, err)
+			}
+		})
 	}
 }
 
