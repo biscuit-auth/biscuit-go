@@ -302,6 +302,43 @@ func TestSample13_BlockRules(t *testing.T) {
 	require.NoError(t, v.Verify())
 }
 
+func TestSample14_RegexConstraint(t *testing.T) {
+	token := loadSampleToken(t, "test14_regex_constraint.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	validFiles := []string{
+		"file1.txt",
+		"file1.txt.zip",
+		"file9000.txt",
+		"/dir/file000.txt",
+		"file000.txt/dir/",
+	}
+
+	for _, validFile := range validFiles {
+		v.Reset()
+		v.AddResource(validFile)
+		require.NoError(t, v.Verify())
+	}
+
+	invalidFiles := []string{
+		"file1",
+		"fileA.txt",
+		"fileA1.txt",
+		"file1.zip",
+	}
+
+	for _, invalidFile := range invalidFiles {
+		v.Reset()
+		v.AddResource(invalidFile)
+		require.Error(t, v.Verify())
+	}
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
