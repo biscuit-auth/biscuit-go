@@ -436,3 +436,18 @@ func TestNewErrors(t *testing.T) {
 		require.Equal(t, ErrInvalidAuthorityIndex, err)
 	})
 }
+
+func TestBiscuitVerifyErrors(t *testing.T) {
+	rng := rand.Reader
+	root := sig.GenerateKeypair(rng)
+
+	builder := NewBuilder(rng, root)
+	b, err := builder.Build()
+	require.NoError(t, err)
+
+	_, err = b.Verify(root.Public())
+	require.NoError(t, err)
+
+	_, err = b.Verify(sig.GenerateKeypair(rng).Public())
+	require.Error(t, err)
+}
