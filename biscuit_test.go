@@ -417,3 +417,22 @@ func TestAppendErrors(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestNewErrors(t *testing.T) {
+	rng := rand.Reader
+
+	t.Run("authority block symbols overlap", func(t *testing.T) {
+		_, err := New(rng, sig.GenerateKeypair(rng), &datalog.SymbolTable{"symbol1", "symbol2"}, &Block{
+			symbols: &datalog.SymbolTable{"symbol1"},
+		})
+		require.Equal(t, ErrSymbolTableOverlap, err)
+	})
+
+	t.Run("invalid authority block index", func(t *testing.T) {
+		_, err := New(rng, sig.GenerateKeypair(rng), &datalog.SymbolTable{"symbol1", "symbol2"}, &Block{
+			symbols: &datalog.SymbolTable{"symbol3"},
+			index:   1,
+		})
+		require.Equal(t, ErrInvalidAuthorityIndex, err)
+	})
+}
