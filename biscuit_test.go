@@ -373,3 +373,47 @@ func TestGenerateWorldErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestAppendErrors(t *testing.T) {
+	rng := rand.Reader
+	builder := NewBuilder(rng, sig.GenerateKeypair(rng))
+
+	t.Run("symbols overlap", func(t *testing.T) {
+		b, err := builder.Build()
+		require.NoError(t, err)
+
+		_, err = b.Append(rng, sig.GenerateKeypair(rng), &Block{
+			symbols: &datalog.SymbolTable{"authority"},
+		})
+		require.Equal(t, ErrSymbolTableOverlap, err)
+	})
+
+	t.Run("invalid block index", func(t *testing.T) {
+		b, err := builder.Build()
+		require.NoError(t, err)
+
+		_, err = b.Append(rng, sig.GenerateKeypair(rng), &Block{
+			symbols: &datalog.SymbolTable{},
+			index:   2,
+		})
+		require.Equal(t, ErrInvalidBlockIndex, err)
+	})
+
+	t.Run("biscuit is sealed", func(t *testing.T) {
+		b, err := builder.Build()
+		require.NoError(t, err)
+		_, err = b.Append(rng, sig.GenerateKeypair(rng), &Block{
+			symbols: &datalog.SymbolTable{},
+			facts:   &datalog.FactSet{},
+			index:   1,
+		})
+		require.NoError(t, err)
+
+		b.container = nil
+		_, err = b.Append(rng, sig.GenerateKeypair(rng), &Block{
+			symbols: &datalog.SymbolTable{},
+			index:   1,
+		})
+		require.Error(t, err)
+	})
+}
