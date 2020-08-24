@@ -164,6 +164,38 @@ func TestTokenSignatureDecodeErrors(t *testing.T) {
 	}
 }
 
+func TestTokenSignatureVerifyErrors(t *testing.T) {
+	rng := rand.Reader
+
+	t.Run("pubkey / msg count mismatch", func(t *testing.T) {
+		ts := &TokenSignature{}
+		require.Error(t, ts.Verify([]PublicKey{GenerateKeypair(rng).Public()}, [][]byte{[]byte("message1"), []byte("message2")}))
+	})
+
+	t.Run("params / msg count mismatch", func(t *testing.T) {
+		ts := &TokenSignature{}
+		kp1 := GenerateKeypair(rng)
+		msg1 := []byte("message1")
+		ts.Sign(rng, kp1, msg1)
+		require.Error(t, ts.Verify(
+			[]PublicKey{kp1.Public(), GenerateKeypair(rng).Public()},
+			[][]byte{msg1, []byte("message2")},
+		))
+	})
+
+	t.Run("no Z", func(t *testing.T) {
+		ts := &TokenSignature{}
+		kp1 := GenerateKeypair(rng)
+		msg1 := []byte("message1")
+		ts.Sign(rng, kp1, msg1)
+		ts.Z = nil
+		require.Error(t, ts.Verify(
+			[]PublicKey{kp1.Public()},
+			[][]byte{msg1},
+		))
+	})
+}
+
 func BenchmarkSign(b *testing.B) {
 	k := GenerateKeypair(nil)
 	b.ResetTimer()
