@@ -380,6 +380,24 @@ func TestSample15_MultiQueriesCaveats(t *testing.T) {
 	require.Error(t, v.Verify())
 }
 
+func TestSample16_CaveatHeadName(t *testing.T) {
+	token := loadSampleToken(t, "test16_caveat_head_name.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	require.Error(t, v.Verify())
+
+	v.Reset()
+	v.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("hello")}},
+	})
+	require.NoError(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
