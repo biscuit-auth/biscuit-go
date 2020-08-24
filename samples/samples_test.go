@@ -198,6 +198,49 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	require.Error(t, v.Verify())
 }
 
+func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
+	token := loadSampleToken(t, "test11_verifier_authority_caveats.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	verifierCaveat := biscuit.Caveat{
+		Queries: []biscuit.Rule{
+			{
+				Head: biscuit.Predicate{
+					Name: "caveat1",
+					IDs:  []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)},
+				},
+				Body: []biscuit.Predicate{
+					{Name: "right", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable(0), biscuit.Variable(1)}},
+					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0)}},
+					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(1)}},
+				},
+			},
+		},
+	}
+
+	v.AddOperation("read")
+	v.AddResource("file1")
+	v.AddCaveat(verifierCaveat)
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddOperation("write")
+	v.AddResource("file1")
+	v.AddCaveat(verifierCaveat)
+	require.Error(t, v.Verify())
+
+	v.Reset()
+	v.AddOperation("read")
+	v.AddResource("/another/file1")
+	v.AddCaveat(verifierCaveat)
+	require.Error(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
