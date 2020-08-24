@@ -285,5 +285,5 @@ type Date time.Time
 
 func (a Date) Type() AtomType { return AtomTypeDate }
 func (a Date) convert(symbols *datalog.SymbolTable) datalog.ID {
-	return datalog.String(time.Time(a).UnixNano())
+	return datalog.Date(time.Time(a).Unix())
 }

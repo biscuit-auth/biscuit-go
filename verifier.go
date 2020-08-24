@@ -3,21 +3,22 @@ package biscuit
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/flynn/biscuit-go/datalog"
 )
 
 var (
-	ErrMissingSymbols       = errors.New("biscuit: missing symbols")
-	ErrFailedVerifierCaveat = errors.New("biscuit: failed to verify verifier caveats")
-	ErrFailedBlockCaveat    = errors.New("biscuit: failed to verify block caveats")
+	ErrMissingSymbols = errors.New("biscuit: missing symbols")
 )
 
 type Verifier interface {
 	AddResource(res string)
 	AddOperation(op string)
-	AddRule(rule *Rule)
-	AddCaveat(caveat *Caveat)
+	SetTime(t time.Time)
+	AddRule(rule Rule)
+	AddCaveat(caveat Caveat)
 	Verify() error
 	Reset()
 	PrintWorld() string
@@ -29,7 +30,7 @@ type verifier struct {
 	baseSymbols *datalog.SymbolTable
 	world       *datalog.World
 	symbols     *datalog.SymbolTable
-	caveats     []*Caveat
+	caveats     []Caveat
 }
 
 var _ Verifier = (*verifier)(nil)
@@ -46,7 +47,7 @@ func NewVerifier(b *Biscuit) (Verifier, error) {
 		baseSymbols: b.symbols.Clone(),
 		world:       baseWorld.Clone(),
 		symbols:     b.symbols.Clone(),
-		caveats:     []*Caveat{},
+		caveats:     []Caveat{},
 	}, nil
 }
 
@@ -76,11 +77,24 @@ func (v *verifier) AddOperation(op string) {
 	v.world.AddFact(fact.convert(v.symbols))
 }
 
-func (v *verifier) AddRule(rule *Rule) {
+func (v *verifier) SetTime(t time.Time) {
+	fact := Fact{
+		Predicate: Predicate{
+			Name: "time",
+			IDs: []Atom{
+				Symbol("ambient"),
+				Date(t),
+			},
+		},
+	}
+	v.world.AddFact(fact.convert(v.symbols))
+}
+
+func (v *verifier) AddRule(rule Rule) {
 	v.world.AddRule(rule.convert(v.symbols))
 }
 
-func (v *verifier) AddCaveat(caveat *Caveat) {
+func (v *verifier) AddCaveat(caveat Caveat) {
 	v.caveats = append(v.caveats, caveat)
 }
 
@@ -131,11 +145,11 @@ func (v *verifier) Verify() error {
 	}
 
 	if len(errs) > 0 {
-		var errMsg string
-		for _, e := range errs {
-			errMsg = fmt.Sprintf("%s %v, ", errMsg, e)
+		errMsg := make([]string, len(errs))
+		for i, e := range errs {
+			errMsg[i] = e.Error()
 		}
-		return fmt.Errorf("biscuit: verification failed: %s", errMsg)
+		return fmt.Errorf("biscuit: verification failed: %s", strings.Join(errMsg, ", "))
 	}
 
 	return nil
@@ -150,7 +164,7 @@ func (v *verifier) PrintWorld() string {
 }
 
 func (v *verifier) Reset() {
-	v.caveats = []*Caveat{}
+	v.caveats = []Caveat{}
 	v.world = v.baseWorld.Clone()
 	v.symbols = v.baseSymbols.Clone()
 }

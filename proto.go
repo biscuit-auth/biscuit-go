@@ -194,6 +194,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 	switch input.Name.Type() {
 	case datalog.IDTypeDate:
 		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
 			Kind: pb.Constraint_DATE,
 			Date: tokenDateConstraintToProtoDateConstraint(input.Checker.(datalog.DateComparisonChecker)),
 		}
@@ -201,11 +202,13 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 		switch input.Checker.(type) {
 		case datalog.IntegerComparisonChecker:
 			pbConstraint = &pb.Constraint{
+				Id:   uint32(input.Name),
 				Kind: pb.Constraint_INT,
 				Int:  tokenIntConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerComparisonChecker)),
 			}
 		case datalog.IntegerInChecker:
 			pbConstraint = &pb.Constraint{
+				Id:   uint32(input.Name),
 				Kind: pb.Constraint_INT,
 				Int:  tokenIntInConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerInChecker)),
 			}
@@ -216,6 +219,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 		switch input.Checker.(type) {
 		case datalog.StringComparisonChecker:
 			pbConstraint = &pb.Constraint{
+				Id:   uint32(input.Name),
 				Kind: pb.Constraint_STRING,
 				Str:  tokenStrConstraintToProtoStrConstraint(input.Checker.(datalog.StringComparisonChecker)),
 			}
@@ -226,6 +230,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 			}
 		case *datalog.StringRegexpChecker:
 			pbConstraint = &pb.Constraint{
+				Id:   uint32(input.Name),
 				Kind: pb.Constraint_STRING,
 				Str: &pb.StringConstraint{
 					Kind:  pb.StringConstraint_REGEX,
@@ -237,6 +242,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 		}
 	case datalog.IDTypeSymbol:
 		pbConstraint = &pb.Constraint{
+			Id:     uint32(input.Name),
 			Kind:   pb.Constraint_SYMBOL,
 			Symbol: tokenSymbolConstraintToProtoSymbolConstraint(input.Checker.(datalog.SymbolInChecker)),
 		}
@@ -252,22 +258,22 @@ func protoConstraintToTokenConstraint(input *pb.Constraint) datalog.Constraint {
 	switch input.Kind {
 	case pb.Constraint_DATE:
 		constraint = datalog.Constraint{
-			Name:    datalog.Variable(datalog.IDTypeDate),
+			Name:    datalog.Variable(input.Id),
 			Checker: protoDateConstraintToTokenDateConstraint(input.Date),
 		}
 	case pb.Constraint_INT:
 		constraint = datalog.Constraint{
-			Name:    datalog.Variable(datalog.IDTypeInteger),
+			Name:    datalog.Variable(input.Id),
 			Checker: protoIntConstraintToTokenIntConstraint(input.Int),
 		}
 	case pb.Constraint_STRING:
 		constraint = datalog.Constraint{
-			Name:    datalog.Variable(datalog.IDTypeString),
+			Name:    datalog.Variable(input.Id),
 			Checker: protoStrConstraintToTokenStrConstraint(input.Str),
 		}
 	case pb.Constraint_SYMBOL:
 		constraint = datalog.Constraint{
-			Name:    datalog.Variable(datalog.IDTypeSymbol),
+			Name:    datalog.Variable(input.Id),
 			Checker: protoSymbolConstraintToTokenSymbolConstraint(input.Symbol),
 		}
 	default:

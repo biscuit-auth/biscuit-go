@@ -100,8 +100,11 @@ func (s *TokenSignature) Sign(rng io.Reader, k Keypair, msg []byte) *TokenSignat
 	return s
 }
 
-// ErrInvalidSignature indicates that signature verification failed.
-var ErrInvalidSignature = errors.New("sig: invalid signature")
+var (
+	// ErrInvalidSignature indicates that signature verification failed.
+	ErrInvalidSignature = errors.New("sig: invalid signature")
+	ErrInvalidZSize     = errors.New("sig: invalid Z size")
+)
 
 var ristrettoIdentity = r255.NewElement()
 
@@ -158,6 +161,11 @@ func Decode(params [][]byte, z []byte) (*TokenSignature, error) {
 			return nil, err
 		}
 		decodedParams[i] = e
+	}
+
+	// Avoid Decode panic
+	if len(z) != 32 {
+		return nil, ErrInvalidZSize
 	}
 
 	decodedZ := &r255.Scalar{}
