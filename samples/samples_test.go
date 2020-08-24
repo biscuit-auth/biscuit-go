@@ -241,6 +241,27 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 	require.Error(t, v.Verify())
 }
 
+func TestSample12_AuthorityCaveats(t *testing.T) {
+	token := loadSampleToken(t, "test12_authority_caveats.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	v.AddResource("file1")
+	require.NoError(t, v.Verify())
+
+	v.AddResource("file1")
+	v.AddOperation("anything")
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddResource("file2")
+	require.Error(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
