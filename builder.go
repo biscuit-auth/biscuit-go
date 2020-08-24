@@ -19,7 +19,6 @@ type Builder interface {
 	AddAuthorityFact(fact Fact) error
 	AddAuthorityRule(rule Rule) error
 	AddAuthorityCaveat(rule Rule) error
-	AddRight(resource, right string) error
 	Build() (*Biscuit, error)
 }
 
@@ -84,19 +83,6 @@ func (b *builder) AddAuthorityRule(rule Rule) error {
 func (b *builder) AddAuthorityCaveat(rule Rule) error {
 	b.caveats = append(b.caveats, datalog.Caveat{Queries: []datalog.Rule{rule.convert(b.symbols)}})
 	return nil
-}
-
-func (b *builder) AddRight(resource, right string) error {
-	return b.AddAuthorityFact(Fact{
-		Predicate: Predicate{
-			Name: "right",
-			IDs: []Atom{
-				SymbolAuthority,
-				String(resource),
-				Symbol(right),
-			},
-		},
-	})
 }
 
 func (b *builder) Build() (*Biscuit, error) {
