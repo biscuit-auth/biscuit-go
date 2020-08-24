@@ -262,6 +262,46 @@ func TestSample12_AuthorityCaveats(t *testing.T) {
 	require.Error(t, v.Verify())
 }
 
+func TestSample13_BlockRules(t *testing.T) {
+	token := loadSampleToken(t, "test13_block_rules.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	v.AddResource("file1")
+	v.SetTime(time.Now())
+	require.NoError(t, v.Verify())
+
+	file1ValidTime, err := time.Parse(time.RFC3339, "2030-12-31T12:59:59+00:00")
+	require.NoError(t, err)
+
+	v.Reset()
+	v.AddResource("file1")
+	v.SetTime(file1ValidTime)
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddResource("file1")
+	v.SetTime(file1ValidTime.Add(1 * time.Second))
+	require.Error(t, v.Verify())
+
+	v.Reset()
+	v.AddResource("file2")
+	v.SetTime(time.Now())
+	require.Error(t, v.Verify())
+
+	otherFileValidTime, err := time.Parse(time.RFC3339, "1999-12-31T12:59:59+00:00")
+	require.NoError(t, err)
+
+	v.Reset()
+	v.AddResource("file2")
+	v.SetTime(otherFileValidTime)
+	require.NoError(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
