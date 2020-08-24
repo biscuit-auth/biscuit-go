@@ -339,6 +339,47 @@ func TestSample14_RegexConstraint(t *testing.T) {
 	}
 }
 
+func TestSample15_MultiQueriesCaveats(t *testing.T) {
+	token := loadSampleToken(t, "test15_multi_queries_caveats.bc")
+
+	b, err := biscuit.Unmarshal(token)
+	require.NoError(t, err)
+
+	v, err := b.Verify(loadRootPublicKey(t))
+	require.NoError(t, err)
+
+	rule1 := biscuit.Rule{
+		Head: biscuit.Predicate{
+			Name: "test_must_be_present_authority",
+			IDs:  []biscuit.Atom{biscuit.Variable(0)},
+		},
+		Body: []biscuit.Predicate{
+			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable(0)}},
+		},
+	}
+
+	rule2 := biscuit.Rule{
+		Head: biscuit.Predicate{
+			Name: "test_must_be_present",
+			IDs:  []biscuit.Atom{biscuit.Variable(0)},
+		},
+		Body: []biscuit.Predicate{
+			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		},
+	}
+
+	v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule1, rule2}})
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule1}})
+	require.NoError(t, v.Verify())
+
+	v.Reset()
+	v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule2}})
+	require.Error(t, v.Verify())
+}
+
 func loadSampleToken(t *testing.T, path string) []byte {
 	token, err := ioutil.ReadFile(path)
 	require.NoError(t, err)
