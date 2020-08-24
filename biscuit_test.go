@@ -2,9 +2,9 @@ package biscuit
 
 import (
 	"crypto/rand"
-	"fmt"
 	"testing"
 
+	"github.com/flynn/biscuit-go/datalog"
 	"github.com/flynn/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
@@ -169,8 +169,207 @@ func TestBiscuitRules(t *testing.T) {
 		},
 	})
 
-	fmt.Println(v.PrintWorld())
-	fmt.Println(b2.String())
-
 	require.NoError(t, v.Verify())
+}
+
+func TestCheckRootKey(t *testing.T) {
+	rng := rand.Reader
+	root := sig.GenerateKeypair(rng)
+
+	builder := NewBuilder(rng, root)
+
+	b, err := builder.Build()
+	require.NoError(t, err)
+
+	require.NoError(t, b.checkRootKey(root.Public()))
+
+	notRoot := sig.GenerateKeypair(rng)
+	require.Equal(t, ErrUnknownPublicKey, b.checkRootKey(notRoot.Public()))
+
+	b.container.Keys = [][]byte{}
+	require.Equal(t, ErrEmptyKeys, b.checkRootKey(notRoot.Public()))
+}
+
+func TestGenerateWorld(t *testing.T) {
+	rng := rand.Reader
+	root := sig.GenerateKeypair(rng)
+
+	build := NewBuilder(rng, root)
+
+	authorityFact1 := Fact{Predicate: Predicate{Name: "fact1", IDs: []Atom{Symbol("authority"), String("file1")}}}
+	authorityFact2 := Fact{Predicate: Predicate{Name: "fact2", IDs: []Atom{Symbol("authority"), String("file2")}}}
+
+	authorityRule1 := Rule{
+		Head: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), Variable(1), Symbol("read")}},
+		Body: []Predicate{
+			{Name: "resource", IDs: []Atom{Symbol("ambient"), Variable(1)}},
+			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
+		},
+	}
+	authorityRule2 := Rule{
+		Head: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), Variable(1), Symbol("write")}},
+		Body: []Predicate{
+			{Name: "resource", IDs: []Atom{Symbol("ambient"), Variable(1)}},
+			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
+		},
+	}
+
+	build.AddAuthorityFact(authorityFact1)
+	build.AddAuthorityFact(authorityFact2)
+	build.AddAuthorityRule(authorityRule1)
+	build.AddAuthorityRule(authorityRule2)
+
+	b, err := build.Build()
+	require.NoError(t, err)
+
+	symbolTable := (build.(*builder)).symbols
+	world, err := b.generateWorld(DefaultSymbolTable)
+	require.NoError(t, err)
+
+	expectedWorld := datalog.NewWorld()
+	expectedWorld.AddFact(authorityFact1.convert(symbolTable))
+	expectedWorld.AddFact(authorityFact2.convert(symbolTable))
+	expectedWorld.AddRule(authorityRule1.convert(symbolTable))
+	expectedWorld.AddRule(authorityRule2.convert(symbolTable))
+	require.Equal(t, expectedWorld, world)
+
+	blockBuild := b.CreateBlock()
+	blockRule := Rule{
+		Head: Predicate{Name: "blockRule", IDs: []Atom{Variable(1)}},
+		Body: []Predicate{
+			{Name: "resource", IDs: []Atom{Symbol("ambient"), Variable(1)}},
+			{Name: "owner", IDs: []Atom{Symbol("ambient"), Symbol("alice"), Variable(1)}},
+		},
+	}
+	blockBuild.AddRule(blockRule)
+
+	blockFact := Fact{Predicate{Name: "resource", IDs: []Atom{String("file1")}}}
+	blockBuild.AddFact(blockFact)
+
+	b2, err := b.Append(rng, sig.GenerateKeypair(rng), blockBuild.Build())
+	require.NoError(t, err)
+
+	allSymbols := append(*symbolTable, *(blockBuild.(*blockBuilder)).symbols...)
+	world, err = b2.generateWorld(&allSymbols)
+	require.NoError(t, err)
+
+	expectedWorld = datalog.NewWorld()
+	expectedWorld.AddFact(authorityFact1.convert(&allSymbols))
+	expectedWorld.AddFact(authorityFact2.convert(&allSymbols))
+	expectedWorld.AddFact(blockFact.convert(&allSymbols))
+	expectedWorld.AddRule(authorityRule1.convert(&allSymbols))
+	expectedWorld.AddRule(authorityRule2.convert(&allSymbols))
+	expectedWorld.AddRule(blockRule.convert(&allSymbols))
+	require.Equal(t, expectedWorld, world)
+
+}
+
+func TestGenerateWorldErrors(t *testing.T) {
+	testCases := []struct {
+		Desc       string
+		Symbols    *datalog.SymbolTable
+		Facts      []Fact
+		BlockFacts []Fact
+		BlockRules []Rule
+	}{
+		{
+			Desc:    "missing authority symbol",
+			Symbols: &datalog.SymbolTable{},
+		},
+		{
+			Desc:    "missing ambient symbol",
+			Symbols: &datalog.SymbolTable{"authority"},
+		},
+		{
+			Desc:    "invalid ambient authority fact",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			Facts: []Fact{
+				{Predicate: Predicate{Name: "test", IDs: []Atom{Symbol("ambient"), Variable(0)}}},
+			},
+		},
+		{
+			Desc:    "empty authority fact",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			Facts: []Fact{
+				{Predicate: Predicate{Name: "test", IDs: []Atom{}}},
+			},
+		},
+		{
+			Desc:    "invalid block fact authority",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockFacts: []Fact{
+				{Predicate: Predicate{Name: "test", IDs: []Atom{Symbol("authority"), Variable(0)}}},
+			},
+		},
+		{
+			Desc:    "invalid block fact ambient",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockFacts: []Fact{
+				{Predicate: Predicate{Name: "test", IDs: []Atom{Symbol("ambient"), Variable(0)}}},
+			},
+		},
+		{
+			Desc:    "invalid block fact empty",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockFacts: []Fact{
+				{Predicate: Predicate{Name: "test", IDs: []Atom{}}},
+			},
+		},
+		{
+			Desc:    "invalid block rule authority",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockRules: []Rule{
+				{Head: Predicate{Name: "test", IDs: []Atom{Symbol("authority")}}},
+			},
+		},
+		{
+			Desc:    "invalid block rule ambient",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockRules: []Rule{
+				{Head: Predicate{Name: "test", IDs: []Atom{Symbol("ambient")}}},
+			},
+		},
+		{
+			Desc:    "invalid block rule empty",
+			Symbols: &datalog.SymbolTable{"authority", "ambient"},
+			BlockRules: []Rule{
+				{Head: Predicate{Name: "test", IDs: []Atom{}}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Desc, func(t *testing.T) {
+			rng := rand.Reader
+			root := sig.GenerateKeypair(rng)
+
+			builder := NewBuilder(rng, root)
+			b, err := builder.Build()
+			require.NoError(t, err)
+
+			facts := make(datalog.FactSet, 0, len(testCase.Facts))
+			for _, f := range testCase.Facts {
+				facts = append(facts, f.convert(testCase.Symbols))
+			}
+			b.authority.facts = &facts
+
+			blockFacts := make(datalog.FactSet, 0, len(testCase.BlockFacts))
+			for _, f := range testCase.BlockFacts {
+				blockFacts = append(blockFacts, f.convert(testCase.Symbols))
+			}
+
+			blockRules := make([]datalog.Rule, 0, len(testCase.BlockRules))
+			for _, r := range testCase.BlockRules {
+				blockRules = append(blockRules, r.convert(testCase.Symbols))
+			}
+
+			b.blocks = []*Block{{
+				facts: &blockFacts,
+				rules: blockRules,
+			}}
+
+			_, err = b.generateWorld(testCase.Symbols)
+			require.Error(t, err)
+		})
+	}
 }
