@@ -41,8 +41,7 @@ func TestSample1_Basic(t *testing.T) {
 }
 
 func TestSample2_DifferentRootKey(t *testing.T) {
-	token, err := ioutil.ReadFile("test2_different_root_key.bc")
-	require.NoError(t, err)
+	token := loadSampleToken(t, "test2_different_root_key.bc")
 
 	b, err := biscuit.Unmarshal(token)
 	require.NoError(t, err)
@@ -53,8 +52,7 @@ func TestSample2_DifferentRootKey(t *testing.T) {
 }
 
 func TestSample3_InvalidSignatureFormat(t *testing.T) {
-	token, err := ioutil.ReadFile("test3_invalid_signature_format.bc")
-	require.NoError(t, err)
+	token := loadSampleToken(t, "test3_invalid_signature_format.bc")
 
 	b, err := biscuit.Unmarshal(token)
 	require.Equal(t, sig.ErrInvalidZSize, err)
@@ -62,10 +60,9 @@ func TestSample3_InvalidSignatureFormat(t *testing.T) {
 }
 
 func TestSample4_RandomBlock(t *testing.T) {
-	token, err := ioutil.ReadFile("test4_random_block.bc")
-	require.NoError(t, err)
+	token := loadSampleToken(t, "test4_random_block.bc")
 
-	_, err = biscuit.Unmarshal(token)
+	_, err := biscuit.Unmarshal(token)
 	require.Equal(t, sig.ErrInvalidSignature, err)
 }
 
