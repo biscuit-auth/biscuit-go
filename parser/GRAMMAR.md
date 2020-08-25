@@ -22,32 +22,32 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 ### Integer:
 
-- Equal: `0? == 1`
-- Greater than: `0? > 1`
-- Greater than or equal: `0? >= 1`
-- Less than: `0? < 1`
-- Less than or equal: `0? <= 1`
-- In: `0? in [1, 2, 3]`
-- Not in: `0? not in [1, 2, 3]`
+- Equal: `$0 == 1`
+- Greater than: `$0 > 1`
+- Greater than or equal: `$0 >= 1`
+- Less than: `$0 < 1`
+- Less than or equal: `$0 <= 1`
+- In: `$0 in [1, 2, 3]`
+- Not in: `$0 not in [1, 2, 3]`
 
 ###  String
 
-- Equal: `0? == "abc"`
-- Starts with: `prefix(0?, "abc")`
-- Ends with: `suffix(0?, "abc")`
-- Regular expression: `match(0?, "^abc\s+def$") `
-- In: `0? in ["abc", "def"]`
-- Not in: `0? not in ["abc", "def"]`
+- Equal: `$0 == "abc"`
+- Starts with: `prefix($0, "abc")`
+- Ends with: `suffix($0, "abc")`
+- Regular expression: `match($0, "^abc\s+def$") `
+- In: `$0 in ["abc", "def"]`
+- Not in: `$0 not in ["abc", "def"]`
 
 ### Date
 
-- Before: `0? < "2006-01-02T15:04:05Z07:00"`
-- After: `0? > "2006-01-02T15:04:05Z07:00"`
+- Before: `$0 < "2006-01-02T15:04:05Z07:00"`
+- After: `$0 > "2006-01-02T15:04:05Z07:00"`
 
 ### Symbols
 
-- In:`0? in [#a, #b, #c]`
-- Not in:`0? not in [#a, #b, #c]`
+- In:`$0 in [#a, #b, #c]`
+- Not in:`$0 not in [#a, #b, #c]`
 
 ## Fact
 
@@ -58,7 +58,7 @@ A fact is a single predicate that does not contain any variables, e.g. `right(#a
 A rule is formed from a head, a body, and a list of constraints.
 The head is a single predicate, the body is a list of predicates, and followed by an optional list of constraints.
 
-It has the format: `*Head <- Body @ Conditions`
+It has the format: `*Head <- Body @ Constraints`
 
 e.g. `*right(#authority, $1, #read) <- resource(#ambient, $1), owner(#ambient, $0, $1) @ $0 == "username", prefix($1, "/home/username")`
 
