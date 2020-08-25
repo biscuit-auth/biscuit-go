@@ -1,6 +1,6 @@
 module github.com/flynn/biscuit-go
 
-go 1.14
+go 1.15
 
 require (
 	github.com/alecthomas/participle v0.6.0
