@@ -1,20 +1,25 @@
 package parser
 
 import (
+	"fmt"
+	"regexp"
 	"testing"
+	"time"
 
 	"github.com/flynn/biscuit-go"
 	"github.com/flynn/biscuit-go/datalog"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParserFact(t *testing.T) {
-	testCases := []struct {
-		Input         string
-		Expected      biscuit.Fact
-		ExpectFailure bool
-		ExpectErr     error
-	}{
+type testCase struct {
+	Input         string
+	Expected      interface{}
+	ExpectFailure bool
+	ExpectErr     error
+}
+
+func getFactTestCases() []testCase {
+	return []testCase{
 		{
 			Input: `right(#authority, "/a/file1.txt", #read)`,
 			Expected: biscuit.Fact{
@@ -42,32 +47,13 @@ func TestParserFact(t *testing.T) {
 			ExpectFailure: true,
 		},
 	}
-
-	p := New()
-	for _, testCase := range testCases {
-		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Fact(testCase.Input)
-			if testCase.ExpectFailure {
-				if testCase.ExpectErr != nil {
-					require.Equal(t, testCase.ExpectErr, err)
-				} else {
-					require.Error(t, err)
-				}
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, testCase.Expected, fact)
-			}
-		})
-	}
 }
 
-func TestParseRule(t *testing.T) {
-	testCases := []struct {
-		Input         string
-		Expected      biscuit.Rule
-		ExpectFailure bool
-		ExpectErr     error
-	}{
+func getRuleTestCases() []testCase {
+	t1 := time.Now()
+	t2 := time.Now().Add(2 * time.Second)
+
+	return []testCase{
 		{
 			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "abc")`,
 			Expected: biscuit.Rule{
@@ -142,6 +128,187 @@ func TestParseRule(t *testing.T) {
 			},
 		},
 		{
+			Input: fmt.Sprintf(`*rule1(#a) <- body1(#b) @ $0 > "%s", $0 < "%s"`, t1.Format(time.RFC3339), t2.Format(time.RFC3339)),
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.DateComparisonChecker{
+							Comparison: datalog.DateComparisonAfter,
+							Date:       biscuit.Date(time.Unix(t1.Unix(), 0)),
+						},
+					},
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.DateComparisonChecker{
+							Comparison: datalog.DateComparisonBefore,
+							Date:       biscuit.Date(time.Unix(t2.Unix(), 0)),
+						},
+					},
+				},
+			},
+		},
+		{
+			Input:         fmt.Sprintf(`*rule1(#a) <- body1(#b) @ $0 > "%s"`, t1.Format(time.RFC1123)),
+			ExpectFailure: true,
+		},
+		{
+			Input: `*rule1(#a) <- body1(#b) @ $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, $5 in [1, 2, 3], $6 not in [4,5,6]`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.IntegerComparisonChecker{
+							Comparison: datalog.IntegerComparisonGT,
+							Integer:    0,
+						},
+					},
+					{
+						Name: biscuit.Variable(1),
+						Checker: biscuit.IntegerComparisonChecker{
+							Comparison: datalog.IntegerComparisonLT,
+							Integer:    1,
+						},
+					},
+					{
+						Name: biscuit.Variable(2),
+						Checker: biscuit.IntegerComparisonChecker{
+							Comparison: datalog.IntegerComparisonGTE,
+							Integer:    2,
+						},
+					},
+					{
+						Name: biscuit.Variable(3),
+						Checker: biscuit.IntegerComparisonChecker{
+							Comparison: datalog.IntegerComparisonLTE,
+							Integer:    3,
+						},
+					},
+					{
+						Name: biscuit.Variable(4),
+						Checker: biscuit.IntegerComparisonChecker{
+							Comparison: datalog.IntegerComparisonEqual,
+							Integer:    4,
+						},
+					},
+					{
+						Name: biscuit.Variable(5),
+						Checker: biscuit.IntegerInChecker{
+							Set: map[biscuit.Integer]struct{}{1: {}, 2: {}, 3: {}},
+							Not: false,
+						},
+					},
+					{
+						Name: biscuit.Variable(6),
+						Checker: biscuit.IntegerInChecker{
+							Set: map[biscuit.Integer]struct{}{4: {}, 5: {}, 6: {}},
+							Not: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			Input: `*rule1(#a) <- body1(#b) @ $0 == "abc", prefix($1, "def"), suffix($2, "ghi"), match($3, "file[0-9]+.txt"), $4 in ["a","b"], $5 not in ["c", "d"]`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.StringComparisonChecker{
+							Comparison: datalog.StringComparisonEqual,
+							Str:        "abc",
+						},
+					},
+					{
+						Name: biscuit.Variable(1),
+						Checker: biscuit.StringComparisonChecker{
+							Comparison: datalog.StringComparisonPrefix,
+							Str:        "def",
+						},
+					},
+					{
+						Name: biscuit.Variable(2),
+						Checker: biscuit.StringComparisonChecker{
+							Comparison: datalog.StringComparisonSuffix,
+							Str:        "ghi",
+						},
+					},
+					{
+						Name:    biscuit.Variable(3),
+						Checker: biscuit.StringRegexpChecker(*regexp.MustCompile(`file[0-9]+.txt`)),
+					},
+					{
+						Name: biscuit.Variable(4),
+						Checker: biscuit.StringInChecker{
+							Set: map[biscuit.String]struct{}{"a": {}, "b": {}},
+							Not: false,
+						},
+					},
+					{
+						Name: biscuit.Variable(5),
+						Checker: biscuit.StringInChecker{
+							Set: map[biscuit.String]struct{}{"c": {}, "d": {}},
+							Not: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			Input: `*rule1(#a) <- body1(#b) @ $0 in [#a, #b], $1 not in [#c, #d]`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.SymbolInChecker{
+							Set: map[biscuit.Symbol]struct{}{"a": {}, "b": {}},
+							Not: false,
+						},
+					},
+					{
+						Name: biscuit.Variable(1),
+						Checker: biscuit.SymbolInChecker{
+							Set: map[biscuit.Symbol]struct{}{"c": {}, "d": {}},
+							Not: true,
+						},
+					},
+				},
+			},
+		},
+
+		{
 			Input:         `*grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
 			ExpectFailure: true,
 		},
@@ -150,32 +317,10 @@ func TestParseRule(t *testing.T) {
 			ExpectFailure: true,
 		},
 	}
-
-	p := New()
-	for _, testCase := range testCases {
-		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Rule(testCase.Input)
-			if testCase.ExpectFailure {
-				if testCase.ExpectErr != nil {
-					require.Equal(t, testCase.ExpectErr, err)
-				} else {
-					require.Error(t, err)
-				}
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, testCase.Expected, fact)
-			}
-		})
-	}
 }
 
-func TestParserCaveat(t *testing.T) {
-	testCases := []struct {
-		Input         string
-		Expected      biscuit.Caveat
-		ExpectFailure bool
-		ExpectErr     error
-	}{
+func getCaveatTestCases() []testCase {
+	return []testCase{
 		{
 			Input: `[ *caveat0($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3] || *caveat1() <- right(#read, "/a/file1.txt") ]`,
 			Expected: biscuit.Caveat{
@@ -233,11 +378,13 @@ func TestParserCaveat(t *testing.T) {
 			ExpectFailure: true,
 		},
 	}
+}
 
+func TestParserFact(t *testing.T) {
 	p := New()
-	for _, testCase := range testCases {
+	for _, testCase := range getFactTestCases() {
 		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Caveat(testCase.Input)
+			fact, err := p.Fact(testCase.Input)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -248,6 +395,94 @@ func TestParserCaveat(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, testCase.Expected, fact)
 			}
+		})
+	}
+}
+
+func TestParseRule(t *testing.T) {
+	p := New()
+	for _, testCase := range getRuleTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			rule, err := p.Rule(testCase.Input)
+			if testCase.ExpectFailure {
+				if testCase.ExpectErr != nil {
+					require.Equal(t, testCase.ExpectErr, err)
+				} else {
+					require.Error(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, testCase.Expected, rule)
+			}
+		})
+	}
+}
+
+func TestParserCaveat(t *testing.T) {
+	p := New()
+	for _, testCase := range getCaveatTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			caveat, err := p.Caveat(testCase.Input)
+			if testCase.ExpectFailure {
+				if testCase.ExpectErr != nil {
+					require.Equal(t, testCase.ExpectErr, err)
+				} else {
+					require.Error(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, testCase.Expected, caveat)
+			}
+		})
+	}
+}
+
+func TestMustParserFact(t *testing.T) {
+	p := New()
+	for _, testCase := range getFactTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			if testCase.ExpectFailure {
+				defer func() {
+					r := recover()
+					require.NotNil(t, r)
+				}()
+			}
+
+			fact := p.Must().Fact(testCase.Input)
+			require.Equal(t, testCase.Expected, fact)
+		})
+	}
+}
+
+func TestMustParseRule(t *testing.T) {
+	p := New()
+	for _, testCase := range getRuleTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			if testCase.ExpectFailure {
+				defer func() {
+					r := recover()
+					require.NotNil(t, r)
+				}()
+			}
+			rule := p.Must().Rule(testCase.Input)
+			require.Equal(t, testCase.Expected, rule)
+		})
+	}
+}
+
+func TestMustParserCaveat(t *testing.T) {
+	p := New()
+	for _, testCase := range getCaveatTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			if testCase.ExpectFailure {
+				defer func() {
+					r := recover()
+					require.NotNil(t, r)
+				}()
+			}
+
+			caveat := p.Must().Caveat(testCase.Input)
+			require.Equal(t, testCase.Expected, caveat)
 		})
 	}
 }
