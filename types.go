@@ -87,7 +87,7 @@ func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*P
 	for _, a := range p.IDs {
 		switch a.Type() {
 		case datalog.IDTypeSymbol:
-			atoms = append(atoms, Symbol(a.(datalog.Symbol)))
+			atoms = append(atoms, Symbol(symbols.Str(a.(datalog.Symbol))))
 		case datalog.IDTypeVariable:
 			atoms = append(atoms, Variable(a.(datalog.Variable)))
 		case datalog.IDTypeInteger:
