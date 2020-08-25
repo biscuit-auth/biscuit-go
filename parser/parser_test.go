@@ -50,8 +50,8 @@ func getFactTestCases() []testCase {
 }
 
 func getRuleTestCases() []testCase {
-	t1 := time.Now()
-	t2 := time.Now().Add(2 * time.Second)
+	t1, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	t2, _ := time.Parse(time.RFC3339, time.Now().Add(2*time.Second).Format(time.RFC3339))
 
 	return []testCase{
 		{
@@ -143,14 +143,14 @@ func getRuleTestCases() []testCase {
 						Name: biscuit.Variable(0),
 						Checker: biscuit.DateComparisonChecker{
 							Comparison: datalog.DateComparisonAfter,
-							Date:       biscuit.Date(time.Unix(t1.Unix(), 0)),
+							Date:       biscuit.Date(t1),
 						},
 					},
 					{
 						Name: biscuit.Variable(0),
 						Checker: biscuit.DateComparisonChecker{
 							Comparison: datalog.DateComparisonBefore,
-							Date:       biscuit.Date(time.Unix(t2.Unix(), 0)),
+							Date:       biscuit.Date(t2),
 						},
 					},
 				},
