@@ -167,7 +167,7 @@ type IntegerComparisonChecker struct {
 }
 
 func (c IntegerComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return &datalog.IntegerComparisonChecker{
+	return datalog.IntegerComparisonChecker{
 		Comparison: c.Comparison,
 		Integer:    c.Integer.convert(symbols).(datalog.Integer),
 	}
