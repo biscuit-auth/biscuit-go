@@ -653,16 +653,16 @@ func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) datal
 	case pb.BytesConstraint_IN:
 		set := make(map[string]struct{}, len(input.InSet))
 		for _, s := range input.InSet {
-			set[datalog.Bytes(s).String()] = struct{}{}
+			set[string(s)] = struct{}{}
 		}
 		checker = datalog.BytesInChecker{
 			Set: set,
 			Not: false,
 		}
 	case pb.BytesConstraint_NOT_IN:
-		set := make(map[string]struct{}, len(input.InSet))
+		set := make(map[string]struct{}, len(input.NotInSet))
 		for _, s := range input.InSet {
-			set[datalog.Bytes(s).String()] = struct{}{}
+			set[string(s)] = struct{}{}
 		}
 		checker = datalog.BytesInChecker{
 			Set: set,

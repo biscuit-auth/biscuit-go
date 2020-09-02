@@ -273,7 +273,7 @@ func TestBytes(t *testing.T) {
 	res = w.QueryRule(Rule{
 		Head:        Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
 		Body:        []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
-		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{Bytes(k1).String(): {}, Bytes(k3).String(): {}}, Not: false}}},
+		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{string(k1): {}, string(k3): {}}, Not: false}}},
 	})
 	expected = &FactSet{
 		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
@@ -286,7 +286,7 @@ func TestBytes(t *testing.T) {
 	res = w.QueryRule(Rule{
 		Head:        Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
 		Body:        []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
-		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{Bytes(k1).String(): {}}, Not: true}}},
+		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{string(k1): {}}, Not: true}}},
 	})
 	expected = &FactSet{
 		{Predicate{keyMatch, []ID{usr2, Bytes(k2)}}},

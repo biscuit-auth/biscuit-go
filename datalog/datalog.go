@@ -287,7 +287,7 @@ func (m BytesInChecker) Check(id ID) bool {
 		return false
 	}
 
-	_, match := m.Set[b.String()]
+	_, match := m.Set[string(b)]
 	return match == !m.Not
 }
 
