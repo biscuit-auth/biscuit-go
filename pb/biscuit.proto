@@ -55,6 +55,7 @@ message ID {
     INTEGER = 2;
     STR = 3;
     DATE = 4;
+    BYTES = 5;
   }
 
   Kind kind = 1;
@@ -63,6 +64,7 @@ message ID {
   int64 integer = 4;
   string str = 5;
   uint64 date = 6;
+  bytes bytes = 7;
 }
 
 message Constraint {
@@ -73,6 +75,7 @@ message Constraint {
     STRING = 1;
     DATE = 2;
     SYMBOL = 3;
+    BYTES = 4;
   }
 
   Kind kind = 2;
@@ -81,6 +84,7 @@ message Constraint {
   StringConstraint str = 4;
   DateConstraint date = 5;
   SymbolConstraint symbol = 6;
+  BytesConstraint bytes = 7;
 }
 
 message IntConstraint {
@@ -147,4 +151,18 @@ message SymbolConstraint {
 
   repeated uint64 in_set = 2;
   repeated uint64 not_in_set = 3;
+}
+
+message BytesConstraint {
+  enum Kind {
+    EQUAL = 0;
+    IN = 1;
+    NOT_IN = 2;
+  }
+
+  Kind kind = 1;
+
+  bytes equal = 2;
+  repeated bytes in_set = 3;
+  repeated bytes not_in_set = 4;
 }
