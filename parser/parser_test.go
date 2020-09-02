@@ -307,7 +307,57 @@ func getRuleTestCases() []testCase {
 				},
 			},
 		},
-
+		{
+			Input: `*rule1(#a) <- body1("hex:41414141") @ $0 in ["hex:41414141", "hex:42424242"], $1 not in ["hex:0000" "hex:ffff"]`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.BytesInChecker{
+							Set: map[string]struct{}{"AAAA": {}, "BBBB": {}},
+							Not: false,
+						},
+					},
+					{
+						Name: biscuit.Variable(1),
+						Checker: biscuit.BytesInChecker{
+							Set: map[string]struct{}{string([]byte{0x00, 0x00}): {}, string([]byte{0xFF, 0xFF}): {}},
+							Not: true,
+						},
+					},
+				},
+			},
+		},
+		{
+			Input: `*rule1(#a) <- body1("hex:41414141") @ $0 == "hex:41414141"`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.BytesComparisonChecker{
+							Comparison: datalog.BytesComparisonEqual,
+							Bytes:      []byte("AAAA"),
+						},
+					},
+				},
+			},
+		},
 		{
 			Input:         `*grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
 			ExpectFailure: true,

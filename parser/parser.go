@@ -153,8 +153,14 @@ func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
 			atoms = append(atoms, biscuit.Symbol(*a.Symbol))
 		case a.Variable != nil:
 			atoms = append(atoms, biscuit.Variable(*a.Variable))
+		case a.Bytes != nil:
+			b, err := a.Bytes.Decode()
+			if err != nil {
+				return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
+			}
+			atoms = append(atoms, biscuit.Bytes(b))
 		default:
-			return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, or variable")
+			return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
 		}
 	}
 
@@ -243,6 +249,20 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 			Comparison: datalog.StringComparisonEqual,
 			Str:        biscuit.String(*c.String.Target),
 		}
+	case c.Bytes != nil:
+		switch *c.Bytes.Operation {
+		case "==":
+			b, err := c.Bytes.Target.Decode()
+			if err != nil {
+				return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
+			}
+			constraint.Checker = biscuit.BytesComparisonChecker{
+				Comparison: datalog.BytesComparisonEqual,
+				Bytes:      biscuit.Bytes(b),
+			}
+		default:
+			return nil, fmt.Errorf("parser: unsupported bytes operation: %s", *c.Bytes.Operation)
+		}
 	case c.Set != nil:
 		switch {
 		case c.Set.Symbols != nil:
@@ -255,7 +275,7 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 				Not: c.Set.Not,
 			}
 		case c.Set.Int != nil:
-			set := make(map[biscuit.Integer]struct{}, len(c.Set.Symbols))
+			set := make(map[biscuit.Integer]struct{}, len(c.Set.Int))
 			for _, i := range c.Set.Int {
 				set[biscuit.Integer(i)] = struct{}{}
 			}
@@ -264,7 +284,7 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 				Not: c.Set.Not,
 			}
 		case c.Set.String != nil:
-			set := make(map[biscuit.String]struct{}, len(c.Set.Symbols))
+			set := make(map[biscuit.String]struct{}, len(c.Set.String))
 			for _, s := range c.Set.String {
 				set[biscuit.String(s)] = struct{}{}
 			}
@@ -272,11 +292,25 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 				Set: set,
 				Not: c.Set.Not,
 			}
+		case c.Set.Bytes != nil:
+			set := make(map[string]struct{}, len(c.Set.Bytes))
+			for _, s := range c.Set.Bytes {
+				b, err := s.Decode()
+				if err != nil {
+					return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
+				}
+				set[string(b)] = struct{}{}
+			}
+
+			constraint.Checker = biscuit.BytesInChecker{
+				Set: set,
+				Not: c.Set.Not,
+			}
 		default:
-			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, or string")
+			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
 		}
 	default:
-		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, or set")
+		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string bytes, or set")
 	}
 	return constraint, nil
 }

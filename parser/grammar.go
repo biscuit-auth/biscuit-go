@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/hex"
 	"strings"
 
 	"github.com/alecthomas/participle"
@@ -98,4 +99,8 @@ func (h *HexString) Parse(lex *lexer.PeekingLexer) error {
 	*h = HexString(strings.Replace(token.Value, "hex:", "", 1))
 
 	return nil
+}
+
+func (h *HexString) Decode() ([]byte, error) {
+	return hex.DecodeString(string(*h))
 }
