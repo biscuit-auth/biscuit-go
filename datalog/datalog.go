@@ -1,6 +1,8 @@
 package datalog
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
@@ -19,6 +21,7 @@ const (
 	IDTypeInteger
 	IDTypeString
 	IDTypeDate
+	IDTypeBytes
 )
 
 type ID interface {
@@ -55,6 +58,14 @@ func (Date) Type() IDType { return IDTypeDate }
 
 func (d Date) String() string {
 	return time.Unix(int64(d), 0).Format(time.RFC3339)
+}
+
+type Bytes []byte
+
+func (Bytes) Type() IDType { return IDTypeBytes }
+
+func (b Bytes) String() string {
+	return fmt.Sprintf("hex:%s", hex.EncodeToString(b))
 }
 
 type IntegerComparison byte
@@ -240,6 +251,58 @@ func (m DateComparisonChecker) String() string {
 	return fmt.Sprintf("%s %s", op, m.Date)
 }
 
+type BytesComparison byte
+
+const (
+	BytesComparisonEqual BytesComparison = iota
+)
+
+type BytesComparisonChecker struct {
+	Comparison BytesComparison
+	Bytes      []byte
+}
+
+func (m BytesComparisonChecker) Check(id ID) bool {
+	v, ok := id.(Bytes)
+	if !ok {
+		return false
+	}
+
+	switch m.Comparison {
+	case BytesComparisonEqual:
+		return bytes.Equal(m.Bytes, v)
+	default:
+		return false
+	}
+}
+
+type BytesInChecker struct {
+	Set map[string]struct{}
+	Not bool
+}
+
+func (m BytesInChecker) Check(id ID) bool {
+	b, ok := id.(Bytes)
+	if !ok {
+		return false
+	}
+
+	_, match := m.Set[b.String()]
+	return match == !m.Not
+}
+
+func (m BytesInChecker) String() string {
+	strs := make([]string, 0, len(m.Set))
+	for s := range m.Set {
+		strs = append(strs, fmt.Sprintf("%q", s))
+	}
+	prefix := ""
+	if m.Not {
+		prefix = "not "
+	}
+	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
+}
+
 type SymbolInChecker struct {
 	Set map[Symbol]struct{}
 	Not bool
@@ -280,8 +343,19 @@ func (p Predicate) Equal(p2 Predicate) bool {
 		return false
 	}
 	for i, id := range p.IDs {
-		if id != p2.IDs[i] {
-			return false
+		switch id.(type) {
+		case Bytes:
+			p2bytes, ok := p2.IDs[i].(Bytes)
+			if !ok {
+				return false
+			}
+			if !bytes.Equal(id.(Bytes), p2bytes) {
+				return false
+			}
+		default:
+			if id != p2.IDs[i] {
+				return false
+			}
 		}
 	}
 

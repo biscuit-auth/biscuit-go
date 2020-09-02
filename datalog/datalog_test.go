@@ -1,6 +1,7 @@
 package datalog
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"regexp"
 	"testing"
@@ -220,6 +221,79 @@ func TestDate(t *testing.T) {
 	expected = &FactSet{{Predicate{after, []ID{Date(t3.Unix()), def}}}}
 	if !expected.Equal(res) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
+	}
+}
+
+func TestBytes(t *testing.T) {
+	w := NewWorld()
+	syms := &SymbolTable{}
+	dbg := SymbolDebugger{syms}
+
+	k1 := make([]byte, 32)
+	_, err := rand.Read(k1)
+	if err != nil {
+		t.Fatalf("failed to create key: %v", err)
+	}
+
+	k2 := make([]byte, 32)
+	_, err = rand.Read(k2)
+	if err != nil {
+		t.Fatalf("failed to create key: %v", err)
+	}
+
+	k3 := make([]byte, 64)
+	_, err = rand.Read(k3)
+	if err != nil {
+		t.Fatalf("failed to create key: %v", err)
+	}
+
+	usr1 := syms.Insert("usr1")
+	usr2 := syms.Insert("usr2")
+	usr3 := syms.Insert("usr3")
+
+	key := syms.Insert("pkey")
+	keyMatch := syms.Insert("pkey match")
+
+	w.AddFact(Fact{Predicate{key, []ID{usr1, Bytes(k1)}}})
+	w.AddFact(Fact{Predicate{key, []ID{usr2, Bytes(k2)}}})
+	w.AddFact(Fact{Predicate{key, []ID{usr3, Bytes(k3)}}})
+
+	res := w.QueryRule(Rule{
+		Head:        Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
+		Body:        []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Constraints: []Constraint{{1, BytesComparisonChecker{BytesComparisonEqual, k1}}},
+	})
+	expected := &FactSet{
+		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
+	}
+	if !expected.Equal(res) {
+		t.Errorf("key equal query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
+	}
+
+	res = w.QueryRule(Rule{
+		Head:        Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
+		Body:        []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{Bytes(k1).String(): {}, Bytes(k3).String(): {}}, Not: false}}},
+	})
+	expected = &FactSet{
+		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
+		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
+	}
+	if !expected.Equal(res) {
+		t.Errorf("key in query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
+	}
+
+	res = w.QueryRule(Rule{
+		Head:        Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
+		Body:        []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Constraints: []Constraint{{1, BytesInChecker{Set: map[string]struct{}{Bytes(k1).String(): {}}, Not: true}}},
+	})
+	expected = &FactSet{
+		{Predicate{keyMatch, []ID{usr2, Bytes(k2)}}},
+		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
+	}
+	if !expected.Equal(res) {
+		t.Errorf("key not in query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 }
 
