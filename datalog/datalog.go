@@ -26,15 +26,18 @@ const (
 
 type ID interface {
 	Type() IDType
+	Equal(ID) bool
 }
 
 type Symbol uint64
 
-func (Symbol) Type() IDType { return IDTypeSymbol }
+func (Symbol) Type() IDType      { return IDTypeSymbol }
+func (v Symbol) Equal(t ID) bool { c, ok := t.(Symbol); return ok && v == c }
 
 type Variable uint32
 
-func (Variable) Type() IDType { return IDTypeVariable }
+func (Variable) Type() IDType      { return IDTypeVariable }
+func (v Variable) Equal(t ID) bool { c, ok := t.(Variable); return ok && v == c }
 
 func (v Variable) String() string {
 	return fmt.Sprintf("$%d", v)
@@ -42,11 +45,13 @@ func (v Variable) String() string {
 
 type Integer int64
 
-func (Integer) Type() IDType { return IDTypeInteger }
+func (Integer) Type() IDType      { return IDTypeInteger }
+func (v Integer) Equal(t ID) bool { c, ok := t.(Integer); return ok && v == c }
 
 type String string
 
-func (String) Type() IDType { return IDTypeString }
+func (String) Type() IDType      { return IDTypeString }
+func (v String) Equal(t ID) bool { c, ok := t.(String); return ok && v == c }
 
 func (s String) String() string {
 	return fmt.Sprintf("%q", string(s))
@@ -54,7 +59,8 @@ func (s String) String() string {
 
 type Date uint64
 
-func (Date) Type() IDType { return IDTypeDate }
+func (Date) Type() IDType      { return IDTypeDate }
+func (v Date) Equal(t ID) bool { c, ok := t.(Date); return ok && v == c }
 
 func (d Date) String() string {
 	return time.Unix(int64(d), 0).Format(time.RFC3339)
@@ -62,10 +68,11 @@ func (d Date) String() string {
 
 type Bytes []byte
 
-func (Bytes) Type() IDType { return IDTypeBytes }
+func (Bytes) Type() IDType      { return IDTypeBytes }
+func (v Bytes) Equal(t ID) bool { c, ok := t.(Bytes); return ok && bytes.Equal(v, c) }
 
 func (b Bytes) String() string {
-	return fmt.Sprintf("hex:%s", hex.EncodeToString(b))
+	return fmt.Sprintf("\"hex:%s\"", hex.EncodeToString(b))
 }
 
 type IntegerComparison byte
@@ -343,19 +350,8 @@ func (p Predicate) Equal(p2 Predicate) bool {
 		return false
 	}
 	for i, id := range p.IDs {
-		switch id.(type) {
-		case Bytes:
-			p2bytes, ok := p2.IDs[i].(Bytes)
-			if !ok {
-				return false
-			}
-			if !bytes.Equal(id.(Bytes), p2bytes) {
-				return false
-			}
-		default:
-			if id != p2.IDs[i] {
-				return false
-			}
+		if !id.Equal(p2.IDs[i]) {
+			return false
 		}
 	}
 
@@ -372,7 +368,7 @@ func (p Predicate) Match(p2 Predicate) bool {
 		if v1 || v2 {
 			continue
 		}
-		if id != p2.IDs[i] {
+		if !id.Equal(p2.IDs[i]) {
 			return false
 		}
 	}
@@ -579,7 +575,7 @@ func (m MatchedVariables) Insert(k Variable, v ID) bool {
 		m[k] = &v
 		return true
 	}
-	return *existing == v
+	return v.Equal(*existing)
 }
 
 func (m MatchedVariables) Complete() map[Variable]*ID {
@@ -616,7 +612,7 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, constrain
 	}
 	currentFacts := make(FactSet, 0, len(*allFacts))
 	for _, f := range *allFacts {
-		if f.Match(predicates[0]) {
+		if len(predicates) > 0 && f.Match(predicates[0]) {
 			currentFacts = append(currentFacts, f)
 		}
 	}
