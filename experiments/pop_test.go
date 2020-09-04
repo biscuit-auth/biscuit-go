@@ -21,21 +21,20 @@ func TestProofOfPossession(t *testing.T) {
 
 	// The server setup the facts allowing the client to know a signature
 	// is needed, and which alg / key / data he should use.
-	token := getServerToken(t, pubkey)
+	token, rootPubKey := getServerToken(t, pubkey)
 
 	// Client will check for should_sign facts, and generate
 	// matching signature facts containing the signed data
-	token = clientSign(t, pubkey, privkey, token)
-	t.Logf("final biscuit:\n%s", token.String())
+	token = clientSign(t, rootPubKey, pubkey, privkey, token)
 
 	// The verifier will extract "signature" fact added by the client
 	// verify it against the authority "should_sign" fact from the server
 	// and add the "valid_signature" fact when matching
 	// thus satisfying the authority caveat.
-	verifySignature(t, token)
+	verifySignature(t, rootPubKey, token)
 }
 
-func getServerToken(t *testing.T, pubkey ed25519.PublicKey) *biscuit.Biscuit {
+func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicKey) {
 	rng := rand.Reader
 	serverKey := sig.GenerateKeypair(rng)
 
@@ -82,11 +81,16 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) *biscuit.Biscuit {
 
 	t.Logf("server generated biscuit:\n%s", b.String())
 
-	return b
+	s, err := b.Serialize()
+	require.NoError(t, err)
+	return s, serverKey.Public()
 }
 
-func clientSign(t *testing.T, pubkey ed25519.PublicKey, privkey ed25519.PrivateKey, token *biscuit.Biscuit) *biscuit.Biscuit {
-	verifier, err := biscuit.NewVerifier(token)
+func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey, privkey ed25519.PrivateKey, b []byte) []byte {
+	token, err := biscuit.Unmarshal(b)
+	require.NoError(t, err)
+
+	verifier, err := token.Verify(rootPubkey)
 	require.NoError(t, err)
 
 	t.Logf("clientSign world:\n%s", verifier.PrintWorld())
@@ -163,11 +167,19 @@ func clientSign(t *testing.T, pubkey ed25519.PublicKey, privkey ed25519.PrivateK
 	token, err = token.Append(rng, clientKey, builder.Build())
 	require.NoError(t, err)
 
-	return token
+	t.Logf("final client biscuit:\n%s", token.String())
+
+	s, err := token.Serialize()
+	require.NoError(t, err)
+
+	return s
 }
 
-func verifySignature(t *testing.T, token *biscuit.Biscuit) {
-	verifier, err := biscuit.NewVerifier(token)
+func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
+	token, err := biscuit.Unmarshal(b)
+	require.NoError(t, err)
+
+	verifier, err := token.Verify(rootPubKey)
 	require.NoError(t, err)
 
 	t.Logf("verifySignature world before:\n%s", verifier.PrintWorld())
