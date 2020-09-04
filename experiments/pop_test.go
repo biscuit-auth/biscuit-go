@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"testing"
+	"time"
 
 	"github.com/flynn/biscuit-go"
 	"github.com/flynn/biscuit-go/sig"
@@ -25,6 +26,7 @@ func TestProofOfPossession(t *testing.T) {
 	// Client will check for should_sign facts, and generate
 	// matching signature facts containing the signed data
 	token = clientSign(t, pubkey, privkey, token)
+	t.Logf("final biscuit:\n%s", token.String())
 
 	// The verifier will extract "signature" fact added by the client
 	// verify it against the authority "should_sign" fact from the server
@@ -50,12 +52,17 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) *biscuit.Biscuit {
 		},
 	}})
 
+	staticCtx := []byte("biscuit-pop-v0")
+	challenge := make([]byte, 32)
+	_, err := rng.Read(challenge)
+	require.NoError(t, err)
+
 	// add "data(#authority, dataID, content)" fact holding the data to be signed
 	builder.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "data",
 		IDs: []biscuit.Atom{
 			biscuit.Integer(0),
-			biscuit.Bytes([]byte("sign this")),
+			biscuit.Bytes(append(staticCtx, challenge...)),
 		},
 	}})
 
@@ -116,11 +123,19 @@ func clientSign(t *testing.T, pubkey ed25519.PublicKey, privkey ed25519.PrivateK
 	t.Logf("already signed:\n%#v", alreadySigned)
 	require.Equal(t, 0, len(alreadySigned))
 
+	signerTimestamp := time.Now()
+	signerNonce := make([]byte, 32)
+	_, err = rand.Read(signerNonce)
+	require.NoError(t, err)
+
+	dataToSign := append(data, signerNonce...)
+	dataToSign = append(dataToSign, []byte(signerTimestamp.Format(time.RFC3339))...)
+
 	// Sign the data
 	var signedData biscuit.Bytes
 	switch alg {
 	case "ed25519":
-		signedData = ed25519.Sign(privkey, data)
+		signedData = ed25519.Sign(privkey, dataToSign)
 	default:
 		t.Fatalf("unsupported alg: %s", alg)
 	}
@@ -136,6 +151,13 @@ func clientSign(t *testing.T, pubkey ed25519.PublicKey, privkey ed25519.PrivateK
 	// not sure we need to repeat the pubkey here,
 	// since the one from the authority fact can be used for the verification.
 
+	// Add the anti replay data fact
+	err = builder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+		Name: "signer_data",
+		IDs:  []biscuit.Atom{biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
+	}})
+	require.NoError(t, err)
+
 	rng := rand.Reader
 	clientKey := sig.GenerateKeypair(rng)
 	token, err = token.Append(rng, clientKey, builder.Build())
@@ -150,13 +172,24 @@ func verifySignature(t *testing.T, token *biscuit.Biscuit) {
 
 	t.Logf("verifySignature world before:\n%s", verifier.PrintWorld())
 
-	// Generate "to_validate(dataID, alg, pubkey, data, signature)" facts from existing signatures
+	// Generate "to_validate(dataID, alg, pubkey, data, signerNonce, signerTimestamp, signature)" facts from existing signatures
 	toValidate, err := verifier.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "to_validate", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2), biscuit.Variable(3), biscuit.Variable(4)}},
+		Head: biscuit.Predicate{
+			Name: "to_validate",
+			IDs: []biscuit.Atom{
+				biscuit.Variable(0),
+				biscuit.Variable(1),
+				biscuit.Variable(2),
+				biscuit.Variable(3),
+				biscuit.Variable(4),
+				biscuit.Variable(5),
+				biscuit.Variable(6),
+			}},
 		Body: []biscuit.Predicate{
 			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(4)}},
+			{Name: "signer_data", IDs: []biscuit.Atom{biscuit.Variable(4), biscuit.Variable(5)}},
+			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(6)}},
 		},
 	})
 	require.NoError(t, err)
@@ -172,13 +205,21 @@ func verifySignature(t *testing.T, token *biscuit.Biscuit) {
 	require.True(t, ok)
 	data, ok := toValidate[0].IDs[3].(biscuit.Bytes)
 	require.True(t, ok)
-	signature, ok := toValidate[0].IDs[4].(biscuit.Bytes)
+	signerNonce, ok := toValidate[0].IDs[4].(biscuit.Bytes)
 	require.True(t, ok)
+	signerTimestamp, ok := toValidate[0].IDs[5].(biscuit.Date)
+	require.True(t, ok)
+	signature, ok := toValidate[0].IDs[6].(biscuit.Bytes)
+	require.True(t, ok)
+
+	// Reconstruct signed data with all the above properties
+	signedData := append(data, signerNonce...)
+	signedData = append(signedData, []byte(time.Time(signerTimestamp).Format(time.RFC3339))...)
 
 	validSignature := false
 	switch alg {
 	case "ed25519":
-		validSignature = ed25519.Verify(ed25519.PublicKey(pubkey), data, signature)
+		validSignature = ed25519.Verify(ed25519.PublicKey(pubkey), signedData, signature)
 	default:
 		t.Fatalf("unsupported alg: %s", alg)
 	}
