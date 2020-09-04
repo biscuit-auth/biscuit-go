@@ -132,7 +132,11 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	_, err = rand.Read(signerNonce)
 	require.NoError(t, err)
 
-	dataToSign := append(data, signerNonce...)
+	tokenHash, err := token.Sha256Sum(token.BlockCount())
+	require.NoError(t, err)
+
+	dataToSign := append(data, tokenHash...)
+	dataToSign = append(dataToSign, signerNonce...)
 	dataToSign = append(dataToSign, []byte(signerTimestamp.Format(time.RFC3339))...)
 
 	// Sign the data
@@ -224,8 +228,12 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	signature, ok := toValidate[0].IDs[6].(biscuit.Bytes)
 	require.True(t, ok)
 
+	signedTokenHash, err := token.Sha256Sum(token.BlockCount() - 1)
+	require.NoError(t, err)
+
 	// Reconstruct signed data with all the above properties
-	signedData := append(data, signerNonce...)
+	signedData := append(data, signedTokenHash...)
+	signedData = append(signedData, signerNonce...)
 	signedData = append(signedData, []byte(time.Time(signerTimestamp).Format(time.RFC3339))...)
 
 	validSignature := false
