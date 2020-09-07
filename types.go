@@ -1,8 +1,10 @@
 package biscuit
 
 import (
+	"encoding/hex"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/flynn/biscuit-go/datalog"
@@ -61,6 +63,22 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 	)
 }
 
+type FactSet []Fact
+
+func (fs FactSet) String() string {
+	out := make([]string, 0, len(fs))
+	for _, f := range fs {
+		out = append(out, f.String())
+	}
+
+	var outStr string
+	if len(out) > 0 {
+		outStr = fmt.Sprintf("\n\t%s\n", strings.Join(out, ",\n\t"))
+	}
+
+	return fmt.Sprintf("[%s]", outStr)
+}
+
 type Fact struct {
 	Predicate
 }
@@ -69,6 +87,9 @@ func (f Fact) convert(symbols *datalog.SymbolTable) datalog.Fact {
 	return datalog.Fact{
 		Predicate: f.Predicate.convert(symbols),
 	}
+}
+func (f Fact) String() string {
+	return f.Predicate.String()
 }
 
 func fromDatalogFact(symbols *datalog.SymbolTable, f datalog.Fact) (*Fact, error) {
@@ -298,6 +319,13 @@ func (p Predicate) convert(symbols *datalog.SymbolTable) datalog.Predicate {
 		IDs:  ids,
 	}
 }
+func (p Predicate) String() string {
+	atoms := make([]string, 0, len(p.IDs))
+	for _, a := range p.IDs {
+		atoms = append(atoms, a.String())
+	}
+	return fmt.Sprintf("%s(%s)", p.Name, strings.Join(atoms, ", "))
+}
 
 type AtomType byte
 
@@ -312,7 +340,7 @@ const (
 
 type Atom interface {
 	Type() AtomType
-
+	String() string
 	convert(symbols *datalog.SymbolTable) datalog.ID
 }
 
@@ -322,6 +350,7 @@ func (a Symbol) Type() AtomType { return AtomTypeSymbol }
 func (a Symbol) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Symbol(symbols.Insert(string(a)))
 }
+func (a Symbol) String() string { return fmt.Sprintf("#%s", string(a)) }
 
 type Variable uint32
 
@@ -329,6 +358,7 @@ func (a Variable) Type() AtomType { return AtomTypeVariable }
 func (a Variable) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Variable(a)
 }
+func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
 
 type Integer int64
 
@@ -336,6 +366,7 @@ func (a Integer) Type() AtomType { return AtomTypeInteger }
 func (a Integer) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Integer(a)
 }
+func (a Integer) String() string { return fmt.Sprintf("%d", int64(a)) }
 
 type String string
 
@@ -343,6 +374,7 @@ func (a String) Type() AtomType { return AtomTypeString }
 func (a String) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.String(a)
 }
+func (a String) String() string { return fmt.Sprintf("%q", string(a)) }
 
 type Date time.Time
 
@@ -350,10 +382,12 @@ func (a Date) Type() AtomType { return AtomTypeDate }
 func (a Date) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Date(time.Time(a).Unix())
 }
+func (a Date) String() string { return time.Time(a).Format(time.RFC3339) }
 
 type Bytes []byte
 
-func (b Bytes) Type() AtomType { return AtomTypeBytes }
-func (b Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
-	return datalog.Bytes(b)
+func (a Bytes) Type() AtomType { return AtomTypeBytes }
+func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
+	return datalog.Bytes(a)
 }
+func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }

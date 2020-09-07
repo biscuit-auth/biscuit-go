@@ -153,16 +153,15 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 
 	err = builder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
-		IDs:  []biscuit.Atom{dataID, alg /*biscuit.Bytes(pubkey),*/, signedData},
+		// Add back the pubkey so we can have multiple signatures across the same data
+		IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), signedData},
 	}})
 	require.NoError(t, err)
-	// not sure we need to repeat the pubkey here,
-	// since the one from the authority fact can be used for the verification.
 
 	// Add the anti replay data fact
 	err = builder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signer_data",
-		IDs:  []biscuit.Atom{biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
+		IDs:  []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
 	}})
 	require.NoError(t, err)
 
@@ -193,23 +192,23 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 		Head: biscuit.Predicate{
 			Name: "to_validate",
 			IDs: []biscuit.Atom{
-				biscuit.Variable(0),
-				biscuit.Variable(1),
-				biscuit.Variable(2),
-				biscuit.Variable(3),
-				biscuit.Variable(4),
-				biscuit.Variable(5),
-				biscuit.Variable(6),
+				biscuit.Variable(0), // dataID
+				biscuit.Variable(1), // alg
+				biscuit.Variable(2), // pubkey
+				biscuit.Variable(3), // data
+				biscuit.Variable(4), // signerNonce
+				biscuit.Variable(5), // signerTimestamp
+				biscuit.Variable(6), // signature
 			}},
 		Body: []biscuit.Predicate{
 			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signer_data", IDs: []biscuit.Atom{biscuit.Variable(4), biscuit.Variable(5)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(6)}},
+			{Name: "signer_data", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(4), biscuit.Variable(5)}},
+			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(6)}},
 		},
 	})
 	require.NoError(t, err)
-	t.Logf("to validate:\n%#v", toValidate)
+	t.Logf("to validate:\n%s", toValidate)
 	require.Equal(t, 1, len(toValidate))
 
 	// Extract data from the fact
