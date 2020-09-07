@@ -1,6 +1,7 @@
 package experiments
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"testing"
@@ -34,6 +35,8 @@ func TestProofOfPossession(t *testing.T) {
 	verifySignature(t, rootPubKey, token)
 }
 
+var signStaticCtx = []byte("biscuit-pop-v0")
+
 func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicKey) {
 	rng := rand.Reader
 	serverKey := sig.GenerateKeypair(rng)
@@ -51,7 +54,6 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 		},
 	}})
 
-	staticCtx := []byte("biscuit-pop-v0")
 	challenge := make([]byte, 16)
 	_, err := rng.Read(challenge)
 	require.NoError(t, err)
@@ -61,7 +63,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 		Name: "data",
 		IDs: []biscuit.Atom{
 			biscuit.Integer(0),
-			biscuit.Bytes(append(staticCtx, challenge...)),
+			biscuit.Bytes(append(signStaticCtx, challenge...)),
 		},
 	}})
 
@@ -115,6 +117,10 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	require.True(t, ok)
 	data, ok := toSign[0].IDs[2].(biscuit.Bytes)
 	require.True(t, ok)
+
+	// confirm that the data we're signing has the static context bytes to prevent key misuse,
+	// otherwise we could inadvertently sign something we didn't intend to.
+	require.True(t, bytes.Equal(signStaticCtx, data[:len(signStaticCtx)]))
 
 	// We have a "to_sign" fact, so we check if the token doesn't already hold a signature:
 	alreadySigned, err := verifier.Query(biscuit.Rule{
