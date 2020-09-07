@@ -160,9 +160,9 @@ func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
 }
 
-// Sha256Sum returns a hash of `count` biscuit blocks + the authority block
+// SHA256Sum returns a hash of `count` biscuit blocks + the authority block
 // along with their respective keys.
-func (b *Biscuit) Sha256Sum(count int) ([]byte, error) {
+func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("biscuit: invalid count,  %d < 0 ", count)
 	}

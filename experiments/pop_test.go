@@ -11,16 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The server knows the user public key, and want him to sign
-// something, in order to prove he holds the matching private key.
+// The server knows the user public key, and want them to sign
+// something, in order to prove they hold the matching private key.
 func TestProofOfPossession(t *testing.T) {
 	// The pubkey is known to the server, and the privkey held by the client
-	// We want the server to know that the client hold the privkey.
+	// We want the server to know that the client holds the privkey.
 	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	// The server setup the facts allowing the client to know a signature
-	// is needed, and which alg / key / data he should use.
+	// is needed, and which alg / key / data they should use.
 	token, rootPubKey := getServerToken(t, pubkey)
 
 	// Client will check for should_sign facts, and generate
@@ -40,7 +40,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 
 	builder := biscuit.NewBuilder(rng, serverKey)
 
-	// add "should_sign(#authority, dataID, alg, pubkey)" fact requesting the client to sign the data
+	// add "should_sign(#authority, dataID, alg, pubkey)" fact requesting the client sign the data
 	// with specified alg and the matching private key
 	builder.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "should_sign",
@@ -132,7 +132,7 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	_, err = rand.Read(signerNonce)
 	require.NoError(t, err)
 
-	tokenHash, err := token.Sha256Sum(token.BlockCount())
+	tokenHash, err := token.SHA256Sum(token.BlockCount())
 	require.NoError(t, err)
 
 	dataToSign := append(data, tokenHash...)
@@ -228,7 +228,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	signature, ok := toValidate[0].IDs[6].(biscuit.Bytes)
 	require.True(t, ok)
 
-	signedTokenHash, err := token.Sha256Sum(token.BlockCount() - 1)
+	signedTokenHash, err := token.SHA256Sum(token.BlockCount() - 1)
 	require.NoError(t, err)
 
 	// Reconstruct signed data with all the above properties
