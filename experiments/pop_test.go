@@ -52,7 +52,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	}})
 
 	staticCtx := []byte("biscuit-pop-v0")
-	challenge := make([]byte, 32)
+	challenge := make([]byte, 16)
 	_, err := rng.Read(challenge)
 	require.NoError(t, err)
 
@@ -128,7 +128,7 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	require.Equal(t, 0, len(alreadySigned))
 
 	signerTimestamp := time.Now()
-	signerNonce := make([]byte, 32)
+	signerNonce := make([]byte, 16)
 	_, err = rand.Read(signerNonce)
 	require.NoError(t, err)
 
