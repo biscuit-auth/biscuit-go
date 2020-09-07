@@ -358,7 +358,7 @@ func (a Variable) Type() AtomType { return AtomTypeVariable }
 func (a Variable) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Variable(a)
 }
-func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
+func (a Variable) String() string { return fmt.Sprintf("$%d", a) }
 
 type Integer int64
 
@@ -366,7 +366,7 @@ func (a Integer) Type() AtomType { return AtomTypeInteger }
 func (a Integer) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Integer(a)
 }
-func (a Integer) String() string { return fmt.Sprintf("%d", int64(a)) }
+func (a Integer) String() string { return fmt.Sprintf("%d", a) }
 
 type String string
 
