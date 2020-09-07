@@ -451,3 +451,49 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	_, err = b.Verify(sig.GenerateKeypair(rng).Public())
 	require.Error(t, err)
 }
+
+func TestBiscuitSha256Sum(t *testing.T) {
+	rng := rand.Reader
+	root := sig.GenerateKeypair(rng)
+
+	builder := NewBuilder(rng, root)
+	b, err := builder.Build()
+	require.NoError(t, err)
+
+	require.Equal(t, 0, b.BlockCount())
+	h0, err := b.SHA256Sum(0)
+	require.NoError(t, err)
+	require.NotEmpty(t, h0)
+
+	_, err = b.SHA256Sum(1)
+	require.Error(t, err)
+	_, err = b.SHA256Sum(-1)
+	require.Error(t, err)
+
+	blockBuilder := b.CreateBlock()
+	b, err = b.Append(rng, root, blockBuilder.Build())
+	require.NoError(t, err)
+	require.Equal(t, 1, b.BlockCount())
+
+	h10, err := b.SHA256Sum(0)
+	require.NoError(t, err)
+	require.Equal(t, h0, h10)
+	h11, err := b.SHA256Sum(1)
+	require.NoError(t, err)
+	require.NotEmpty(t, h11)
+
+	blockBuilder = b.CreateBlock()
+	b, err = b.Append(rng, root, blockBuilder.Build())
+	require.NoError(t, err)
+	require.Equal(t, 2, b.BlockCount())
+
+	h20, err := b.SHA256Sum(0)
+	require.NoError(t, err)
+	require.Equal(t, h0, h20)
+	h21, err := b.SHA256Sum(1)
+	require.NoError(t, err)
+	require.Equal(t, h11, h21)
+	h22, err := b.SHA256Sum(2)
+	require.NoError(t, err)
+	require.NotEmpty(t, h22)
+}

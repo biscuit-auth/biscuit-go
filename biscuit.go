@@ -3,6 +3,7 @@ package biscuit
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -157,6 +158,38 @@ func (b *Biscuit) Caveats() [][]datalog.Caveat {
 
 func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
+}
+
+// SHA256Sum returns a hash of `count` biscuit blocks + the authority block
+// along with their respective keys.
+func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("biscuit: invalid count,  %d < 0 ", count)
+	}
+	if g, w := count, len(b.container.Blocks); g > w {
+		return nil, fmt.Errorf("biscuit: invalid count,  %d > %d", g, w)
+	}
+
+	h := sha256.New()
+	if _, err := h.Write(b.container.Authority); err != nil {
+		return nil, err
+	}
+	for _, block := range b.container.Blocks[:count] {
+		if _, err := h.Write(block); err != nil {
+			return nil, err
+		}
+	}
+	for _, key := range b.container.Keys[:count+1] { // +1 for the root key
+		if _, err := h.Write(key); err != nil {
+			return nil, err
+		}
+	}
+
+	return h.Sum(nil), nil
+}
+
+func (b *Biscuit) BlockCount() int {
+	return len(b.container.Blocks)
 }
 
 func (b *Biscuit) String() string {
