@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Atom
 
-Represents a Datalog type, can be one of: symbol, variable, integer, string, date or bytes.
+Represents a Datalog type, can be one of: symbol, variable, integer, string, date, or bytes.
 
 - symbol is prefixed with a `#` sign followed by text, e.g. `#read`
 - variable is prefixed with a `$` sign followed by an unsigned 32bit base-10 integer,  e.g. `$0`

@@ -96,7 +96,7 @@ func (h *HexString) Parse(lex *lexer.PeekingLexer) error {
 		return err
 	}
 
-	*h = HexString(strings.Replace(token.Value, "hex:", "", 1))
+	*h = HexString(strings.TrimPrefix(token.Value, "hex:"))
 
 	return nil
 }

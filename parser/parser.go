@@ -310,7 +310,7 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
 		}
 	default:
-		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string bytes, or set")
+		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, bytes, or set")
 	}
 	return constraint, nil
 }

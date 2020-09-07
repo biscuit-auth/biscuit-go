@@ -622,7 +622,7 @@ func tokenBytesInConstraintToProtoBytesConstraint(input datalog.BytesInChecker) 
 	for e := range input.Set {
 		b, err := hex.DecodeString(e)
 		if err != nil {
-			panic(fmt.Sprintf("failed to decode hex string '%s': %v", e, err))
+			panic(fmt.Sprintf("failed to decode hex string %q: %v", e, err))
 		}
 		pbSet = append(pbSet, b)
 	}
