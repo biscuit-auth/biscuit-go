@@ -1,6 +1,7 @@
 package biscuit
 
 import (
+	"encoding/hex"
 	"fmt"
 	"regexp"
 
@@ -127,6 +128,11 @@ func tokenIDToProtoID(input datalog.ID) *pb.ID {
 			Kind:     pb.ID_VARIABLE,
 			Variable: uint32(input.(datalog.Variable)),
 		}
+	case datalog.IDTypeBytes:
+		pbId = &pb.ID{
+			Kind:  pb.ID_BYTES,
+			Bytes: input.(datalog.Bytes),
+		}
 	default:
 		panic(fmt.Sprintf("unsupported id type: %v", input.Type()))
 	}
@@ -146,6 +152,8 @@ func protoIDToTokenID(input *pb.ID) datalog.ID {
 		id = datalog.Symbol(input.Symbol)
 	case pb.ID_VARIABLE:
 		id = datalog.Variable(input.Variable)
+	case pb.ID_BYTES:
+		id = datalog.Bytes(input.Bytes)
 	default:
 		panic(fmt.Sprintf("unsupported id kind: %v", input.Kind))
 	}
@@ -246,6 +254,23 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 			Kind:   pb.Constraint_SYMBOL,
 			Symbol: tokenSymbolConstraintToProtoSymbolConstraint(input.Checker.(datalog.SymbolInChecker)),
 		}
+	case datalog.IDTypeBytes:
+		switch input.Checker.(type) {
+		case datalog.BytesComparisonChecker:
+			pbConstraint = &pb.Constraint{
+				Id:    uint32(input.Name),
+				Kind:  pb.Constraint_BYTES,
+				Bytes: tokenBytesConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesComparisonChecker)),
+			}
+		case datalog.BytesInChecker:
+			pbConstraint = &pb.Constraint{
+				Id:    uint32(input.Name),
+				Kind:  pb.Constraint_BYTES,
+				Bytes: tokenBytesInConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesInChecker)),
+			}
+		default:
+			panic(fmt.Sprintf("invalid bytes constraint type: %T", input.Check))
+		}
 	default:
 		panic(fmt.Sprintf("unsupported constraint type: %v", input.Name.Type()))
 	}
@@ -275,6 +300,11 @@ func protoConstraintToTokenConstraint(input *pb.Constraint) datalog.Constraint {
 		constraint = datalog.Constraint{
 			Name:    datalog.Variable(input.Id),
 			Checker: protoSymbolConstraintToTokenSymbolConstraint(input.Symbol),
+		}
+	case pb.Constraint_BYTES:
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(input.Id),
+			Checker: protoBytesConstraintToTokenBytesConstraint(input.Bytes),
 		}
 	default:
 		panic(fmt.Sprintf("unsupported constraint kind: %v", input.Kind))
@@ -568,6 +598,80 @@ func protoSymbolConstraintToTokenSymbolConstraint(input *pb.SymbolConstraint) da
 	default:
 		panic(fmt.Sprintf("unsupported symbol constraint kind: %v", input.Kind))
 	}
+	return checker
+}
+
+func tokenBytesConstraintToProtoBytesConstraint(input datalog.BytesComparisonChecker) *pb.BytesConstraint {
+	var pbBytesConstraint *pb.BytesConstraint
+	switch input.Comparison {
+	case datalog.BytesComparisonEqual:
+		pbBytesConstraint = &pb.BytesConstraint{
+			Kind:  pb.BytesConstraint_EQUAL,
+			Equal: input.Bytes,
+		}
+	default:
+		panic(fmt.Sprintf("unsupported bytes comparison: %v", input.Comparison))
+	}
+
+	return pbBytesConstraint
+}
+
+func tokenBytesInConstraintToProtoBytesConstraint(input datalog.BytesInChecker) *pb.BytesConstraint {
+	var pbBytesConstraint *pb.BytesConstraint
+	pbSet := make([][]byte, 0, len(input.Set))
+	for e := range input.Set {
+		b, err := hex.DecodeString(e)
+		if err != nil {
+			panic(fmt.Sprintf("failed to decode hex string %q: %v", e, err))
+		}
+		pbSet = append(pbSet, b)
+	}
+
+	if input.Not {
+		pbBytesConstraint = &pb.BytesConstraint{
+			Kind:     pb.BytesConstraint_NOT_IN,
+			NotInSet: pbSet,
+		}
+	} else {
+		pbBytesConstraint = &pb.BytesConstraint{
+			Kind:  pb.BytesConstraint_IN,
+			InSet: pbSet,
+		}
+	}
+
+	return pbBytesConstraint
+}
+
+func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) datalog.Checker {
+	var checker datalog.Checker
+	switch input.Kind {
+	case pb.BytesConstraint_EQUAL:
+		checker = datalog.BytesComparisonChecker{
+			Comparison: datalog.BytesComparisonEqual,
+			Bytes:      input.Equal,
+		}
+	case pb.BytesConstraint_IN:
+		set := make(map[string]struct{}, len(input.InSet))
+		for _, s := range input.InSet {
+			set[string(s)] = struct{}{}
+		}
+		checker = datalog.BytesInChecker{
+			Set: set,
+			Not: false,
+		}
+	case pb.BytesConstraint_NOT_IN:
+		set := make(map[string]struct{}, len(input.NotInSet))
+		for _, s := range input.InSet {
+			set[string(s)] = struct{}{}
+		}
+		checker = datalog.BytesInChecker{
+			Set: set,
+			Not: true,
+		}
+	default:
+		panic(fmt.Sprintf("unsupported bytes constraint kind: %v", input.Kind))
+	}
+
 	return checker
 }
 

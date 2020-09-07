@@ -67,6 +67,16 @@ func TestGrammarPredicate(t *testing.T) {
 				},
 			},
 		},
+		{
+			Input: `right($1, "hex:41414141")`,
+			Expected: &Predicate{
+				Name: "right",
+				IDs: []*Atom{
+					{Variable: ui32ptr(1)},
+					{Bytes: hexsptr("41414141")},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -285,6 +295,30 @@ func TestGrammarConstraint(t *testing.T) {
 				},
 			},
 		},
+		{
+			Input: `$0 in ["hex:41", "hex:42", "hex:43"]`,
+			Expected: &Constraint{
+				VariableConstraint: &VariableConstraint{
+					Variable: ui32ptr(0),
+					Set: &Set{
+						Bytes: []HexString{"41", "42", "43"},
+						Not:   false,
+					},
+				},
+			},
+		},
+		{
+			Input: `$0 not in ["hex:abcdef", "hex:01234", "hex:56789"]`,
+			Expected: &Constraint{
+				VariableConstraint: &VariableConstraint{
+					Variable: ui32ptr(0),
+					Set: &Set{
+						Bytes: []HexString{"abcdef", "01234", "56789"},
+						Not:   true,
+					},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -400,4 +434,9 @@ func ui32ptr(i uint32) *uint32 {
 }
 func i64ptr(i int64) *int64 {
 	return &i
+}
+
+func hexsptr(s string) *HexString {
+	h := HexString(s)
+	return &h
 }

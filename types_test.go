@@ -22,6 +22,7 @@ func TestFromDatalogFact(t *testing.T) {
 				datalog.String("foo"),
 				datalog.Variable(12),
 				datalog.Date(now.Unix()),
+				datalog.Bytes([]byte("some random bytes")),
 			},
 		},
 	}
@@ -38,6 +39,7 @@ func TestFromDatalogFact(t *testing.T) {
 				String("foo"),
 				Variable(12),
 				Date(time.Unix(now.Unix(), 0)),
+				Bytes([]byte("some random bytes")),
 			},
 		},
 	}
@@ -129,6 +131,30 @@ func TestConstraintsConvert(t *testing.T) {
 			},
 			ExpectedChecker: datalog.SymbolInChecker{
 				Set: map[datalog.Symbol]struct{}{datalog.Symbol(0): {}, datalog.Symbol(1): {}},
+				Not: true,
+			},
+		},
+		{
+			Desc:        "BytesComparisonChecker",
+			SymbolTable: &datalog.SymbolTable{},
+			Checker: BytesComparisonChecker{
+				Comparison: datalog.BytesComparisonEqual,
+				Bytes:      []byte("some random bytes"),
+			},
+			ExpectedChecker: datalog.BytesComparisonChecker{
+				Comparison: datalog.BytesComparisonEqual,
+				Bytes:      []byte("some random bytes"),
+			},
+		},
+		{
+			Desc:        "BytesInChecker",
+			SymbolTable: &datalog.SymbolTable{},
+			Checker: BytesInChecker{
+				Set: map[string]struct{}{"a": {}, "b": {}, "c": {}},
+				Not: true,
+			},
+			ExpectedChecker: datalog.BytesInChecker{
+				Set: map[string]struct{}{"a": {}, "b": {}, "c": {}},
 				Not: true,
 			},
 		},

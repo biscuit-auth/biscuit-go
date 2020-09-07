@@ -96,6 +96,8 @@ func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*P
 			atoms = append(atoms, String(a.(datalog.String)))
 		case datalog.IDTypeDate:
 			atoms = append(atoms, Date(time.Unix(int64(a.(datalog.Date)), 0)))
+		case datalog.IDTypeBytes:
+			atoms = append(atoms, Bytes(a.(datalog.Bytes)))
 		default:
 			return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
 		}
@@ -256,6 +258,30 @@ func (c SymbolInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	}
 }
 
+type BytesComparisonChecker struct {
+	Comparison datalog.BytesComparison
+	Bytes      Bytes
+}
+
+func (c BytesComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
+	return datalog.BytesComparisonChecker{
+		Comparison: c.Comparison,
+		Bytes:      c.Bytes.convert(symbols).(datalog.Bytes),
+	}
+}
+
+type BytesInChecker struct {
+	Set map[string]struct{}
+	Not bool
+}
+
+func (c BytesInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
+	return datalog.BytesInChecker{
+		Set: c.Set,
+		Not: c.Not,
+	}
+}
+
 type Predicate struct {
 	Name string
 	IDs  []Atom
@@ -281,6 +307,7 @@ const (
 	AtomTypeInteger
 	AtomTypeString
 	AtomTypeDate
+	AtomTypeBytes
 )
 
 type Atom interface {
@@ -322,4 +349,11 @@ type Date time.Time
 func (a Date) Type() AtomType { return AtomTypeDate }
 func (a Date) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Date(time.Time(a).Unix())
+}
+
+type Bytes []byte
+
+func (b Bytes) Type() AtomType { return AtomTypeBytes }
+func (b Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
+	return datalog.Bytes(b)
 }
