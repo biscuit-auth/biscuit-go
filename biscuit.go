@@ -170,19 +170,16 @@ func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
 		return nil, fmt.Errorf("biscuit: invalid count,  %d > %d", g, w)
 	}
 
-	partialContainer := &pb.Biscuit{
-		Authority: b.container.Authority,
-		Blocks:    b.container.Blocks[:count],
-		Keys:      b.container.Keys[:count+1], // +1 for the root key
+	data := b.container.Authority
+	for _, block := range b.container.Blocks[:count] {
+		data = append(data, block...)
 	}
-
-	s, err := proto.Marshal(partialContainer)
-	if err != nil {
-		return nil, err
+	for _, key := range b.container.Keys[:count+1] { // +1 for the root key
+		data = append(data, key...)
 	}
 
 	h := sha256.New()
-	if _, err := h.Write(s); err != nil {
+	if _, err := h.Write(data); err != nil {
 		return nil, err
 	}
 
