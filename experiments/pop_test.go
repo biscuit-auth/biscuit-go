@@ -14,9 +14,61 @@ import (
 
 // The server knows the user public key, and want them to sign
 // something, in order to prove they hold the matching private key.
+//
+// Signature flow overview:
+//
+// ---- server generate a token to be signed ----
+//
+// server add:
+// - facts:
+//     - should_sign(#authority, dataID, alg, pubkey)
+//     - data(#authority, dataID, staticCtx | challenge[16])
+// - caveat:
+//     - *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
+//
+// ---- server send the token to the client ----
+//
+// client query for:
+//     - *to_sign(dataID, $0, $1) <- should_sign(#authority, $0, $1, pubkey), data(#authority, $0, $2)
+// with:
+//     $0: dataID
+//     $1: alg
+//     $2: data
+//
+// foreach to_sign facts:
+//     - verify data start with staticCtx
+//     - let tokenHash = Sha256(authorityBlock | all blocks | all keys)
+//     - let signerNonce = random(16)
+//     - let signerTimestamp = format(now, RFC3339)
+//     - let signature = sign(alg, data | tokenHash | signerNonce | signerTimestamp)
+//     - add fact: signature(dataID, pubkey, signature, signerNonce, signerTimestamp)
+//
+// ---- client send the token to the server ----
+//
+// server query for:
+//     - *to_validate($0, $1, $2, $3, $4, $5, $6) <-
+//         should_sign(#authority, $0, $1, $2),
+//         data(#authority, $0, $3),
+//         signature($0, $2, $4, $5, $6)
+// with:
+//     $0: dataID
+//     $1: alg
+//     $2: pubkey
+//     $3: data
+//     $4: signature
+//     $5: signerNonce
+//     $6: signerTimestamp
+//
+// foreach to_validate facts:
+//     - let tokenHash = Sha256(authorityBlock | all blocks expect the last one | all keys except the last one)
+//     - verify(alg, pubkey, data | tokenHash | signerNonce | signerTimestamp, signature)
+//     - if verify succeed
+//         - add ambient fact: valid_signature(#ambient, dataID, alg, pubkey)
+//
+// call verifier.verify(), if it succeed, it means the client holds the private key.
+// From here, server must store signerNonce f
 func TestProofOfPossession(t *testing.T) {
 	// The pubkey is known to the server, and the privkey held by the client
-	// We want the server to know that the client holds the privkey.
 	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
@@ -69,7 +121,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 
 	// This caveat requires every "should_sign" fact to have a matching "valid_signature" fact,
 	// that can only provided by the verifier (due to the ambient tag)
-	// *valid(0?)<- should_sign(0?, 1?, 2?), valid_signature(#ambient, $0, $1, $2)
+	// *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
 	builder.AddAuthorityCaveat(biscuit.Rule{
 		Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
 		Body: []biscuit.Predicate{
@@ -196,14 +248,14 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 				biscuit.Variable(1), // alg
 				biscuit.Variable(2), // pubkey
 				biscuit.Variable(3), // data
-				biscuit.Variable(4), // signerNonce
-				biscuit.Variable(5), // signerTimestamp
-				biscuit.Variable(6), // signature
+				biscuit.Variable(4), // signature
+				biscuit.Variable(5), // signerNonce
+				biscuit.Variable(6), // signerTimestamp
 			}},
 		Body: []biscuit.Predicate{
 			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(6), biscuit.Variable(4), biscuit.Variable(5)}},
+			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(4), biscuit.Variable(5), biscuit.Variable(6)}},
 		},
 	})
 	require.NoError(t, err)
@@ -219,11 +271,11 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	require.True(t, ok)
 	data, ok := toValidate[0].IDs[3].(biscuit.Bytes)
 	require.True(t, ok)
-	signerNonce, ok := toValidate[0].IDs[4].(biscuit.Bytes)
+	signature, ok := toValidate[0].IDs[4].(biscuit.Bytes)
 	require.True(t, ok)
-	signerTimestamp, ok := toValidate[0].IDs[5].(biscuit.Date)
+	signerNonce, ok := toValidate[0].IDs[5].(biscuit.Bytes)
 	require.True(t, ok)
-	signature, ok := toValidate[0].IDs[6].(biscuit.Bytes)
+	signerTimestamp, ok := toValidate[0].IDs[6].(biscuit.Date)
 	require.True(t, ok)
 
 	signedTokenHash, err := token.SHA256Sum(token.BlockCount() - 1)
