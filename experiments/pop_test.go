@@ -61,12 +61,17 @@ import (
 //
 // foreach to_validate facts:
 //     - let tokenHash = Sha256(authorityBlock | all blocks expect the last one | all keys except the last one)
+//     - let signedTimestamp = nonceStore.get(signerNonce)
+//     -    if signedTimestamp && (now < signedTimestamp || now > signedTimestamp + N seconds)
+//     -        return ErrReplay
 //     - verify(alg, pubkey, data | tokenHash | signerNonce | signerTimestamp, signature)
 //     - if verify succeed
 //         - add ambient fact: valid_signature(#ambient, dataID, alg, pubkey)
+//         - nonceStore.set(signerNonce, signerTimestamp)
 //
 // call verifier.verify(), if it succeed, it means the client holds the private key.
-// From here, server must store signerNonce f
+// Note that the nonceStore related code and anti replay checks are omitted from the sample below.
+//
 func TestProofOfPossession(t *testing.T) {
 	// The pubkey is known to the server, and the privkey held by the client
 	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
