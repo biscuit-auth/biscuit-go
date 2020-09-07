@@ -170,17 +170,19 @@ func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
 		return nil, fmt.Errorf("biscuit: invalid count,  %d > %d", g, w)
 	}
 
-	data := b.container.Authority
+	h := sha256.New()
+	if _, err := h.Write(b.container.Authority); err != nil {
+		return nil, err
+	}
 	for _, block := range b.container.Blocks[:count] {
-		data = append(data, block...)
+		if _, err := h.Write(block); err != nil {
+			return nil, err
+		}
 	}
 	for _, key := range b.container.Keys[:count+1] { // +1 for the root key
-		data = append(data, key...)
-	}
-
-	h := sha256.New()
-	if _, err := h.Write(data); err != nil {
-		return nil, err
+		if _, err := h.Write(key); err != nil {
+			return nil, err
+		}
 	}
 
 	return h.Sum(nil), nil
