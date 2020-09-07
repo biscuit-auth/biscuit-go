@@ -12,23 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The server knows the user public key, and want them to sign
+// The server knows the user public key, and wants them to sign
 // something, in order to prove they hold the matching private key.
 //
 // Signature flow overview:
 //
-// ---- server generate a token to be signed ----
+// ---- server generates a token to be signed ----
 //
-// server add:
+// server adds:
 // - facts:
 //     - should_sign(#authority, dataID, alg, pubkey)
 //     - data(#authority, dataID, staticCtx | challenge[16])
 // - caveat:
 //     - *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
 //
-// ---- server send the token to the client ----
+// ---- server sends the token to the client ----
 //
-// client query for:
+// client queries for:
 //     - *to_sign(dataID, $0, $1) <- should_sign(#authority, $0, $1, pubkey), data(#authority, $0, $2)
 // with:
 //     $0: dataID
@@ -36,16 +36,16 @@ import (
 //     $2: data
 //
 // foreach to_sign facts:
-//     - verify data start with staticCtx
+//     - verify data starts with staticCtx
 //     - let tokenHash = Sha256(authorityBlock | all blocks | all keys)
 //     - let signerNonce = random(16)
 //     - let signerTimestamp = format(now, RFC3339)
 //     - let signature = sign(alg, data | tokenHash | signerNonce | signerTimestamp)
 //     - add fact: signature(dataID, pubkey, signature, signerNonce, signerTimestamp)
 //
-// ---- client send the token to the server ----
+// ---- client sends the token to the server ----
 //
-// server query for:
+// server queries for:
 //     - *to_validate($0, $1, $2, $3, $4, $5, $6) <-
 //         should_sign(#authority, $0, $1, $2),
 //         data(#authority, $0, $3),
@@ -65,11 +65,11 @@ import (
 //     -    if signedTimestamp && (now < signedTimestamp || now > signedTimestamp + N seconds)
 //     -        return ErrReplay
 //     - verify(alg, pubkey, data | tokenHash | signerNonce | signerTimestamp, signature)
-//     - if verify succeed
+//     - if verify succeeds
 //         - add ambient fact: valid_signature(#ambient, dataID, alg, pubkey)
 //         - nonceStore.set(signerNonce, signerTimestamp)
 //
-// call verifier.verify(), if it succeed, it means the client holds the private key.
+// call verifier.verify(), if it succeeds, it means the client holds the private key.
 // Note that the nonceStore related code and anti replay checks are omitted from the sample below.
 //
 func TestProofOfPossession(t *testing.T) {
@@ -77,7 +77,7 @@ func TestProofOfPossession(t *testing.T) {
 	pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
-	// The server setup the facts allowing the client to know a signature
+	// The server sets up the facts allowing the client to know a signature
 	// is needed, and which alg / key / data they should use.
 	token, rootPubKey := getServerToken(t, pubkey)
 
@@ -177,7 +177,7 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 
 	// confirm that the data we're signing has the static context bytes to prevent key misuse,
 	// otherwise we could inadvertently sign something we didn't intend to.
-	require.True(t, bytes.Equal(signStaticCtx, data[:len(signStaticCtx)]))
+	require.True(t, bytes.HasPrefix(data, signStaticCtx))
 
 	// We have a "to_sign" fact, so we check if the token doesn't already hold a signature:
 	alreadySigned, err := verifier.Query(biscuit.Rule{
