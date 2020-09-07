@@ -126,7 +126,7 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	alreadySigned, err := verifier.Query(biscuit.Rule{
 		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{biscuit.Variable(0)}},
 		Body: []biscuit.Predicate{
-			{Name: "signature", IDs: []biscuit.Atom{dataID, alg, biscuit.Variable(0)}},
+			{Name: "signature", IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Variable(0)}},
 		},
 	})
 	require.NoError(t, err)
@@ -160,14 +160,8 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	err = builder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
 		// Add back the pubkey so we can have multiple signatures across the same data
-		IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), signedData},
-	}})
-	require.NoError(t, err)
-
-	// Add the anti replay data fact
-	err = builder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "signer_data",
-		IDs:  []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
+		// + the anti replay nonce and timestamp
+		IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), signedData, biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
 	}})
 	require.NoError(t, err)
 
@@ -209,8 +203,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 		Body: []biscuit.Predicate{
 			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signer_data", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(4), biscuit.Variable(5)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(6)}},
+			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(6), biscuit.Variable(4), biscuit.Variable(5)}},
 		},
 	})
 	require.NoError(t, err)
