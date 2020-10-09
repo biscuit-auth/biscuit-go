@@ -2,6 +2,7 @@ package biscuit
 
 import (
 	"crypto/rand"
+	"fmt"
 	"testing"
 
 	"github.com/flynn/biscuit-go/datalog"
@@ -121,9 +122,27 @@ func TestBiscuitRules(t *testing.T) {
 			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
 		},
 	})
+	builder.AddAuthorityCaveat(Rule{
+		Head: Predicate{Name: "allowed_users", IDs: []Atom{Variable(0)}},
+		Body: []Predicate{
+			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
+		},
+		Constraints: []Constraint{{
+			Name: Variable(0),
+			Checker: SymbolInChecker{
+				Set: map[Symbol]struct{}{Symbol("alice"): {}, Symbol("bob"): {}},
+				Not: false,
+			},
+		}},
+	})
 
 	b1, err := builder.Build()
 	require.NoError(t, err)
+
+	// b1 should allow alice & bob only
+	v, err := b1.Verify(root.Public())
+	require.NoError(t, err)
+	verifyOwner(t, v, map[string]bool{"alice": true, "bob": true, "eve": false})
 
 	block := b1.CreateBlock()
 	block.AddCaveat(Caveat{
@@ -153,23 +172,36 @@ func TestBiscuitRules(t *testing.T) {
 	b2, err := b1.Append(rng, sig.GenerateKeypair(rng), block.Build())
 	require.NoError(t, err)
 
-	v, err := b2.Verify(root.Public())
+	// b2 should now only allow alice
+	v, err = b2.Verify(root.Public())
 	require.NoError(t, err)
+	verifyOwner(t, v, map[string]bool{"alice": true, "bob": false, "eve": false})
+}
 
-	v.AddOperation("write")
-	v.AddResource("file1")
-	v.AddFact(Fact{
-		Predicate: Predicate{
-			Name: "owner",
-			IDs: []Atom{
-				Symbol("ambient"),
-				Symbol("alice"),
-				String("file1"),
-			},
-		},
-	})
+func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
+	for user, valid := range owners {
+		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
+			v.AddOperation("write")
+			v.AddResource("file1")
+			v.AddFact(Fact{
+				Predicate: Predicate{
+					Name: "owner",
+					IDs: []Atom{
+						Symbol("ambient"),
+						Symbol(user),
+						String("file1"),
+					},
+				},
+			})
 
-	require.NoError(t, v.Verify())
+			if valid {
+				require.NoError(t, v.Verify())
+			} else {
+				require.Error(t, v.Verify())
+			}
+			v.Reset()
+		})
+	}
 }
 
 func TestCheckRootKey(t *testing.T) {
