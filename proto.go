@@ -198,78 +198,62 @@ func protoRuleToTokenRule(input *pb.Rule) datalog.Rule {
 
 func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 	var pbConstraint *pb.Constraint
-
-	switch input.Name.Type() {
-	case datalog.IDTypeDate:
+	switch input.Checker.(type) {
+	case datalog.DateComparisonChecker:
 		pbConstraint = &pb.Constraint{
 			Id:   uint32(input.Name),
 			Kind: pb.Constraint_DATE,
 			Date: tokenDateConstraintToProtoDateConstraint(input.Checker.(datalog.DateComparisonChecker)),
 		}
-	case datalog.IDTypeInteger:
-		switch input.Checker.(type) {
-		case datalog.IntegerComparisonChecker:
-			pbConstraint = &pb.Constraint{
-				Id:   uint32(input.Name),
-				Kind: pb.Constraint_INT,
-				Int:  tokenIntConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerComparisonChecker)),
-			}
-		case datalog.IntegerInChecker:
-			pbConstraint = &pb.Constraint{
-				Id:   uint32(input.Name),
-				Kind: pb.Constraint_INT,
-				Int:  tokenIntInConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerInChecker)),
-			}
-		default:
-			panic(fmt.Sprintf("invalid int contraint type: %T", input.Checker))
+	case datalog.IntegerComparisonChecker:
+		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
+			Kind: pb.Constraint_INT,
+			Int:  tokenIntConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerComparisonChecker)),
 		}
-	case datalog.IDTypeString:
-		switch input.Checker.(type) {
-		case datalog.StringComparisonChecker:
-			pbConstraint = &pb.Constraint{
-				Id:   uint32(input.Name),
-				Kind: pb.Constraint_STRING,
-				Str:  tokenStrConstraintToProtoStrConstraint(input.Checker.(datalog.StringComparisonChecker)),
-			}
-		case datalog.StringInChecker:
-			pbConstraint = &pb.Constraint{
-				Kind: pb.Constraint_STRING,
-				Str:  tokenStrInConstraintToProtoStrConstraint(input.Checker.(datalog.StringInChecker)),
-			}
-		case *datalog.StringRegexpChecker:
-			pbConstraint = &pb.Constraint{
-				Id:   uint32(input.Name),
-				Kind: pb.Constraint_STRING,
-				Str: &pb.StringConstraint{
-					Kind:  pb.StringConstraint_REGEX,
-					Regex: (*regexp.Regexp)(input.Checker.(*datalog.StringRegexpChecker)).String(),
-				},
-			}
-		default:
-			panic(fmt.Sprintf("invalid string contraint type: %T", input.Checker))
+	case datalog.IntegerInChecker:
+		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
+			Kind: pb.Constraint_INT,
+			Int:  tokenIntInConstraintToProtoIntConstraint(input.Checker.(datalog.IntegerInChecker)),
 		}
-	case datalog.IDTypeSymbol:
+	case datalog.StringComparisonChecker:
+		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
+			Kind: pb.Constraint_STRING,
+			Str:  tokenStrConstraintToProtoStrConstraint(input.Checker.(datalog.StringComparisonChecker)),
+		}
+	case datalog.StringInChecker:
+		pbConstraint = &pb.Constraint{
+			Kind: pb.Constraint_STRING,
+			Str:  tokenStrInConstraintToProtoStrConstraint(input.Checker.(datalog.StringInChecker)),
+		}
+	case *datalog.StringRegexpChecker:
+		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
+			Kind: pb.Constraint_STRING,
+			Str: &pb.StringConstraint{
+				Kind:  pb.StringConstraint_REGEX,
+				Regex: (*regexp.Regexp)(input.Checker.(*datalog.StringRegexpChecker)).String(),
+			},
+		}
+	case datalog.SymbolInChecker:
 		pbConstraint = &pb.Constraint{
 			Id:     uint32(input.Name),
 			Kind:   pb.Constraint_SYMBOL,
 			Symbol: tokenSymbolConstraintToProtoSymbolConstraint(input.Checker.(datalog.SymbolInChecker)),
 		}
-	case datalog.IDTypeBytes:
-		switch input.Checker.(type) {
-		case datalog.BytesComparisonChecker:
-			pbConstraint = &pb.Constraint{
-				Id:    uint32(input.Name),
-				Kind:  pb.Constraint_BYTES,
-				Bytes: tokenBytesConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesComparisonChecker)),
-			}
-		case datalog.BytesInChecker:
-			pbConstraint = &pb.Constraint{
-				Id:    uint32(input.Name),
-				Kind:  pb.Constraint_BYTES,
-				Bytes: tokenBytesInConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesInChecker)),
-			}
-		default:
-			panic(fmt.Sprintf("invalid bytes constraint type: %T", input.Check))
+	case datalog.BytesComparisonChecker:
+		pbConstraint = &pb.Constraint{
+			Id:    uint32(input.Name),
+			Kind:  pb.Constraint_BYTES,
+			Bytes: tokenBytesConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesComparisonChecker)),
+		}
+	case datalog.BytesInChecker:
+		pbConstraint = &pb.Constraint{
+			Id:    uint32(input.Name),
+			Kind:  pb.Constraint_BYTES,
+			Bytes: tokenBytesInConstraintToProtoBytesConstraint(input.Checker.(datalog.BytesInChecker)),
 		}
 	default:
 		panic(fmt.Sprintf("unsupported constraint type: %v", input.Name.Type()))
