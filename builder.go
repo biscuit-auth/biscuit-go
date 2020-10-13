@@ -35,7 +35,7 @@ type builder struct {
 }
 
 func NewBuilder(rng io.Reader, root sig.Keypair) Builder {
-	return BuilderWithSymbols(rng, root, DefaultSymbolTable)
+	return BuilderWithSymbols(rng, root, defaultSymbolTable)
 }
 
 func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable) Builder {
@@ -44,7 +44,7 @@ func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.Symbol
 		root: root,
 
 		symbolsStart: symbols.Len(),
-		symbols:      symbols,
+		symbols:      symbols.Clone(),
 		facts:        new(datalog.FactSet),
 	}
 }
@@ -100,10 +100,8 @@ type Unmarshaler struct {
 	Symbols *datalog.SymbolTable
 }
 
-var defaultUnmarshaler = &Unmarshaler{Symbols: DefaultSymbolTable}
-
 func Unmarshal(serialized []byte) (*Biscuit, error) {
-	return defaultUnmarshaler.Unmarshal(serialized)
+	return (&Unmarshaler{Symbols: defaultSymbolTable.Clone()}).Unmarshal(serialized)
 }
 
 func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {

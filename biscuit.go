@@ -41,10 +41,12 @@ var (
 	ErrUnknownPublicKey = errors.New("biscuit: unknown public key")
 )
 
-func New(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
+func New(rng io.Reader, root sig.Keypair, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
 	if rng == nil {
 		rng = rand.Reader
 	}
+
+	symbols := baseSymbols.Clone()
 
 	if !symbols.IsDisjoint(authority.symbols) {
 		return nil, ErrSymbolTableOverlap
