@@ -18,6 +18,7 @@ type Verifier interface {
 	AddCaveat(caveat Caveat)
 	Verify() error
 	Query(rule Rule) (FactSet, error)
+	GetBlockID(fact Fact) (int, error)
 	Reset()
 	PrintWorld() string
 }
@@ -136,6 +137,32 @@ func (v *verifier) Query(rule Rule) (FactSet, error) {
 	}
 
 	return result, nil
+}
+
+// GetBlockID returns the first block index containing a fact with the given name
+// starting from the authority block and then moving on other blocks in order they were added.
+// Note that facts generated from rules can't be searched
+// An error is returned when no fact with the given name can be found.
+func (v *verifier) GetBlockID(fact Fact) (int, error) {
+	// don't store symbols from searched fact in the verifier table
+	symbols := v.symbols.Clone()
+	datalogFact := fact.Predicate.convert(symbols)
+
+	for _, f := range *v.biscuit.authority.facts {
+		if f.Equal(datalogFact) {
+			return 0, nil
+		}
+	}
+
+	for i, b := range v.biscuit.blocks {
+		for _, f := range *b.facts {
+			if f.Equal(datalogFact) {
+				return i + 1, nil
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("fact %q not found", fact)
 }
 
 func (v *verifier) PrintWorld() string {
