@@ -10,6 +10,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type sampleVerifier struct {
+	biscuit.Verifier
+}
+
+func (s *sampleVerifier) AddOperation(op string) {
+	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+		Name: "operation",
+		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol(op)}}},
+	)
+}
+
+func (s *sampleVerifier) AddResource(res string) {
+	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+		Name: "resource",
+		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String(res)}}},
+	)
+}
+
+func (s *sampleVerifier) SetTime(t time.Time) {
+	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+		Name: "time",
+		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Date(t)}}},
+	)
+}
+
 func TestSample1_Basic(t *testing.T) {
 	token := loadSampleToken(t, "test1_basic.bc")
 
@@ -18,8 +43,10 @@ func TestSample1_Basic(t *testing.T) {
 
 	pubkey := loadRootPublicKey(t)
 
-	verifier, err := b.Verify(pubkey)
+	v, err := b.Verify(pubkey)
 	require.NoError(t, err)
+
+	verifier := &sampleVerifier{v}
 
 	verifier.AddOperation("read")
 	verifier.AddResource("file1")
@@ -110,19 +137,21 @@ func TestSample9_ExpiredToken(t *testing.T) {
 	v, err := b.Verify(loadRootPublicKey(t))
 	require.NoError(t, err)
 
-	v.AddOperation("read")
-	v.AddResource("file1")
-	v.SetTime(time.Now())
-	require.Error(t, v.Verify())
+	verifier := &sampleVerifier{v}
 
-	v.Reset()
+	verifier.AddOperation("read")
+	verifier.AddResource("file1")
+	verifier.SetTime(time.Now())
+	require.Error(t, verifier.Verify())
+
+	verifier.Reset()
 	expireTime, err := time.Parse(time.RFC3339, "2018-12-20T01:00:00+01:00")
 	require.NoError(t, err)
 
-	v.AddOperation("read")
-	v.AddResource("file1")
-	v.SetTime(expireTime)
-	require.NoError(t, v.Verify())
+	verifier.AddOperation("read")
+	verifier.AddResource("file1")
+	verifier.SetTime(expireTime)
+	require.NoError(t, verifier.Verify())
 }
 
 func TestSample10_AuthorityRules(t *testing.T) {
@@ -134,24 +163,11 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	v, err := b.Verify(loadRootPublicKey(t))
 	require.NoError(t, err)
 
-	v.AddOperation("read")
-	v.AddResource("file1")
-	v.AddFact(biscuit.Fact{
-		Predicate: biscuit.Predicate{
-			Name: "owner",
-			IDs: []biscuit.Atom{
-				biscuit.Symbol("ambient"),
-				biscuit.Symbol("alice"),
-				biscuit.String("file1"),
-			},
-		},
-	})
-	require.NoError(t, v.Verify())
+	verifier := &sampleVerifier{v}
 
-	v.Reset()
-	v.AddOperation("write")
-	v.AddResource("file1")
-	v.AddFact(biscuit.Fact{
+	verifier.AddOperation("read")
+	verifier.AddResource("file1")
+	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
 			IDs: []biscuit.Atom{
@@ -161,13 +177,12 @@ func TestSample10_AuthorityRules(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, v.Verify())
+	require.NoError(t, verifier.Verify())
 
-	v.Reset()
-	v.AddOperation("read")
-	v.AddOperation("write")
-	v.AddResource("file1")
-	v.AddFact(biscuit.Fact{
+	verifier.Reset()
+	verifier.AddOperation("write")
+	verifier.AddResource("file1")
+	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
 			IDs: []biscuit.Atom{
@@ -177,12 +192,13 @@ func TestSample10_AuthorityRules(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, v.Verify())
+	require.NoError(t, verifier.Verify())
 
-	v.Reset()
-	v.AddOperation("delete")
-	v.AddResource("file1")
-	v.AddFact(biscuit.Fact{
+	verifier.Reset()
+	verifier.AddOperation("read")
+	verifier.AddOperation("write")
+	verifier.AddResource("file1")
+	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
 			IDs: []biscuit.Atom{
@@ -192,7 +208,22 @@ func TestSample10_AuthorityRules(t *testing.T) {
 			},
 		},
 	})
-	require.Error(t, v.Verify())
+	require.NoError(t, verifier.Verify())
+
+	verifier.Reset()
+	verifier.AddOperation("delete")
+	verifier.AddResource("file1")
+	verifier.AddFact(biscuit.Fact{
+		Predicate: biscuit.Predicate{
+			Name: "owner",
+			IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Symbol("alice"),
+				biscuit.String("file1"),
+			},
+		},
+	})
+	require.Error(t, verifier.Verify())
 }
 
 func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
@@ -220,22 +251,24 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 		},
 	}
 
-	v.AddOperation("read")
-	v.AddResource("file1")
-	v.AddCaveat(verifierCaveat)
-	require.NoError(t, v.Verify())
+	verifier := &sampleVerifier{v}
 
-	v.Reset()
-	v.AddOperation("write")
-	v.AddResource("file1")
-	v.AddCaveat(verifierCaveat)
-	require.Error(t, v.Verify())
+	verifier.AddOperation("read")
+	verifier.AddResource("file1")
+	verifier.AddCaveat(verifierCaveat)
+	require.NoError(t, verifier.Verify())
 
-	v.Reset()
-	v.AddOperation("read")
-	v.AddResource("/another/file1")
-	v.AddCaveat(verifierCaveat)
-	require.Error(t, v.Verify())
+	verifier.Reset()
+	verifier.AddOperation("write")
+	verifier.AddResource("file1")
+	verifier.AddCaveat(verifierCaveat)
+	require.Error(t, verifier.Verify())
+
+	verifier.Reset()
+	verifier.AddOperation("read")
+	verifier.AddResource("/another/file1")
+	verifier.AddCaveat(verifierCaveat)
+	require.Error(t, verifier.Verify())
 }
 
 func TestSample12_AuthorityCaveats(t *testing.T) {
@@ -247,16 +280,18 @@ func TestSample12_AuthorityCaveats(t *testing.T) {
 	v, err := b.Verify(loadRootPublicKey(t))
 	require.NoError(t, err)
 
-	v.AddResource("file1")
-	require.NoError(t, v.Verify())
+	verifier := &sampleVerifier{v}
 
-	v.AddResource("file1")
-	v.AddOperation("anything")
-	require.NoError(t, v.Verify())
+	verifier.AddResource("file1")
+	require.NoError(t, verifier.Verify())
 
-	v.Reset()
-	v.AddResource("file2")
-	require.Error(t, v.Verify())
+	verifier.AddResource("file1")
+	verifier.AddOperation("anything")
+	require.NoError(t, verifier.Verify())
+
+	verifier.Reset()
+	verifier.AddResource("file2")
+	require.Error(t, verifier.Verify())
 }
 
 func TestSample13_BlockRules(t *testing.T) {
@@ -268,35 +303,37 @@ func TestSample13_BlockRules(t *testing.T) {
 	v, err := b.Verify(loadRootPublicKey(t))
 	require.NoError(t, err)
 
-	v.AddResource("file1")
-	v.SetTime(time.Now())
-	require.NoError(t, v.Verify())
+	verifier := &sampleVerifier{v}
+
+	verifier.AddResource("file1")
+	verifier.SetTime(time.Now())
+	require.NoError(t, verifier.Verify())
 
 	file1ValidTime, err := time.Parse(time.RFC3339, "2030-12-31T12:59:59+00:00")
 	require.NoError(t, err)
 
-	v.Reset()
-	v.AddResource("file1")
-	v.SetTime(file1ValidTime)
-	require.NoError(t, v.Verify())
+	verifier.Reset()
+	verifier.AddResource("file1")
+	verifier.SetTime(file1ValidTime)
+	require.NoError(t, verifier.Verify())
 
-	v.Reset()
-	v.AddResource("file1")
-	v.SetTime(file1ValidTime.Add(1 * time.Second))
-	require.Error(t, v.Verify())
+	verifier.Reset()
+	verifier.AddResource("file1")
+	verifier.SetTime(file1ValidTime.Add(1 * time.Second))
+	require.Error(t, verifier.Verify())
 
-	v.Reset()
-	v.AddResource("file2")
-	v.SetTime(time.Now())
-	require.Error(t, v.Verify())
+	verifier.Reset()
+	verifier.AddResource("file2")
+	verifier.SetTime(time.Now())
+	require.Error(t, verifier.Verify())
 
 	otherFileValidTime, err := time.Parse(time.RFC3339, "1999-12-31T12:59:59+00:00")
 	require.NoError(t, err)
 
-	v.Reset()
-	v.AddResource("file2")
-	v.SetTime(otherFileValidTime)
-	require.NoError(t, v.Verify())
+	verifier.Reset()
+	verifier.AddResource("file2")
+	verifier.SetTime(otherFileValidTime)
+	require.NoError(t, verifier.Verify())
 }
 
 func TestSample14_RegexConstraint(t *testing.T) {
@@ -308,6 +345,8 @@ func TestSample14_RegexConstraint(t *testing.T) {
 	v, err := b.Verify(loadRootPublicKey(t))
 	require.NoError(t, err)
 
+	verifier := &sampleVerifier{v}
+
 	validFiles := []string{
 		"file1.txt",
 		"file1.txt.zip",
@@ -317,9 +356,9 @@ func TestSample14_RegexConstraint(t *testing.T) {
 	}
 
 	for _, validFile := range validFiles {
-		v.Reset()
-		v.AddResource(validFile)
-		require.NoError(t, v.Verify())
+		verifier.Reset()
+		verifier.AddResource(validFile)
+		require.NoError(t, verifier.Verify())
 	}
 
 	invalidFiles := []string{
@@ -330,9 +369,9 @@ func TestSample14_RegexConstraint(t *testing.T) {
 	}
 
 	for _, invalidFile := range invalidFiles {
-		v.Reset()
-		v.AddResource(invalidFile)
-		require.Error(t, v.Verify())
+		verifier.Reset()
+		verifier.AddResource(invalidFile)
+		require.Error(t, verifier.Verify())
 	}
 }
 
