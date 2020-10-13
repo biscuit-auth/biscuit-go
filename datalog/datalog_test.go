@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func hashVar(s string) Variable {
@@ -448,4 +450,23 @@ func TestCheckers(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSymbolTable(t *testing.T) {
+	s1 := new(SymbolTable)
+	s2 := &SymbolTable{"a", "b", "c"}
+	s3 := &SymbolTable{"d", "e", "f"}
+
+	require.True(t, s1.IsDisjoint(s2))
+	s1.Extend(s2)
+	require.False(t, s1.IsDisjoint(s2))
+	require.Equal(t, s2, s1)
+	s1.Extend(s3)
+	require.Equal(t, SymbolTable(append(*s2, *s3...)), *s1)
+
+	require.Equal(t, len(*s2)+len(*s3), s1.Len())
+
+	new := s1.SplitOff(len(*s2))
+	require.Equal(t, s3, new)
+	require.Equal(t, s2, s1)
 }
