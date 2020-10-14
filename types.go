@@ -12,9 +12,9 @@ import (
 
 const SymbolAuthority = Symbol("authority")
 
-// DefaultSymbolTable predefines some symbols available in every implementation, to avoid
+// defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
-var DefaultSymbolTable = &datalog.SymbolTable{
+var defaultSymbolTable = &datalog.SymbolTable{
 	"authority",
 	"ambient",
 	"resource",

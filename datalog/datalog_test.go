@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func hashVar(s string) Variable {
@@ -448,4 +450,59 @@ func TestCheckers(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSymbolTable(t *testing.T) {
+	s1 := new(SymbolTable)
+	s2 := &SymbolTable{"a", "b", "c"}
+	s3 := &SymbolTable{"d", "e", "f"}
+
+	require.True(t, s1.IsDisjoint(s2))
+	s1.Extend(s2)
+	require.False(t, s1.IsDisjoint(s2))
+	require.Equal(t, s2, s1)
+	s1.Extend(s3)
+	require.Equal(t, SymbolTable(append(*s2, *s3...)), *s1)
+
+	require.Equal(t, len(*s2)+len(*s3), s1.Len())
+
+	new := s1.SplitOff(len(*s2))
+	require.Equal(t, s3, new)
+	require.Equal(t, s2, s1)
+}
+
+func TestSymbolTableInsertAndSym(t *testing.T) {
+	s := new(SymbolTable)
+	require.Equal(t, Symbol(0), s.Insert("a"))
+	require.Equal(t, Symbol(1), s.Insert("b"))
+	require.Equal(t, Symbol(2), s.Insert("c"))
+
+	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
+
+	require.Equal(t, Symbol(0), s.Insert("a"))
+	require.Equal(t, Symbol(3), s.Insert("d"))
+
+	require.Equal(t, &SymbolTable{"a", "b", "c", "d"}, s)
+
+	require.Equal(t, Symbol(0), s.Sym("a"))
+	require.Equal(t, Symbol(1), s.Sym("b"))
+	require.Equal(t, Symbol(2), s.Sym("c"))
+	require.Equal(t, Symbol(3), s.Sym("d"))
+	require.Equal(t, nil, s.Sym("e"))
+}
+
+func TestSymbolTableClone(t *testing.T) {
+	s := new(SymbolTable)
+
+	s.Insert("a")
+	s.Insert("b")
+	s.Insert("c")
+
+	s2 := s.Clone()
+	s2.Insert("a")
+	s2.Insert("d")
+	s2.Insert("e")
+
+	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
+	require.Equal(t, &SymbolTable{"a", "b", "c", "d", "e"}, s2)
 }

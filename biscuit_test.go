@@ -255,7 +255,7 @@ func TestGenerateWorld(t *testing.T) {
 	require.NoError(t, err)
 
 	symbolTable := (build.(*builder)).symbols
-	world, err := b.generateWorld(DefaultSymbolTable)
+	world, err := b.generateWorld(defaultSymbolTable.Clone())
 	require.NoError(t, err)
 
 	expectedWorld := datalog.NewWorld()

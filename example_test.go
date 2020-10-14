@@ -125,7 +125,7 @@ func ExampleBiscuit() {
 		fmt.Println("verified token")
 	}
 
-	// Output: Token1 length: 226
-	// Token2 length: 370
+	// Output: Token1 length: 240
+	// Token2 length: 384
 	// verified token
 }
