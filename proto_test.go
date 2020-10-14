@@ -579,3 +579,153 @@ func TestConstraintConvertSymbolIn(t *testing.T) {
 		})
 	}
 }
+
+func TestRuleConvert(t *testing.T) {
+	now := time.Now()
+
+	in := datalog.Rule{
+		Head: datalog.Predicate{
+			Name: datalog.Symbol(42),
+			IDs:  []datalog.ID{datalog.Integer(1), datalog.String("id_1")},
+		},
+		Body: []datalog.Predicate{
+			{
+				Name: datalog.Symbol(43),
+				IDs:  []datalog.ID{datalog.Symbol(2), datalog.Date(now.Unix())},
+			}, {
+				Name: datalog.Symbol(44),
+				IDs:  []datalog.ID{datalog.Bytes([]byte("abcd"))},
+			},
+		},
+		Constraints: []datalog.Constraint{
+			{
+				Name: datalog.Variable(9),
+				Checker: datalog.IntegerComparisonChecker{
+					Comparison: datalog.IntegerComparisonEqual,
+					Integer:    42,
+				},
+			}, {
+				Name: datalog.Variable(99),
+				Checker: datalog.StringComparisonChecker{
+					Comparison: datalog.StringComparisonPrefix,
+					Str:        "abcd",
+				},
+			},
+		},
+	}
+
+	expectedPbRule := &pb.Rule{
+		Head: &pb.Predicate{Name: 42, Ids: []*pb.ID{{Kind: pb.ID_INTEGER, Integer: 1}, {Kind: pb.ID_STR, Str: "id_1"}}},
+		Body: []*pb.Predicate{
+			{Name: 43, Ids: []*pb.ID{{Kind: pb.ID_SYMBOL, Symbol: 2}, {Kind: pb.ID_DATE, Date: uint64(now.Unix())}}},
+			{Name: 44, Ids: []*pb.ID{{Kind: pb.ID_BYTES, Bytes: []byte("abcd")}}},
+		},
+		Constraints: []*pb.Constraint{
+			{Id: 9, Kind: pb.Constraint_INT, Int: &pb.IntConstraint{Kind: pb.IntConstraint_EQUAL, Equal: 42}},
+			{Id: 99, Kind: pb.Constraint_STRING, Str: &pb.StringConstraint{Kind: pb.StringConstraint_PREFIX, Prefix: "abcd"}},
+		},
+	}
+
+	pbRule := tokenRuleToProtoRule(in)
+	require.Equal(t, expectedPbRule, pbRule)
+	out := protoRuleToTokenRule(pbRule)
+	require.Equal(t, in, out)
+}
+
+func TestFactConvert(t *testing.T) {
+	now := time.Now()
+	in := datalog.Fact{Predicate: datalog.Predicate{
+		Name: datalog.Symbol(42),
+		IDs: []datalog.ID{
+			datalog.Symbol(1),
+			datalog.Integer(2),
+			datalog.Variable(3),
+			datalog.Bytes([]byte("bytes")),
+			datalog.String("abcd"),
+			datalog.Date(now.Unix()),
+		},
+	}}
+
+	expectedPbFact := &pb.Fact{Predicate: &pb.Predicate{
+		Name: 42,
+		Ids: []*pb.ID{
+			{Kind: pb.ID_SYMBOL, Symbol: 1},
+			{Kind: pb.ID_INTEGER, Integer: 2},
+			{Kind: pb.ID_VARIABLE, Variable: 3},
+			{Kind: pb.ID_BYTES, Bytes: []byte("bytes")},
+			{Kind: pb.ID_STR, Str: "abcd"},
+			{Kind: pb.ID_DATE, Date: uint64(now.Unix())},
+		},
+	}}
+
+	pbFact := tokenFactToProtoFact(in)
+	require.Equal(t, expectedPbFact, pbFact)
+
+	out := protoFactToTokenFact(pbFact)
+	require.Equal(t, in, out)
+}
+
+func TestBlockConvert(t *testing.T) {
+	predicate := datalog.Predicate{
+		Name: datalog.Symbol(12),
+		IDs:  []datalog.ID{datalog.String("abcd")},
+	}
+
+	pbPredicate := &pb.Predicate{
+		Name: 12,
+		Ids:  []*pb.ID{{Kind: pb.ID_STR, Str: "abcd"}},
+	}
+
+	rule := datalog.Rule{
+		Head: predicate,
+		Body: []datalog.Predicate{predicate},
+		Constraints: []datalog.Constraint{
+			{
+				Name: datalog.Variable(13),
+				Checker: datalog.IntegerComparisonChecker{
+					Comparison: datalog.IntegerComparisonEqual,
+					Integer:    1234,
+				},
+			},
+		},
+	}
+
+	pbRule := &pb.Rule{
+		Head: pbPredicate,
+		Body: []*pb.Predicate{pbPredicate},
+		Constraints: []*pb.Constraint{
+			{
+				Id:   13,
+				Kind: pb.Constraint_INT,
+				Int:  &pb.IntConstraint{Kind: pb.IntConstraint_EQUAL, Equal: 1234},
+			},
+		},
+	}
+
+	in := &Block{
+		index:   42,
+		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
+		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
+		rules:   []datalog.Rule{rule},
+		caveats: []datalog.Caveat{{Queries: []datalog.Rule{rule}}},
+		context: "context",
+	}
+
+	expectedPbBlock := &pb.Block{
+		Index:   42,
+		Symbols: []string{"a", "b", "c", "d"},
+		Facts: []*pb.Fact{
+			{Predicate: pbPredicate},
+		},
+		Rules:   []*pb.Rule{pbRule},
+		Caveats: []*pb.Caveat{{Queries: []*pb.Rule{pbRule}}},
+		Context: "context",
+	}
+
+	pbBlock := tokenBlockToProtoBlock(in)
+	require.Equal(t, expectedPbBlock, pbBlock)
+
+	out := protoBlockToTokenBlock(pbBlock)
+	require.Equal(t, in, out)
+
+}
