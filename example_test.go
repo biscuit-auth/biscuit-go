@@ -116,8 +116,8 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to create verifier: %v", err))
 	}
 
-	v1.AddResource("/a/file1.txt")
-	v1.AddOperation("read")
+	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}}})
+	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("read")}}})
 
 	if err := v1.Verify(); err != nil {
 		fmt.Printf("failed to verify token: %v\n", err)

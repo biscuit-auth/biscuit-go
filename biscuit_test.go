@@ -87,18 +87,18 @@ func TestBiscuit(t *testing.T) {
 	v3, err := b3deser.Verify(root.Public())
 	require.NoError(t, err)
 
-	v3.AddOperation("read")
-	v3.AddResource("/a/file1")
+	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Atom{Symbol("ambient"), String("/a/file1")}}})
+	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Atom{Symbol("ambient"), Symbol("read")}}})
 	require.NoError(t, v3.Verify())
 
 	v3.Reset()
-	v3.AddOperation("read")
-	v3.AddResource("/a/file2")
+	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Atom{Symbol("ambient"), Symbol("/a/file2")}}})
+	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Atom{Symbol("ambient"), Symbol("read")}}})
 	require.Error(t, v3.Verify())
 
 	v3.Reset()
-	v3.AddOperation("write")
-	v3.AddResource("/a/file1")
+	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Atom{Symbol("ambient"), Symbol("/a/file1")}}})
+	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Atom{Symbol("ambient"), Symbol("write")}}})
 	require.Error(t, v3.Verify())
 }
 
@@ -181,8 +181,8 @@ func TestBiscuitRules(t *testing.T) {
 func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
 	for user, valid := range owners {
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
-			v.AddOperation("write")
-			v.AddResource("file1")
+			v.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Atom{Symbol("ambient"), String("file1")}}})
+			v.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Atom{Symbol("ambient"), Symbol("write")}}})
 			v.AddFact(Fact{
 				Predicate: Predicate{
 					Name: "owner",

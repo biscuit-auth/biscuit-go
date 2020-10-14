@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/flynn/biscuit-go/datalog"
 )
@@ -14,9 +13,6 @@ var (
 )
 
 type Verifier interface {
-	AddResource(res string)
-	AddOperation(op string)
-	SetTime(t time.Time)
 	AddFact(fact Fact)
 	AddRule(rule Rule)
 	AddCaveat(caveat Caveat)
@@ -51,45 +47,6 @@ func NewVerifier(b *Biscuit) (Verifier, error) {
 		symbols:     b.symbols.Clone(),
 		caveats:     []Caveat{},
 	}, nil
-}
-
-func (v *verifier) AddResource(res string) {
-	fact := Fact{
-		Predicate: Predicate{
-			Name: "resource",
-			IDs: []Atom{
-				Symbol("ambient"),
-				String(res),
-			},
-		},
-	}
-	v.world.AddFact(fact.convert(v.symbols))
-}
-
-func (v *verifier) AddOperation(op string) {
-	fact := Fact{
-		Predicate: Predicate{
-			Name: "operation",
-			IDs: []Atom{
-				Symbol("ambient"),
-				Symbol(op),
-			},
-		},
-	}
-	v.world.AddFact(fact.convert(v.symbols))
-}
-
-func (v *verifier) SetTime(t time.Time) {
-	fact := Fact{
-		Predicate: Predicate{
-			Name: "time",
-			IDs: []Atom{
-				Symbol("ambient"),
-				Date(t),
-			},
-		},
-	}
-	v.world.AddFact(fact.convert(v.symbols))
 }
 
 func (v *verifier) AddFact(fact Fact) {
