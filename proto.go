@@ -225,6 +225,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) *pb.Constraint {
 		}
 	case datalog.StringInChecker:
 		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
 			Kind: pb.Constraint_STRING,
 			Str:  tokenStrInConstraintToProtoStrConstraint(input.Checker.(datalog.StringInChecker)),
 		}
@@ -411,7 +412,7 @@ func protoIntConstraintToTokenIntConstraint(input *pb.IntConstraint) datalog.Che
 		}
 	case pb.IntConstraint_NOT_IN:
 		set := make(map[datalog.Integer]struct{}, len(input.NotInSet))
-		for _, i := range input.InSet {
+		for _, i := range input.NotInSet {
 			set[datalog.Integer(i)] = struct{}{}
 		}
 		checker = datalog.IntegerInChecker{
@@ -509,7 +510,7 @@ func protoStrConstraintToTokenStrConstraint(input *pb.StringConstraint) datalog.
 		}
 	case pb.StringConstraint_NOT_IN:
 		set := make(map[datalog.String]struct{}, len(input.NotInSet))
-		for _, s := range input.InSet {
+		for _, s := range input.NotInSet {
 			set[datalog.String(s)] = struct{}{}
 		}
 		checker = datalog.StringInChecker{
@@ -637,7 +638,7 @@ func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) datal
 	case pb.BytesConstraint_IN:
 		set := make(map[string]struct{}, len(input.InSet))
 		for _, s := range input.InSet {
-			set[string(s)] = struct{}{}
+			set[hex.EncodeToString(s)] = struct{}{}
 		}
 		checker = datalog.BytesInChecker{
 			Set: set,
@@ -645,8 +646,8 @@ func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) datal
 		}
 	case pb.BytesConstraint_NOT_IN:
 		set := make(map[string]struct{}, len(input.NotInSet))
-		for _, s := range input.InSet {
-			set[string(s)] = struct{}{}
+		for _, s := range input.NotInSet {
+			set[hex.EncodeToString(s)] = struct{}{}
 		}
 		checker = datalog.BytesInChecker{
 			Set: set,
