@@ -49,11 +49,13 @@ func TestConstraintConvertDateComparison(t *testing.T) {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
 
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
+
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_DATE,
@@ -61,7 +63,8 @@ func TestConstraintConvertDateComparison(t *testing.T) {
 			}
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -134,12 +137,13 @@ func TestConstraintConvertIntegerComparison(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
 
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_INT,
@@ -147,7 +151,8 @@ func TestConstraintConvertIntegerComparison(t *testing.T) {
 			}
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -198,11 +203,12 @@ func TestConstraintConvertIntegerIn(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_INT,
@@ -222,7 +228,8 @@ func TestConstraintConvertIntegerIn(t *testing.T) {
 
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -272,11 +279,12 @@ func TestConstraintConvertStringComparison(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_STRING,
@@ -284,7 +292,8 @@ func TestConstraintConvertStringComparison(t *testing.T) {
 			}
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -326,11 +335,12 @@ func TestConstraintConvertStringIn(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_STRING,
@@ -344,7 +354,8 @@ func TestConstraintConvertStringIn(t *testing.T) {
 
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -372,11 +383,12 @@ func TestConstraintConvertStringRegexp(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:   i,
 				Kind: pb.Constraint_STRING,
@@ -384,7 +396,8 @@ func TestConstraintConvertStringRegexp(t *testing.T) {
 			}
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -416,11 +429,12 @@ func TestConstraintConvertBytesComparison(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:    i,
 				Kind:  pb.Constraint_BYTES,
@@ -428,7 +442,8 @@ func TestConstraintConvertBytesComparison(t *testing.T) {
 			}
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -475,11 +490,12 @@ func TestConstraintConvertBytesIn(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:    i,
 				Kind:  pb.Constraint_BYTES,
@@ -499,7 +515,8 @@ func TestConstraintConvertBytesIn(t *testing.T) {
 
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -550,11 +567,12 @@ func TestConstraintConvertSymbolIn(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			i := rand.Uint32()
-			in := datalog.Constraint{
+			in := &datalog.Constraint{
 				Name:    datalog.Variable(i),
 				Checker: testCase.Input,
 			}
-			out := tokenConstraintToProtoConstraint(in)
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
 			expected := &pb.Constraint{
 				Id:     i,
 				Kind:   pb.Constraint_SYMBOL,
@@ -574,7 +592,8 @@ func TestConstraintConvertSymbolIn(t *testing.T) {
 
 			require.Equal(t, expected, out)
 
-			dlout := protoConstraintToTokenConstraint(out)
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
 			require.Equal(t, in, dlout)
 		})
 	}
@@ -583,7 +602,7 @@ func TestConstraintConvertSymbolIn(t *testing.T) {
 func TestRuleConvert(t *testing.T) {
 	now := time.Now()
 
-	in := datalog.Rule{
+	in := &datalog.Rule{
 		Head: datalog.Predicate{
 			Name: datalog.Symbol(42),
 			IDs:  []datalog.ID{datalog.Integer(1), datalog.String("id_1")},
@@ -626,15 +645,17 @@ func TestRuleConvert(t *testing.T) {
 		},
 	}
 
-	pbRule := tokenRuleToProtoRule(in)
+	pbRule, err := tokenRuleToProtoRule(*in)
+	require.NoError(t, err)
 	require.Equal(t, expectedPbRule, pbRule)
-	out := protoRuleToTokenRule(pbRule)
+	out, err := protoRuleToTokenRule(pbRule)
+	require.NoError(t, err)
 	require.Equal(t, in, out)
 }
 
 func TestFactConvert(t *testing.T) {
 	now := time.Now()
-	in := datalog.Fact{Predicate: datalog.Predicate{
+	in := &datalog.Fact{Predicate: datalog.Predicate{
 		Name: datalog.Symbol(42),
 		IDs: []datalog.ID{
 			datalog.Symbol(1),
@@ -658,10 +679,12 @@ func TestFactConvert(t *testing.T) {
 		},
 	}}
 
-	pbFact := tokenFactToProtoFact(in)
+	pbFact, err := tokenFactToProtoFact(*in)
+	require.NoError(t, err)
 	require.Equal(t, expectedPbFact, pbFact)
 
-	out := protoFactToTokenFact(pbFact)
+	out, err := protoFactToTokenFact(pbFact)
+	require.NoError(t, err)
 	require.Equal(t, in, out)
 }
 
@@ -676,7 +699,7 @@ func TestBlockConvert(t *testing.T) {
 		Ids:  []*pb.ID{{Kind: pb.ID_STR, Str: "abcd"}},
 	}
 
-	rule := datalog.Rule{
+	rule := &datalog.Rule{
 		Head: predicate,
 		Body: []datalog.Predicate{predicate},
 		Constraints: []datalog.Constraint{
@@ -706,8 +729,8 @@ func TestBlockConvert(t *testing.T) {
 		index:   42,
 		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
 		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
-		rules:   []datalog.Rule{rule},
-		caveats: []datalog.Caveat{{Queries: []datalog.Rule{rule}}},
+		rules:   []datalog.Rule{*rule},
+		caveats: []datalog.Caveat{{Queries: []datalog.Rule{*rule}}},
 		context: "context",
 	}
 
@@ -722,10 +745,12 @@ func TestBlockConvert(t *testing.T) {
 		Context: "context",
 	}
 
-	pbBlock := tokenBlockToProtoBlock(in)
+	pbBlock, err := tokenBlockToProtoBlock(in)
+	require.NoError(t, err)
 	require.Equal(t, expectedPbBlock, pbBlock)
 
-	out := protoBlockToTokenBlock(pbBlock)
+	out, err := protoBlockToTokenBlock(pbBlock)
+	require.NoError(t, err)
 	require.Equal(t, in, out)
 
 }
