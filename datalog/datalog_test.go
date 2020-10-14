@@ -470,3 +470,39 @@ func TestSymbolTable(t *testing.T) {
 	require.Equal(t, s3, new)
 	require.Equal(t, s2, s1)
 }
+
+func TestSymbolTableInsertAndSym(t *testing.T) {
+	s := new(SymbolTable)
+	require.Equal(t, Symbol(0), s.Insert("a"))
+	require.Equal(t, Symbol(1), s.Insert("b"))
+	require.Equal(t, Symbol(2), s.Insert("c"))
+
+	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
+
+	require.Equal(t, Symbol(0), s.Insert("a"))
+	require.Equal(t, Symbol(3), s.Insert("d"))
+
+	require.Equal(t, &SymbolTable{"a", "b", "c", "d"}, s)
+
+	require.Equal(t, Symbol(0), s.Sym("a"))
+	require.Equal(t, Symbol(1), s.Sym("b"))
+	require.Equal(t, Symbol(2), s.Sym("c"))
+	require.Equal(t, Symbol(3), s.Sym("d"))
+	require.Equal(t, nil, s.Sym("e"))
+}
+
+func TestSymbolTableClone(t *testing.T) {
+	s := new(SymbolTable)
+
+	s.Insert("a")
+	s.Insert("b")
+	s.Insert("c")
+
+	s2 := s.Clone()
+	s2.Insert("a")
+	s2.Insert("d")
+	s2.Insert("e")
+
+	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
+	require.Equal(t, &SymbolTable{"a", "b", "c", "d", "e"}, s2)
+}
