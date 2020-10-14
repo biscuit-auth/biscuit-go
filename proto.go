@@ -176,7 +176,7 @@ func tokenIDToProtoID(input datalog.ID) (*pb.ID, error) {
 			Bytes: input.(datalog.Bytes),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported id type: %v", input.Type())
+		return nil, fmt.Errorf("biscuit: unsupported id type: %v", input.Type())
 	}
 	return pbId, nil
 }
@@ -197,7 +197,7 @@ func protoIDToTokenID(input *pb.ID) (*datalog.ID, error) {
 	case pb.ID_BYTES:
 		id = datalog.Bytes(input.Bytes)
 	default:
-		return nil, fmt.Errorf("unsupported id kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported id kind: %v", input.Kind)
 	}
 
 	return &id, nil
@@ -345,7 +345,7 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) (*pb.Constraint,
 			Bytes: c,
 		}
 	default:
-		return nil, fmt.Errorf("unsupported constraint type: %v", input.Name.Type())
+		return nil, fmt.Errorf("biscuit: unsupported constraint type: %v", input.Name.Type())
 	}
 
 	return pbConstraint, nil
@@ -400,7 +400,7 @@ func protoConstraintToTokenConstraint(input *pb.Constraint) (*datalog.Constraint
 			Checker: *c,
 		}
 	default:
-		return nil, fmt.Errorf("unsupported constraint kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported constraint kind: %v", input.Kind)
 	}
 
 	return &constraint, nil
@@ -420,7 +420,7 @@ func tokenDateConstraintToProtoDateConstraint(input datalog.DateComparisonChecke
 			After: uint64(input.Date),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported date constraint: %v", input.Comparison)
+		return nil, fmt.Errorf("biscuit: unsupported date constraint: %v", input.Comparison)
 	}
 
 	return pbDateConstraint, nil
@@ -440,7 +440,7 @@ func protoDateConstraintToTokenDateConstraint(input *pb.DateConstraint) (*datalo
 			Date:       datalog.Date(input.After),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported date constraint kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported date constraint kind: %v", input.Kind)
 	}
 	return &checker, nil
 }
@@ -474,7 +474,7 @@ func tokenIntConstraintToProtoIntConstraint(input datalog.IntegerComparisonCheck
 			LowerOrEqual: int64(input.Integer),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported int constraint: %v", input.Comparison)
+		return nil, fmt.Errorf("biscuit: unsupported int constraint: %v", input.Comparison)
 	}
 	return pbIntConstraint, nil
 }
@@ -548,7 +548,7 @@ func protoIntConstraintToTokenIntConstraint(input *pb.IntConstraint) (*datalog.C
 			Integer:    datalog.Integer(input.LowerOrEqual),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported int constraint kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported int constraint kind: %v", input.Kind)
 	}
 	return &checker, nil
 }
@@ -572,7 +572,7 @@ func tokenStrConstraintToProtoStrConstraint(input datalog.StringComparisonChecke
 			Suffix: string(input.Str),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported string constraint: %v", input.Comparison)
+		return nil, fmt.Errorf("biscuit: unsupported string constraint: %v", input.Comparison)
 	}
 	return pbStrConstraint, nil
 }
@@ -639,7 +639,7 @@ func protoStrConstraintToTokenStrConstraint(input *pb.StringConstraint) (*datalo
 			Str:        datalog.String(input.Suffix),
 		}
 	default:
-		return nil, fmt.Errorf("unsupported string constraint king: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported string constraint kind: %v", input.Kind)
 	}
 
 	return &checker, nil
@@ -689,7 +689,7 @@ func protoSymbolConstraintToTokenSymbolConstraint(input *pb.SymbolConstraint) (*
 			Not: true,
 		}
 	default:
-		return nil, fmt.Errorf("unsupported symbol constraint kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported symbol constraint kind: %v", input.Kind)
 	}
 	return &checker, nil
 }
@@ -703,7 +703,7 @@ func tokenBytesConstraintToProtoBytesConstraint(input datalog.BytesComparisonChe
 			Equal: input.Bytes,
 		}
 	default:
-		return nil, fmt.Errorf("unsupported bytes comparison: %v", input.Comparison)
+		return nil, fmt.Errorf("biscuit: unsupported bytes comparison: %v", input.Comparison)
 	}
 
 	return pbBytesConstraint, nil
@@ -715,7 +715,7 @@ func tokenBytesInConstraintToProtoBytesConstraint(input datalog.BytesInChecker) 
 	for e := range input.Set {
 		b, err := hex.DecodeString(e)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode hex string %q: %v", e, err)
+			return nil, fmt.Errorf("biscuit: failed to decode hex string %q: %v", e, err)
 		}
 		pbSet = append(pbSet, b)
 	}
@@ -762,7 +762,7 @@ func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) (*dat
 			Not: true,
 		}
 	default:
-		return nil, fmt.Errorf("unsupported bytes constraint kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: unsupported bytes constraint kind: %v", input.Kind)
 	}
 
 	return &checker, nil
