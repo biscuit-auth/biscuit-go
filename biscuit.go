@@ -58,16 +58,20 @@ func New(rng io.Reader, root sig.Keypair, baseSymbols *datalog.SymbolTable, auth
 
 	symbols.Extend(authority.symbols)
 
-	pbAuthority, err := proto.Marshal(tokenBlockToProtoBlock(authority))
+	protoAuthority, err := tokenBlockToProtoBlock(authority)
+	if err != nil {
+		return nil, err
+	}
+	marshalledAuthority, err := proto.Marshal(protoAuthority)
 	if err != nil {
 		return nil, err
 	}
 
 	ts := &sig.TokenSignature{}
-	ts.Sign(rng, root, pbAuthority)
+	ts.Sign(rng, root, marshalledAuthority)
 
 	container := &pb.Biscuit{
-		Authority: pbAuthority,
+		Authority: marshalledAuthority,
 		Keys:      [][]byte{root.Public().Bytes()},
 		Signature: tokenSignatureToProtoSignature(ts),
 	}
@@ -111,7 +115,11 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 	symbols.Extend(block.symbols)
 
 	// serialize and sign the new block
-	pbBlock, err := proto.Marshal(tokenBlockToProtoBlock(block))
+	protoBlock, err := tokenBlockToProtoBlock(block)
+	if err != nil {
+		return nil, err
+	}
+	marshalledBlock, err := proto.Marshal(protoBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +128,7 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 	if err != nil {
 		return nil, err
 	}
-	ts.Sign(rng, keypair, pbBlock)
+	ts.Sign(rng, keypair, marshalledBlock)
 
 	// clone container and append new marshalled block and public key
 	container := &pb.Biscuit{
@@ -130,7 +138,7 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 		Signature: tokenSignatureToProtoSignature(ts),
 	}
 
-	container.Blocks = append(container.Blocks, pbBlock)
+	container.Blocks = append(container.Blocks, marshalledBlock)
 	container.Keys = append(container.Keys, keypair.Public().Bytes())
 
 	return &Biscuit{

@@ -142,7 +142,10 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	authority := protoBlockToTokenBlock(pbAuthority)
+	authority, err := protoBlockToTokenBlock(pbAuthority)
+	if err != nil {
+		return nil, err
+	}
 	if authority.index != 0 {
 		return nil, ErrInvalidAuthorityIndex
 	}
@@ -159,7 +162,11 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 			return nil, ErrInvalidBlockIndex
 		}
 
-		blocks[i] = protoBlockToTokenBlock(pbBlock)
+		block, err := protoBlockToTokenBlock(pbBlock)
+		if err != nil {
+			return nil, err
+		}
+		blocks[i] = block
 		symbols.Extend(blocks[i].symbols)
 	}
 
