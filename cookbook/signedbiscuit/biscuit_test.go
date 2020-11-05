@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flynn/biscuit-go"
 	"github.com/flynn/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +26,15 @@ func TestBiscuit(t *testing.T) {
 		UserID:    "1234",
 		IssueTime: time.Now(),
 	}
-	signableBiscuit, err := GenerateSignable(rootKey, audience, audienceKey, userKey.Public, time.Now().Add(5*time.Minute), metas)
+
+	builder := biscuit.NewBuilder(rand.Reader, rootKey)
+
+	builder, err = WithSignableFacts(builder, audience, audienceKey, userKey.Public, time.Now().Add(5*time.Minute), metas)
+	require.NoError(t, err)
+
+	b, err := builder.Build()
+	require.NoError(t, err)
+	signableBiscuit, err := b.Serialize()
 	require.NoError(t, err)
 	t.Logf("signable biscuit size: %d", len(signableBiscuit))
 
@@ -34,7 +43,14 @@ func TestBiscuit(t *testing.T) {
 		require.NoError(t, err)
 		t.Logf("signed biscuit size: %d", len(signedBiscuit))
 
-		res, err := Verify(signedBiscuit, rootKey.Public(), audience, audienceKey.Public().(*ecdsa.PublicKey))
+		b, err := biscuit.Unmarshal(signedBiscuit)
+		require.NoError(t, err)
+		verifier, err := b.Verify(rootKey.Public())
+		require.NoError(t, err)
+
+		verifier, res, err := WithSignatureVerification(verifier, audience, audienceKey.Public().(*ecdsa.PublicKey))
+		require.NoError(t, verifier.Verify())
+
 		require.NoError(t, err)
 		require.Equal(t, metas.ClientID, res.ClientID)
 		require.Equal(t, metas.UserID, res.UserID)
@@ -53,13 +69,18 @@ func TestBiscuit(t *testing.T) {
 		signedBiscuit, err := Sign(signableBiscuit, rootKey.Public(), userKey)
 		require.NoError(t, err)
 
-		_, err = Verify(signedBiscuit, rootKey.Public(), "http://another.audience.url", audienceKey.Public().(*ecdsa.PublicKey))
+		b, err := biscuit.Unmarshal(signedBiscuit)
+		require.NoError(t, err)
+		verifier, err := b.Verify(rootKey.Public())
+		require.NoError(t, err)
+
+		_, _, err = WithSignatureVerification(verifier, "http://another.audience.url", audienceKey.Public().(*ecdsa.PublicKey))
 		require.Error(t, err)
 
 		wrongAudienceKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
 
-		_, err = Verify(signedBiscuit, rootKey.Public(), audience, wrongAudienceKey.Public().(*ecdsa.PublicKey))
+		_, _, err = WithSignatureVerification(verifier, audience, wrongAudienceKey.Public().(*ecdsa.PublicKey))
 		require.Error(t, err)
 	})
 }
