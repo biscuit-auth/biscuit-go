@@ -56,6 +56,7 @@ message ID {
     STR = 3;
     DATE = 4;
     BYTES = 5;
+    LIST = 6;
   }
 
   Kind kind = 1;
@@ -65,6 +66,7 @@ message ID {
   string str = 5;
   uint64 date = 6;
   bytes bytes = 7;
+  repeated ID list = 8;
 }
 
 message Constraint {
@@ -76,6 +78,7 @@ message Constraint {
     DATE = 2;
     SYMBOL = 3;
     BYTES = 4;
+    LIST = 5;
   }
 
   Kind kind = 2;
@@ -85,6 +88,7 @@ message Constraint {
   DateConstraint date = 5;
   SymbolConstraint symbol = 6;
   BytesConstraint bytes = 7;
+  ListConstraint list = 8;
 }
 
 message IntConstraint {
@@ -165,4 +169,15 @@ message BytesConstraint {
   bytes equal = 2;
   repeated bytes in_set = 3;
   repeated bytes not_in_set = 4;
+}
+
+message ListConstraint {
+  enum Kind {
+    ANY_OF = 0;
+    NONE_OF = 1;
+  }
+
+  Kind kind = 1;
+
+  repeated ID values = 2;
 }
