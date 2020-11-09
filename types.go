@@ -105,29 +105,51 @@ func fromDatalogFact(symbols *datalog.SymbolTable, f datalog.Fact) (*Fact, error
 
 func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*Predicate, error) {
 	atoms := make([]Atom, 0, len(p.IDs))
-	for _, a := range p.IDs {
-		switch a.Type() {
-		case datalog.IDTypeSymbol:
-			atoms = append(atoms, Symbol(symbols.Str(a.(datalog.Symbol))))
-		case datalog.IDTypeVariable:
-			atoms = append(atoms, Variable(a.(datalog.Variable)))
-		case datalog.IDTypeInteger:
-			atoms = append(atoms, Integer(a.(datalog.Integer)))
-		case datalog.IDTypeString:
-			atoms = append(atoms, String(a.(datalog.String)))
-		case datalog.IDTypeDate:
-			atoms = append(atoms, Date(time.Unix(int64(a.(datalog.Date)), 0)))
-		case datalog.IDTypeBytes:
-			atoms = append(atoms, Bytes(a.(datalog.Bytes)))
-		default:
-			return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
+	for _, id := range p.IDs {
+		a, err := fromDatalogID(symbols, id)
+		if err != nil {
+			return nil, err
 		}
+		atoms = append(atoms, a)
 	}
 
 	return &Predicate{
 		Name: symbols.Str(p.Name),
 		IDs:  atoms,
 	}, nil
+}
+
+func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Atom, error) {
+	var a Atom
+	switch id.Type() {
+	case datalog.IDTypeSymbol:
+		a = Symbol(symbols.Str(id.(datalog.Symbol)))
+	case datalog.IDTypeVariable:
+		a = Variable(id.(datalog.Variable))
+	case datalog.IDTypeInteger:
+		a = Integer(id.(datalog.Integer))
+	case datalog.IDTypeString:
+		a = String(id.(datalog.String))
+	case datalog.IDTypeDate:
+		a = Date(time.Unix(int64(id.(datalog.Date)), 0))
+	case datalog.IDTypeBytes:
+		a = Bytes(id.(datalog.Bytes))
+	case datalog.IDTypeList:
+		listIDs := id.(datalog.List)
+		list := make(List, 0, len(listIDs))
+		for _, i := range listIDs {
+			listAtom, err := fromDatalogID(symbols, i)
+			if err != nil {
+				return nil, err
+			}
+			list = append(list, listAtom)
+		}
+		a = list
+	default:
+		return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
+	}
+
+	return a, nil
 }
 
 type Rule struct {
@@ -303,6 +325,23 @@ func (c BytesInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	}
 }
 
+type ListContainsChecker struct {
+	Values []Atom
+	Any    bool
+}
+
+func (c ListContainsChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
+	values := make([]datalog.ID, 0, len(c.Values))
+	for _, v := range c.Values {
+		values = append(values, v.convert(symbols))
+	}
+
+	return datalog.ListContainsChecker{
+		Values: values,
+		Any:    c.Any,
+	}
+}
+
 type Predicate struct {
 	Name string
 	IDs  []Atom
@@ -336,6 +375,7 @@ const (
 	AtomTypeString
 	AtomTypeDate
 	AtomTypeBytes
+	AtomTypeList
 )
 
 type Atom interface {
@@ -391,3 +431,22 @@ func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Bytes(a)
 }
 func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }
+
+type List []Atom
+
+func (a List) Type() AtomType { return AtomTypeList }
+func (a List) convert(symbols *datalog.SymbolTable) datalog.ID {
+	datalogList := make(datalog.List, 0, len(a))
+	for _, e := range a {
+		datalogList = append(datalogList, e.convert(symbols))
+	}
+	return datalogList
+}
+func (a List) String() string {
+	elts := make([]string, 0, len(a))
+	for _, e := range a {
+		elts = append(elts, e.String())
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+}

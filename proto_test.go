@@ -599,6 +599,59 @@ func TestConstraintConvertSymbolIn(t *testing.T) {
 	}
 }
 
+func TestConstraintConvertList(t *testing.T) {
+	testCases := []struct {
+		Desc     string
+		Input    datalog.ListContainsChecker
+		Expected *pb.ListConstraint
+	}{
+		{
+			Desc: "list contains",
+			Input: datalog.ListContainsChecker{
+				Values: []datalog.ID{datalog.String("foo")},
+				Any:    true,
+			},
+			Expected: &pb.ListConstraint{
+				Kind:   pb.ListConstraint_ANY_OF,
+				Values: []*pb.ID{{Kind: pb.ID_STR, Str: "foo"}},
+			},
+		},
+		{
+			Desc: "list not contains",
+			Input: datalog.ListContainsChecker{
+				Values: []datalog.ID{datalog.Symbol(42)},
+				Any:    false,
+			},
+			Expected: &pb.ListConstraint{
+				Kind:   pb.ListConstraint_NONE_OF,
+				Values: []*pb.ID{{Kind: pb.ID_SYMBOL, Symbol: 42}},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Desc, func(t *testing.T) {
+			i := rand.Uint32()
+			in := &datalog.Constraint{
+				Name:    datalog.Variable(i),
+				Checker: testCase.Input,
+			}
+			out, err := tokenConstraintToProtoConstraint(*in)
+			require.NoError(t, err)
+			expected := &pb.Constraint{
+				Id:   i,
+				Kind: pb.Constraint_LIST,
+				List: testCase.Expected,
+			}
+			require.Equal(t, expected, out)
+
+			dlout, err := protoConstraintToTokenConstraint(out)
+			require.NoError(t, err)
+			require.Equal(t, in, dlout)
+		})
+	}
+}
+
 func TestRuleConvert(t *testing.T) {
 	now := time.Now()
 
@@ -664,6 +717,11 @@ func TestFactConvert(t *testing.T) {
 			datalog.Bytes([]byte("bytes")),
 			datalog.String("abcd"),
 			datalog.Date(now.Unix()),
+			datalog.List{
+				datalog.String("abc"),
+				datalog.String("def"),
+				datalog.Integer(42),
+			},
 		},
 	}}
 
@@ -676,6 +734,11 @@ func TestFactConvert(t *testing.T) {
 			{Kind: pb.ID_BYTES, Bytes: []byte("bytes")},
 			{Kind: pb.ID_STR, Str: "abcd"},
 			{Kind: pb.ID_DATE, Date: uint64(now.Unix())},
+			{Kind: pb.ID_LIST, List: []*pb.ID{
+				{Kind: pb.ID_STR, Str: "abc"},
+				{Kind: pb.ID_STR, Str: "def"},
+				{Kind: pb.ID_INTEGER, Integer: 42},
+			}},
 		},
 	}}
 
@@ -752,5 +815,4 @@ func TestBlockConvert(t *testing.T) {
 	out, err := protoBlockToTokenBlock(pbBlock)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
-
 }
