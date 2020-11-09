@@ -22,11 +22,28 @@ const (
 	IDTypeString
 	IDTypeDate
 	IDTypeBytes
+	IDTypeList
 )
 
 type ID interface {
 	Type() IDType
 	Equal(ID) bool
+}
+
+type List []ID
+
+func (List) Type() IDType { return IDTypeList }
+func (v List) Equal(t ID) bool {
+	c, ok := t.(List)
+	if !ok || len(c) != len(v) {
+		return false
+	}
+	for i, id := range v {
+		if !id.Equal(c[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 type Symbol uint64
@@ -73,6 +90,48 @@ func (v Bytes) Equal(t ID) bool { c, ok := t.(Bytes); return ok && bytes.Equal(v
 
 func (b Bytes) String() string {
 	return fmt.Sprintf("\"hex:%s\"", hex.EncodeToString(b))
+}
+
+type ListContainsChecker struct {
+	Values []ID
+	Any    bool
+}
+
+// Check returns true when:
+// - Any is false and list does not contains any elements from Values
+// - Any is true and list contains only elements from Values
+// otherwise, false is returned.
+func (m ListContainsChecker) Check(list ID) bool {
+	l, ok := list.(List)
+	if !ok {
+		return false
+	}
+
+	if m.Any { // l contains only elements from m.Values
+		for _, v := range l {
+			contains := false
+			for _, val := range m.Values {
+				if val.Equal(v) {
+					contains = true
+					break
+				}
+			}
+			if !contains {
+				return false
+			}
+		}
+		return true
+	}
+
+	// l does not contains any elements from m.Values
+	for _, v := range l {
+		for _, val := range m.Values {
+			if val.Equal(v) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 type IntegerComparison byte
