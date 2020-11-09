@@ -175,6 +175,20 @@ func tokenIDToProtoID(input datalog.ID) (*pb.ID, error) {
 			Kind:  pb.ID_BYTES,
 			Bytes: input.(datalog.Bytes),
 		}
+	case datalog.IDTypeList:
+		datalogList := input.(datalog.List)
+		protoList := make([]*pb.ID, 0, len(datalogList))
+		for _, datalogElt := range datalogList {
+			protoElt, err := tokenIDToProtoID(datalogElt)
+			if err != nil {
+				return nil, err
+			}
+			protoList = append(protoList, protoElt)
+		}
+		pbId = &pb.ID{
+			Kind: pb.ID_LIST,
+			List: protoList,
+		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported id type: %v", input.Type())
 	}
@@ -196,6 +210,16 @@ func protoIDToTokenID(input *pb.ID) (*datalog.ID, error) {
 		id = datalog.Variable(input.Variable)
 	case pb.ID_BYTES:
 		id = datalog.Bytes(input.Bytes)
+	case pb.ID_LIST:
+		datalogList := make(datalog.List, 0, len(input.List))
+		for _, protoElt := range input.List {
+			datalogElt, err := protoIDToTokenID(protoElt)
+			if err != nil {
+				return nil, err
+			}
+			datalogList = append(datalogList, *datalogElt)
+		}
+		id = datalogList
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported id kind: %v", input.Kind)
 	}
@@ -344,6 +368,16 @@ func tokenConstraintToProtoConstraint(input datalog.Constraint) (*pb.Constraint,
 			Kind:  pb.Constraint_BYTES,
 			Bytes: c,
 		}
+	case datalog.ListContainsChecker:
+		c, err := tokenListConstraintToProtoListConstraint(input.Checker.(datalog.ListContainsChecker))
+		if err != nil {
+			return nil, err
+		}
+		pbConstraint = &pb.Constraint{
+			Id:   uint32(input.Name),
+			Kind: pb.Constraint_LIST,
+			List: c,
+		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported constraint type: %v", input.Name.Type())
 	}
@@ -392,6 +426,15 @@ func protoConstraintToTokenConstraint(input *pb.Constraint) (*datalog.Constraint
 		}
 	case pb.Constraint_BYTES:
 		c, err := protoBytesConstraintToTokenBytesConstraint(input.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		constraint = datalog.Constraint{
+			Name:    datalog.Variable(input.Id),
+			Checker: *c,
+		}
+	case pb.Constraint_LIST:
+		c, err := protoListConstraintToTokenListConstraint(input.List)
 		if err != nil {
 			return nil, err
 		}
@@ -765,6 +808,59 @@ func protoBytesConstraintToTokenBytesConstraint(input *pb.BytesConstraint) (*dat
 		return nil, fmt.Errorf("biscuit: unsupported bytes constraint kind: %v", input.Kind)
 	}
 
+	return &checker, nil
+}
+
+func tokenListConstraintToProtoListConstraint(input datalog.ListContainsChecker) (*pb.ListConstraint, error) {
+	var pbListConstraint *pb.ListConstraint
+	protoValues := make([]*pb.ID, 0, len(input.Values))
+	for _, v := range input.Values {
+		protoValue, err := tokenIDToProtoID(v)
+		if err != nil {
+			return nil, err
+		}
+		protoValues = append(protoValues, protoValue)
+	}
+
+	if input.Any {
+		pbListConstraint = &pb.ListConstraint{
+			Kind:   pb.ListConstraint_ANY_OF,
+			Values: protoValues,
+		}
+	} else {
+		pbListConstraint = &pb.ListConstraint{
+			Kind:   pb.ListConstraint_NONE_OF,
+			Values: protoValues,
+		}
+	}
+	return pbListConstraint, nil
+}
+
+func protoListConstraintToTokenListConstraint(input *pb.ListConstraint) (*datalog.Checker, error) {
+	var checker datalog.Checker
+	datalogValues := make([]datalog.ID, 0, len(input.Values))
+	for _, v := range input.Values {
+		datalogValue, err := protoIDToTokenID(v)
+		if err != nil {
+			return nil, err
+		}
+		datalogValues = append(datalogValues, *datalogValue)
+	}
+
+	switch input.Kind {
+	case pb.ListConstraint_ANY_OF:
+		checker = datalog.ListContainsChecker{
+			Values: datalogValues,
+			Any:    true,
+		}
+	case pb.ListConstraint_NONE_OF:
+		checker = datalog.ListContainsChecker{
+			Values: datalogValues,
+			Any:    false,
+		}
+	default:
+		return nil, fmt.Errorf("biscuit: unsupported list constraint kind: %v", input.Kind)
+	}
 	return &checker, nil
 }
 
