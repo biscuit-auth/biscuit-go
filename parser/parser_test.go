@@ -21,7 +21,7 @@ type testCase struct {
 func getFactTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `right(#authority, "/a/file1.txt", #read)`,
+			Input: `right(#authority, "/a/file1.txt", #read, [#read, "/a/file2.txt"])`,
 			Expected: biscuit.Fact{
 				Predicate: biscuit.Predicate{
 					Name: "right",
@@ -29,6 +29,10 @@ func getFactTestCases() []testCase {
 						biscuit.Symbol("authority"),
 						biscuit.String("/a/file1.txt"),
 						biscuit.Symbol("read"),
+						biscuit.List{
+							biscuit.Symbol("read"),
+							biscuit.String("/a/file2.txt"),
+						},
 					},
 				},
 			},
@@ -44,6 +48,10 @@ func getFactTestCases() []testCase {
 		},
 		{
 			Input:         `right(#authority, /a/file1.txt")`,
+			ExpectFailure: true,
+		},
+		{
+			Input:         `right(#authority, "/a/file1.txt", [$0])`,
 			ExpectFailure: true,
 		},
 	}
@@ -359,11 +367,44 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
+			Input: `*rule1(#a) <- body1($0, $1) @ $0 any of ["abc", "def"], $1 none of [41, 42]`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)},
+				}},
+				Constraints: []biscuit.Constraint{
+					{
+						Name: biscuit.Variable(0),
+						Checker: biscuit.ListContainsChecker{
+							Values: []biscuit.Atom{biscuit.String("abc"), biscuit.String("def")},
+							Any:    true,
+						},
+					},
+					{
+						Name: biscuit.Variable(1),
+						Checker: biscuit.ListContainsChecker{
+							Values: []biscuit.Atom{biscuit.Integer(41), biscuit.Integer(42)},
+							Any:    false,
+						},
+					},
+				},
+			},
+		},
+		{
 			Input:         `*grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
 			ExpectFailure: true,
 		},
 		{
 			Input:         `<- parent(#a, #b), parent(#b, #c)`,
+			ExpectFailure: true,
+		},
+		{
+			Input:         `*rule1(#a) <- body1($0, $1) @ $0 any of [$1, "foo"]`,
 			ExpectFailure: true,
 		},
 	}
@@ -408,6 +449,7 @@ func getCaveatTestCases() []testCase {
 					{
 						Head: biscuit.Predicate{
 							Name: "caveat1",
+							IDs:  []biscuit.Atom{},
 						},
 						Body: []biscuit.Predicate{
 							{
