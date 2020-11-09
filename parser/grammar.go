@@ -29,6 +29,7 @@ type Atom struct {
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
+	List     []*Atom    `| "[" @@ ("," @@)* "]"`
 }
 
 type Constraint struct {
@@ -42,7 +43,8 @@ type VariableConstraint struct {
 	Bytes    *BytesComparison  `| @@`
 	String   *StringComparison `| @@`
 	Int      *IntComparison    `| @@)`
-	Set      *Set              `| @@)`
+	Set      *Set              `| @@`
+	List     *List             `| @@)`
 }
 
 type FunctionConstraint struct {
@@ -77,6 +79,11 @@ type Set struct {
 	Bytes   []HexString `| "[" ( @@ ("," @@)*)+ "]"`
 	String  []string    `| "[" (@String ("," @String)*)+ "]"`
 	Int     []int64     `| "[" (@Int ("," @Int)*)+ "]")`
+}
+
+type List struct {
+	Any   bool    `(@"any"|"none")+ "of"`
+	Atoms []*Atom `"[" (@@ ("," @@)*)+ "]"`
 }
 
 type HexString string

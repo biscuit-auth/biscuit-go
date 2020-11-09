@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrVariableInFact = errors.New("parser: a fact cannot contain any variables")
+	ErrVariableInList = errors.New("parser: a list cannot contain any variables")
 )
 
 var defaultParserOptions = []participle.Option{
@@ -141,27 +142,51 @@ func (m *mustParser) Caveat(caveat string) biscuit.Caveat {
 	return c
 }
 
-func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
-	var atoms []biscuit.Atom
-	for _, a := range p.IDs {
-		switch {
-		case a.Integer != nil:
-			atoms = append(atoms, biscuit.Integer(*a.Integer))
-		case a.String != nil:
-			atoms = append(atoms, biscuit.String(*a.String))
-		case a.Symbol != nil:
-			atoms = append(atoms, biscuit.Symbol(*a.Symbol))
-		case a.Variable != nil:
-			atoms = append(atoms, biscuit.Variable(*a.Variable))
-		case a.Bytes != nil:
-			b, err := a.Bytes.Decode()
-			if err != nil {
-				return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
-			}
-			atoms = append(atoms, biscuit.Bytes(b))
-		default:
-			return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
+func convertAtom(a *Atom) (biscuit.Atom, error) {
+	var biscuitAtom biscuit.Atom
+	switch {
+	case a.Integer != nil:
+		biscuitAtom = biscuit.Integer(*a.Integer)
+	case a.String != nil:
+		biscuitAtom = biscuit.String(*a.String)
+	case a.Symbol != nil:
+		biscuitAtom = biscuit.Symbol(*a.Symbol)
+	case a.Variable != nil:
+		biscuitAtom = biscuit.Variable(*a.Variable)
+	case a.Bytes != nil:
+		b, err := a.Bytes.Decode()
+		if err != nil {
+			return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 		}
+		biscuitAtom = biscuit.Bytes(b)
+	case a.List != nil:
+		biscuitList := make(biscuit.List, 0, len(a.List))
+		for _, atom := range a.List {
+			subBiscuitAtom, err := convertAtom(atom)
+			if err != nil {
+				return nil, err
+			}
+			if subBiscuitAtom.Type() == biscuit.AtomTypeVariable {
+				return nil, ErrVariableInList
+			}
+			biscuitList = append(biscuitList, subBiscuitAtom)
+		}
+		biscuitAtom = biscuitList
+	default:
+		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
+	}
+
+	return biscuitAtom, nil
+}
+
+func convertPredicate(p *Predicate) (*biscuit.Predicate, error) {
+	atoms := make([]biscuit.Atom, 0, len(p.IDs))
+	for _, a := range p.IDs {
+		biscuitAtom, err := convertAtom(a)
+		if err != nil {
+			return nil, err
+		}
+		atoms = append(atoms, biscuitAtom)
 	}
 
 	return &biscuit.Predicate{
@@ -308,6 +333,24 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 			}
 		default:
 			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
+		}
+	case c.List != nil:
+		values := make([]biscuit.Atom, 0, len(c.List.Atoms))
+		for _, a := range c.List.Atoms {
+			biscuitAtom, err := convertAtom(a)
+			if err != nil {
+				return nil, err
+			}
+
+			if biscuitAtom.Type() == biscuit.AtomTypeVariable {
+				return nil, ErrVariableInList
+			}
+
+			values = append(values, biscuitAtom)
+		}
+		constraint.Checker = biscuit.ListContainsChecker{
+			Values: values,
+			Any:    c.List.Any,
 		}
 	default:
 		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, bytes, or set")
