@@ -70,15 +70,15 @@ func TestGetBlockID(t *testing.T) {
 		Name: "block_1_fact_3",
 		IDs:  []Atom{Symbol("block"), Integer(1), Integer(3)},
 	}})
-	require.Error(t, err)
+	require.Equal(t, ErrFactNotFound, err)
 	_, err = v.GetBlockID(Fact{Predicate{
 		Name: "block_2_fact_1",
 		IDs:  []Atom{Symbol("block"), Integer(2), Integer(1)},
 	}})
-	require.Error(t, err)
+	require.Equal(t, ErrFactNotFound, err)
 	_, err = v.GetBlockID(Fact{Predicate{
 		Name: "block_1_fact_1",
 		IDs:  []Atom{Integer(1), Integer(1)},
 	}})
-	require.Error(t, err)
+	require.Equal(t, ErrFactNotFound, err)
 }
