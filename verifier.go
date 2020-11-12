@@ -143,7 +143,7 @@ func (v *verifier) Query(rule Rule) (FactSet, error) {
 // GetBlockID returns the first block index containing a fact
 // starting from the authority block and then each block in order they were added.
 // Note that facts generated from rules can't be searched.
-// An error is returned when no matching fact is found.
+// ErrFactNotFound is returned when no matching fact is found.
 func (v *verifier) GetBlockID(fact Fact) (int, error) {
 	// don't store symbols from searched fact in the verifier table
 	symbols := v.symbols.Clone()
