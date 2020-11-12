@@ -134,17 +134,17 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Atom, error) {
 		a = Date(time.Unix(int64(id.(datalog.Date)), 0))
 	case datalog.IDTypeBytes:
 		a = Bytes(id.(datalog.Bytes))
-	case datalog.IDTypeList:
-		listIDs := id.(datalog.List)
-		list := make(List, 0, len(listIDs))
-		for _, i := range listIDs {
-			listAtom, err := fromDatalogID(symbols, i)
+	case datalog.IDTypeSet:
+		setIDs := id.(datalog.Set)
+		set := make(Set, 0, len(setIDs))
+		for _, i := range setIDs {
+			setAtom, err := fromDatalogID(symbols, i)
 			if err != nil {
 				return nil, err
 			}
-			list = append(list, listAtom)
+			set = append(set, setAtom)
 		}
-		a = list
+		a = set
 	default:
 		return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
 	}
@@ -325,23 +325,6 @@ func (c BytesInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	}
 }
 
-type ListContainsChecker struct {
-	Values []Atom
-	Any    bool
-}
-
-func (c ListContainsChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	values := make([]datalog.ID, 0, len(c.Values))
-	for _, v := range c.Values {
-		values = append(values, v.convert(symbols))
-	}
-
-	return datalog.ListContainsChecker{
-		Values: values,
-		Any:    c.Any,
-	}
-}
-
 type Predicate struct {
 	Name string
 	IDs  []Atom
@@ -375,7 +358,7 @@ const (
 	AtomTypeString
 	AtomTypeDate
 	AtomTypeBytes
-	AtomTypeList
+	AtomTypeSet
 )
 
 type Atom interface {
@@ -432,17 +415,17 @@ func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
 }
 func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }
 
-type List []Atom
+type Set []Atom
 
-func (a List) Type() AtomType { return AtomTypeList }
-func (a List) convert(symbols *datalog.SymbolTable) datalog.ID {
-	datalogList := make(datalog.List, 0, len(a))
+func (a Set) Type() AtomType { return AtomTypeSet }
+func (a Set) convert(symbols *datalog.SymbolTable) datalog.ID {
+	datalogSet := make(datalog.Set, 0, len(a))
 	for _, e := range a {
-		datalogList = append(datalogList, e.convert(symbols))
+		datalogSet = append(datalogSet, e.convert(symbols))
 	}
-	return datalogList
+	return datalogSet
 }
-func (a List) String() string {
+func (a Set) String() string {
 	elts := make([]string, 0, len(a))
 	for _, e := range a {
 		elts = append(elts, e.String())

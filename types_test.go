@@ -23,7 +23,7 @@ func TestFromDatalogFact(t *testing.T) {
 				datalog.Variable(12),
 				datalog.Date(now.Unix()),
 				datalog.Bytes([]byte("some random bytes")),
-				datalog.List{
+				datalog.Set{
 					datalog.String("abc"),
 					datalog.Integer(42),
 					datalog.Symbol(1),
@@ -45,7 +45,7 @@ func TestFromDatalogFact(t *testing.T) {
 				Variable(12),
 				Date(time.Unix(now.Unix(), 0)),
 				Bytes([]byte("some random bytes")),
-				List{String("abc"), Integer(42), Symbol("sym1")},
+				Set{String("abc"), Integer(42), Symbol("sym1")},
 			},
 		},
 	}
@@ -162,18 +162,6 @@ func TestConstraintsConvert(t *testing.T) {
 			ExpectedChecker: datalog.BytesInChecker{
 				Set: map[string]struct{}{"a": {}, "b": {}, "c": {}},
 				Not: true,
-			},
-		},
-		{
-			Desc:        "ListConstainsChecker",
-			SymbolTable: &datalog.SymbolTable{},
-			Checker: ListContainsChecker{
-				Values: []Atom{String("foo"), Integer(12)},
-				Any:    true,
-			},
-			ExpectedChecker: datalog.ListContainsChecker{
-				Values: []datalog.ID{datalog.String("foo"), datalog.Integer(12)},
-				Any:    true,
 			},
 		},
 	}

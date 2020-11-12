@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrVariableInFact = errors.New("parser: a fact cannot contain any variables")
-	ErrVariableInList = errors.New("parser: a list cannot contain any variables")
+	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
 var defaultParserOptions = []participle.Option{
@@ -159,19 +159,19 @@ func convertAtom(a *Atom) (biscuit.Atom, error) {
 			return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 		}
 		biscuitAtom = biscuit.Bytes(b)
-	case a.List != nil:
-		biscuitList := make(biscuit.List, 0, len(a.List))
-		for _, atom := range a.List {
-			subBiscuitAtom, err := convertAtom(atom)
+	case a.Set != nil:
+		biscuitSet := make(biscuit.Set, 0, len(a.Set))
+		for _, atom := range a.Set {
+			setAtom, err := convertAtom(atom)
 			if err != nil {
 				return nil, err
 			}
-			if subBiscuitAtom.Type() == biscuit.AtomTypeVariable {
-				return nil, ErrVariableInList
+			if setAtom.Type() == biscuit.AtomTypeVariable {
+				return nil, ErrVariableInSet
 			}
-			biscuitList = append(biscuitList, subBiscuitAtom)
+			biscuitSet = append(biscuitSet, setAtom)
 		}
-		biscuitAtom = biscuitList
+		biscuitAtom = biscuitSet
 	default:
 		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
 	}
@@ -333,24 +333,6 @@ func convertVariableConstraint(c *VariableConstraint) (*biscuit.Constraint, erro
 			}
 		default:
 			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
-		}
-	case c.List != nil:
-		values := make([]biscuit.Atom, 0, len(c.List.Atoms))
-		for _, a := range c.List.Atoms {
-			biscuitAtom, err := convertAtom(a)
-			if err != nil {
-				return nil, err
-			}
-
-			if biscuitAtom.Type() == biscuit.AtomTypeVariable {
-				return nil, ErrVariableInList
-			}
-
-			values = append(values, biscuitAtom)
-		}
-		constraint.Checker = biscuit.ListContainsChecker{
-			Values: values,
-			Any:    c.List.Any,
 		}
 	default:
 		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, bytes, or set")

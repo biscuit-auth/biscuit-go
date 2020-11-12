@@ -29,7 +29,7 @@ func getFactTestCases() []testCase {
 						biscuit.Symbol("authority"),
 						biscuit.String("/a/file1.txt"),
 						biscuit.Symbol("read"),
-						biscuit.List{
+						biscuit.Set{
 							biscuit.Symbol("read"),
 							biscuit.String("/a/file2.txt"),
 						},
@@ -367,7 +367,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1($0, $1) @ $0 any of ["abc", "def"], $1 none of [41, 42]`,
+			Input: `*rule1(#a) <- body1($0, $1) @ $0 in ["abc", "def"], $1 not in [41, 42]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -380,16 +380,16 @@ func getRuleTestCases() []testCase {
 				Constraints: []biscuit.Constraint{
 					{
 						Name: biscuit.Variable(0),
-						Checker: biscuit.ListContainsChecker{
-							Values: []biscuit.Atom{biscuit.String("abc"), biscuit.String("def")},
-							Any:    true,
+						Checker: biscuit.StringInChecker{
+							Set: map[biscuit.String]struct{}{biscuit.String("abc"): {}, biscuit.String("def"): {}},
+							Not: false,
 						},
 					},
 					{
 						Name: biscuit.Variable(1),
-						Checker: biscuit.ListContainsChecker{
-							Values: []biscuit.Atom{biscuit.Integer(41), biscuit.Integer(42)},
-							Any:    false,
+						Checker: biscuit.IntegerInChecker{
+							Set: map[biscuit.Integer]struct{}{biscuit.Integer(41): {}, biscuit.Integer(42): {}},
+							Not: true,
 						},
 					},
 				},
@@ -404,7 +404,7 @@ func getRuleTestCases() []testCase {
 			ExpectFailure: true,
 		},
 		{
-			Input:         `*rule1(#a) <- body1($0, $1) @ $0 any of [$1, "foo"]`,
+			Input:         `*rule1(#a) <- body1($0, $1) @ $0 in [$1, "foo"]`,
 			ExpectFailure: true,
 		},
 	}
