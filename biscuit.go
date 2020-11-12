@@ -181,15 +181,20 @@ func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
 	}
 
 	h := sha256.New()
+	// write the authority block and the root key
 	if _, err := h.Write(b.container.Authority); err != nil {
 		return nil, err
 	}
+	if _, err := h.Write(b.container.Keys[0]); err != nil {
+		return nil, err
+	}
+
 	for _, block := range b.container.Blocks[:count] {
 		if _, err := h.Write(block); err != nil {
 			return nil, err
 		}
 	}
-	for _, key := range b.container.Keys[:count+1] { // +1 for the root key
+	for _, key := range b.container.Keys[:count+1] { // +1 to skip the root key
 		if _, err := h.Write(key); err != nil {
 			return nil, err
 		}
