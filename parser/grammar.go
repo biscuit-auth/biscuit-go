@@ -8,6 +8,10 @@ import (
 	"github.com/alecthomas/participle/lexer"
 )
 
+type RuleSet struct {
+	Rules []*Rule `@@+`
+}
+
 type Rule struct {
 	Head        *Predicate    `"*" @@ "<" "-"`
 	Body        []*Predicate  `@@ ("," @@)*`

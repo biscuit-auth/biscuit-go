@@ -24,6 +24,7 @@ var defaultParserOptions = []participle.Option{
 type Parser interface {
 	Fact(fact string) (biscuit.Fact, error)
 	Rule(rule string) (biscuit.Rule, error)
+	Rules(rules string) ([]biscuit.Rule, error)
 	Caveat(caveat string) (biscuit.Caveat, error)
 	Must() MustParser
 }
@@ -31,12 +32,14 @@ type Parser interface {
 type MustParser interface {
 	Fact(fact string) biscuit.Fact
 	Rule(rule string) biscuit.Rule
+	Rules(rules string) []biscuit.Rule
 	Caveat(caveat string) biscuit.Caveat
 }
 
 type parser struct {
 	factParser   *participle.Parser
 	ruleParser   *participle.Parser
+	rulesParser  *participle.Parser
 	caveatParser *participle.Parser
 }
 
@@ -52,6 +55,7 @@ func New() Parser {
 	return &parser{
 		factParser:   participle.MustBuild(&Predicate{}, defaultParserOptions...),
 		ruleParser:   participle.MustBuild(&Rule{}, defaultParserOptions...),
+		rulesParser:  participle.MustBuild(&RuleSet{}, defaultParserOptions...),
 		caveatParser: participle.MustBuild(&Caveat{}, defaultParserOptions...),
 	}
 }
@@ -89,6 +93,25 @@ func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 
 	return *r, nil
 }
+
+func (p *parser) Rules(rules string) ([]biscuit.Rule, error) {
+	parsed := &RuleSet{}
+	if err := p.rulesParser.ParseString(rules, parsed); err != nil {
+		return nil, err
+	}
+
+	biscuitRules := make([]biscuit.Rule, 0, len(parsed.Rules))
+	for _, r := range parsed.Rules {
+		biscuitRule, err := convertRule(r)
+		if err != nil {
+			return nil, err
+		}
+		biscuitRules = append(biscuitRules, *biscuitRule)
+	}
+
+	return biscuitRules, nil
+}
+
 func (p *parser) Caveat(caveat string) (biscuit.Caveat, error) {
 	parsed := &Caveat{}
 	if err := p.caveatParser.ParseString(caveat, parsed); err != nil {
@@ -125,6 +148,15 @@ func (m *mustParser) Fact(fact string) biscuit.Fact {
 
 func (m *mustParser) Rule(rule string) biscuit.Rule {
 	r, err := m.parser.Rule(rule)
+	if err != nil {
+		panic(err)
+	}
+
+	return r
+}
+
+func (m *mustParser) Rules(rules string) []biscuit.Rule {
+	r, err := m.parser.Rules(rules)
 	if err != nil {
 		panic(err)
 	}

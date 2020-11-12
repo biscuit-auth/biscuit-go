@@ -369,6 +369,48 @@ func getRuleTestCases() []testCase {
 	}
 }
 
+func getRulesTestCases() []testCase {
+	return []testCase{
+		{
+			Input: `
+				*rule1($0, $1)   <- fact1(#a, $0), fact2($1, #c) @ $0 > 42, prefix($1, "abc")
+				*rule2($0, $1)   <- fact3("hex:41414141", $0), fact4(#b, #c) @ $0 == 12
+				*rule3("foobar") <- fact5(#authority, "foobar")
+			`,
+			Expected: []biscuit.Rule{
+				{
+					Head: biscuit.Predicate{Name: "rule1", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)}},
+					Body: []biscuit.Predicate{
+						{Name: "fact1", IDs: []biscuit.Atom{biscuit.Symbol("a"), biscuit.Variable(0)}},
+						{Name: "fact2", IDs: []biscuit.Atom{biscuit.Variable(1), biscuit.Symbol("c")}},
+					},
+					Constraints: []biscuit.Constraint{
+						{Name: biscuit.Variable(0), Checker: biscuit.IntegerComparisonChecker{Comparison: datalog.IntegerComparisonGT, Integer: 42}},
+						{Name: biscuit.Variable(1), Checker: biscuit.StringComparisonChecker{Comparison: datalog.StringComparisonPrefix, Str: "abc"}},
+					},
+				},
+				{
+					Head: biscuit.Predicate{Name: "rule2", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)}},
+					Body: []biscuit.Predicate{
+						{Name: "fact3", IDs: []biscuit.Atom{biscuit.Bytes("AAAA"), biscuit.Variable(0)}},
+						{Name: "fact4", IDs: []biscuit.Atom{biscuit.Symbol("b"), biscuit.Symbol("c")}},
+					},
+					Constraints: []biscuit.Constraint{
+						{Name: biscuit.Variable(0), Checker: biscuit.IntegerComparisonChecker{Comparison: datalog.IntegerComparisonEqual, Integer: 12}},
+					},
+				},
+				{
+					Head: biscuit.Predicate{Name: "rule3", IDs: []biscuit.Atom{biscuit.String("foobar")}},
+					Body: []biscuit.Predicate{
+						{Name: "fact5", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.String("foobar")}},
+					},
+					Constraints: []biscuit.Constraint{},
+				},
+			},
+		},
+	}
+}
+
 func getCaveatTestCases() []testCase {
 	return []testCase{
 		{
@@ -454,6 +496,25 @@ func TestParseRule(t *testing.T) {
 	for _, testCase := range getRuleTestCases() {
 		t.Run(testCase.Input, func(t *testing.T) {
 			rule, err := p.Rule(testCase.Input)
+			if testCase.ExpectFailure {
+				if testCase.ExpectErr != nil {
+					require.Equal(t, testCase.ExpectErr, err)
+				} else {
+					require.Error(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, testCase.Expected, rule)
+			}
+		})
+	}
+}
+
+func TestParseRules(t *testing.T) {
+	p := New()
+	for _, testCase := range getRulesTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			rule, err := p.Rules(testCase.Input)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
