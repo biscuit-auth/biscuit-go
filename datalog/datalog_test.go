@@ -346,7 +346,7 @@ func TestResource(t *testing.T) {
 	}
 }
 
-func TestList(t *testing.T) {
+func TestSet(t *testing.T) {
 	syms := &SymbolTable{}
 
 	ambient := syms.Insert("ambient")
@@ -358,87 +358,134 @@ func TestList(t *testing.T) {
 
 	testCases := []struct {
 		Desc    string
-		List    List
-		Checker ListContainsChecker
+		Set     Set
+		Checker Checker
 		CanRead bool
 	}{
 		{
-			Desc: "Allow read on file1 and file2",
-			List: List{String("file1"), String("file2")},
-			Checker: ListContainsChecker{
-				Values: []ID{String("file1"), String("file2"), String("file3")},
-				Any:    true,
+			Desc: "strings - allow read on file1 and file2",
+			Set:  Set{String("file1"), String("file2")},
+			Checker: StringInChecker{
+				Set: map[String]struct{}{String("file1"): {}, String("file2"): {}, String("file3"): {}},
+				Not: false,
 			},
 			CanRead: true,
 		},
 		{
-			Desc: "Disallow read because of file3",
-			List: List{String("file1"), String("file2"), String("file3")},
-			Checker: ListContainsChecker{
-				Values: []ID{String("file1"), String("file2")},
-				Any:    true,
+			Desc: "strings - disallow read because of file3",
+			Set:  Set{String("file1"), String("file2"), String("file3")},
+			Checker: StringInChecker{
+				Set: map[String]struct{}{String("file1"): {}, String("file2"): {}},
+				Not: false,
 			},
 			CanRead: false,
 		},
 		{
-			Desc: "Allow read on anything but file3",
-			List: List{String("file1"), String("file2"), String("file4")},
-			Checker: ListContainsChecker{
-				Values: []ID{String("file3")},
-				Any:    false,
+			Desc: "strings - allow read on anything but file3",
+			Set:  Set{String("file1"), String("file2"), String("file4")},
+			Checker: StringInChecker{
+				Set: map[String]struct{}{String("file3"): {}},
+				Not: true,
 			},
 			CanRead: true,
 		},
 		{
-			Desc: "Disallow read because of file4 file3",
-			List: List{String("file1"), String("file2"), String("file4")},
-			Checker: ListContainsChecker{
-				Values: []ID{String("file3"), String("file4")},
-				Any:    false,
+			Desc: "strings - disallow read because of file4",
+			Set:  Set{String("file1"), String("file2"), String("file4")},
+			Checker: StringInChecker{
+				Set: map[String]struct{}{String("file3"): {}, String("file4"): {}},
+				Not: true,
 			},
 			CanRead: false,
 		},
 		{
-			Desc: "Allow read mixing types",
-			List: List{String("file1"), Integer(42), Bytes{0xBE, 0xEF}},
-			Checker: ListContainsChecker{
-				Values: []ID{String("file2"), Integer(41), Integer(42), Bytes{0xFE, 0xEB}, Bytes{0xBE, 0xEF}, String("file1")},
-				Any:    true,
+			Desc: "integers - allow read",
+			Set:  Set{Integer(10), Integer(11)},
+			Checker: IntegerInChecker{
+				Set: map[Integer]struct{}{Integer(10): {}, Integer(11): {}, Integer(12): {}},
+				Not: false,
 			},
 			CanRead: true,
 		},
 		{
-			Desc: "Disallow read mixing types",
-			List: List{String("file1"), Integer(42), Bytes{0xBE, 0xEF}},
-			Checker: ListContainsChecker{
-				Values: []ID{Integer(42)},
-				Any:    false,
+			Desc: "integers - disallow read",
+			Set:  Set{Integer(10), Integer(11)},
+			Checker: IntegerInChecker{
+				Set: map[Integer]struct{}{Integer(10): {}},
+				Not: false,
+			},
+			CanRead: false,
+		},
+		{
+			Desc: "bytes - allow read",
+			Set:  Set{Bytes{0x41, 0x42, 0x43}, Bytes{0xDE, 0xAD, 0xBE, 0xEF}},
+			Checker: BytesInChecker{
+				Set: map[string]struct{}{string([]byte{0x41, 0x42, 0x43}): {}, string([]byte{0xDE, 0xAD, 0xBE, 0xEF}): {}},
+				Not: false,
+			},
+			CanRead: true,
+		},
+		{
+			Desc: "bytes - disallow read",
+			Set:  Set{Bytes{0x41, 0x42, 0x43}, Bytes{0xDE, 0xAD, 0xBE, 0xEF}},
+			Checker: BytesInChecker{
+				Set: map[string]struct{}{string([]byte{0xDE, 0xAD, 0xBE, 0xEF}): {}},
+				Not: true,
+			},
+			CanRead: false,
+		},
+		{
+			Desc: "symbols - allow read",
+			Set:  Set{Symbol(1), Symbol(2)},
+			Checker: SymbolInChecker{
+				Set: map[Symbol]struct{}{Symbol(1): {}, Symbol(2): {}},
+				Not: false,
+			},
+			CanRead: true,
+		},
+		{
+			Desc: "symbols - disallow read",
+			Set:  Set{Symbol(1), Symbol(2)},
+			Checker: SymbolInChecker{
+				Set: map[Symbol]struct{}{},
+				Not: false,
+			},
+			CanRead: false,
+		},
+		{
+			Desc: "mixed types can't read",
+			Set:  Set{Symbol(1), Integer(2), String("abc")},
+			Checker: SymbolInChecker{
+				Set: map[Symbol]struct{}{Symbol(1): {}},
+				Not: false,
 			},
 			CanRead: false,
 		},
 	}
 
 	for _, testCase := range testCases {
-		w := NewWorld()
-		w.AddFact(Fact{Predicate: Predicate{Name: method, IDs: []ID{ambient, read}}})
-		w.AddFact(Fact{Predicate: Predicate{Name: arg, IDs: []ID{ambient, testCase.List}}})
+		t.Run(testCase.Desc, func(t *testing.T) {
+			w := NewWorld()
+			w.AddFact(Fact{Predicate: Predicate{Name: method, IDs: []ID{ambient, read}}})
+			w.AddFact(Fact{Predicate: Predicate{Name: arg, IDs: []ID{ambient, testCase.Set}}})
 
-		res := w.QueryRule(Rule{
-			Head: Predicate{canRead, []ID{Variable(0)}},
-			Body: []Predicate{
-				{method, []ID{ambient, Variable(0)}},
-				{arg, []ID{ambient, Variable(1)}},
-			},
-			Constraints: []Constraint{
-				{Name: Variable(1), Checker: testCase.Checker},
-			},
+			res := w.QueryRule(Rule{
+				Head: Predicate{canRead, []ID{Variable(0)}},
+				Body: []Predicate{
+					{method, []ID{ambient, Variable(0)}},
+					{arg, []ID{ambient, Variable(1)}},
+				},
+				Constraints: []Constraint{
+					{Name: Variable(1), Checker: testCase.Checker},
+				},
+			})
+
+			if testCase.CanRead {
+				require.Equal(t, 1, len(*res))
+			} else {
+				require.Equal(t, 0, len(*res))
+			}
 		})
-
-		if testCase.CanRead {
-			require.Equal(t, 1, len(*res))
-		} else {
-			require.Equal(t, 0, len(*res))
-		}
 	}
 }
 
@@ -532,26 +579,6 @@ func TestCheckers(t *testing.T) {
 			SymbolInChecker{map[Symbol]struct{}{1: {}, 2: {}}, true},
 			[]ID{Symbol(10), Symbol(3)},
 			[]ID{Symbol(1), Symbol(2), String("3"), Integer(3), Date(3)},
-		},
-		{
-			ListContainsChecker{Values: []ID{String("a"), String("b")}, Any: true},
-			[]ID{List{String("a"), String("b")}},
-			[]ID{List{String("a"), String("c")}},
-		},
-		{
-			ListContainsChecker{Values: []ID{String("a"), String("b")}, Any: true},
-			[]ID{List{}},
-			[]ID{List{String("a"), String("b"), String("c")}},
-		},
-		{
-			ListContainsChecker{Values: []ID{String("a"), String("b")}, Any: false},
-			[]ID{List{String("c"), String("d")}},
-			[]ID{List{String("a"), String("d")}},
-		},
-		{
-			ListContainsChecker{Values: []ID{String("a"), String("b")}, Any: false},
-			[]ID{List{}},
-			[]ID{List{String("b"), String("c")}},
 		},
 	}
 	for _, test := range tests {

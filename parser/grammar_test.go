@@ -83,7 +83,7 @@ func TestGrammarPredicate(t *testing.T) {
 				Name: "right",
 				IDs: []*Atom{
 					{Variable: ui32ptr(1)},
-					{List: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: sptr("sym")}}},
+					{Set: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: sptr("sym")}}},
 				},
 			},
 		},
@@ -325,40 +325,6 @@ func TestGrammarConstraint(t *testing.T) {
 					Set: &Set{
 						Bytes: []HexString{"abcdef", "01234", "56789"},
 						Not:   true,
-					},
-				},
-			},
-		},
-		{
-			Input: `$0 any of ["hex:abcdef", "abc", 42, #sym123]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
-					List: &List{
-						Any: true,
-						Atoms: []*Atom{
-							{Bytes: hexsptr("abcdef")},
-							{String: sptr("abc")},
-							{Integer: i64ptr(42)},
-							{Symbol: sptr("sym123")},
-						},
-					},
-				},
-			},
-		},
-		{
-			Input: `$0 none of ["hex:abcdef", "abc", 42, #sym123]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
-					List: &List{
-						Any: false,
-						Atoms: []*Atom{
-							{Bytes: hexsptr("abcdef")},
-							{String: sptr("abc")},
-							{Integer: i64ptr(42)},
-							{Symbol: sptr("sym123")},
-						},
 					},
 				},
 			},
