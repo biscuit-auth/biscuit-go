@@ -129,13 +129,15 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	// This caveat requires every "should_sign" fact to have a matching "valid_signature" fact,
 	// that can only provided by the verifier (due to the ambient tag)
 	// *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
-	builder.AddAuthorityCaveat(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
-		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-			{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+	builder.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{
+		{
+			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+			Body: []biscuit.Predicate{
+				{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+				{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+			},
 		},
-	})
+	}})
 
 	b, err := builder.Build()
 	require.NoError(t, err)
