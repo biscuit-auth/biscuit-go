@@ -18,7 +18,7 @@ var (
 type Builder interface {
 	AddAuthorityFact(fact Fact) error
 	AddAuthorityRule(rule Rule) error
-	AddAuthorityCaveat(rule Rule) error
+	AddAuthorityCaveat(caveat Caveat) error
 	Build() (*Biscuit, error)
 }
 
@@ -80,8 +80,8 @@ func (b *builder) AddAuthorityRule(rule Rule) error {
 	return nil
 }
 
-func (b *builder) AddAuthorityCaveat(rule Rule) error {
-	b.caveats = append(b.caveats, datalog.Caveat{Queries: []datalog.Rule{rule.convert(b.symbols)}})
+func (b *builder) AddAuthorityCaveat(caveat Caveat) error {
+	b.caveats = append(b.caveats, caveat.convert(b.symbols))
 	return nil
 }
 

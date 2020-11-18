@@ -122,19 +122,21 @@ func TestBiscuitRules(t *testing.T) {
 			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
 		},
 	})
-	builder.AddAuthorityCaveat(Rule{
-		Head: Predicate{Name: "allowed_users", IDs: []Atom{Variable(0)}},
-		Body: []Predicate{
-			{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
-		},
-		Constraints: []Constraint{{
-			Name: Variable(0),
-			Checker: SymbolInChecker{
-				Set: map[Symbol]struct{}{Symbol("alice"): {}, Symbol("bob"): {}},
-				Not: false,
+	builder.AddAuthorityCaveat(Caveat{Queries: []Rule{
+		{
+			Head: Predicate{Name: "allowed_users", IDs: []Atom{Variable(0)}},
+			Body: []Predicate{
+				{Name: "owner", IDs: []Atom{Symbol("ambient"), Variable(0), Variable(1)}},
 			},
-		}},
-	})
+			Constraints: []Constraint{{
+				Name: Variable(0),
+				Checker: SymbolInChecker{
+					Set: map[Symbol]struct{}{Symbol("alice"): {}, Symbol("bob"): {}},
+					Not: false,
+				},
+			}},
+		},
+	}})
 
 	b1, err := builder.Build()
 	require.NoError(t, err)
