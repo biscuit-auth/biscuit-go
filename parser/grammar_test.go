@@ -342,6 +342,129 @@ func TestGrammarConstraint(t *testing.T) {
 
 }
 
+func TestGrammarCaveat(t *testing.T) {
+	parser, err := participle.Build(&Caveat{}, defaultParserOptions...)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Input    string
+		Expected *Caveat
+	}{
+		{
+			Input: `[*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)]`,
+			Expected: &Caveat{[]*Rule{
+				{
+					Head: &Predicate{
+						Name: "grandparent",
+						IDs: []*Atom{
+							{Symbol: sptr("a")},
+							{Symbol: sptr("c")},
+						},
+					},
+					Body: []*Predicate{
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("a")},
+								{Symbol: sptr("b")},
+							},
+						},
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("b")},
+								{Symbol: sptr("c")},
+							},
+						},
+					},
+				},
+			}},
+		},
+		{
+			Input: `[*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) || *grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")]`,
+			Expected: &Caveat{[]*Rule{
+				{
+					Head: &Predicate{
+						Name: "grandparent",
+						IDs: []*Atom{
+							{Symbol: sptr("a")},
+							{Symbol: sptr("c")},
+						},
+					},
+					Body: []*Predicate{
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("a")},
+								{Symbol: sptr("b")},
+							},
+						},
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("b")},
+								{Symbol: sptr("c")},
+							},
+						},
+					},
+				},
+				{
+					Head: &Predicate{
+						Name: "grandparent",
+						IDs: []*Atom{
+							{Symbol: sptr("a")},
+							{Symbol: sptr("c")},
+						},
+					},
+					Body: []*Predicate{
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("a")},
+								{Symbol: sptr("b")},
+							},
+						},
+						{
+							Name: "parent",
+							IDs: []*Atom{
+								{Symbol: sptr("b")},
+								{Symbol: sptr("c")},
+							},
+						},
+					},
+					Constraints: []*Constraint{
+						{
+							VariableConstraint: &VariableConstraint{
+								Variable: ui32ptr(0),
+								Int: &IntComparison{
+									Operation: sptr(">"),
+									Target:    i64ptr(42),
+								},
+							},
+						},
+						{
+							FunctionConstraint: &FunctionConstraint{
+								Function: sptr("prefix"),
+								Variable: ui32ptr(1),
+								Argument: sptr("test"),
+							},
+						},
+					},
+				},
+			}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Input, func(t *testing.T) {
+			parsed := &Caveat{}
+			err := parser.ParseString(testCase.Input, parsed)
+			require.NoError(t, err)
+			require.Equal(t, testCase.Expected, parsed)
+		})
+	}
+}
+
 func TestGrammarRule(t *testing.T) {
 	parser, err := participle.Build(&Rule{}, defaultParserOptions...)
 	require.NoError(t, err)

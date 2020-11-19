@@ -368,3 +368,19 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 		Constraints: constraints,
 	}, nil
 }
+
+func (c *Caveat) ToBiscuit() (*biscuit.Caveat, error) {
+	queries := make([]biscuit.Rule, 0, len(c.Queries))
+	for _, q := range c.Queries {
+		r, err := q.ToBiscuit()
+		if err != nil {
+			return nil, err
+		}
+
+		queries = append(queries, *r)
+	}
+
+	return &biscuit.Caveat{
+		Queries: queries,
+	}, nil
+}
