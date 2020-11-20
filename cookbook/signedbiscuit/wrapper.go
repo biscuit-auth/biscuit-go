@@ -63,13 +63,13 @@ func (b *hubauthBuilder) withUserToSignFact(userPubkey []byte) error {
 		return err
 	}
 
-	if err := b.AddAuthorityCaveat(biscuit.Rule{
+	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
 		Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
 		Body: []biscuit.Predicate{
 			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 		},
-	}); err != nil {
+	}}}); err != nil {
 		return err
 	}
 
@@ -101,13 +101,13 @@ func (b *hubauthBuilder) withAudienceSignature(audience string, audienceKey cryp
 		return err
 	}
 
-	if err := b.AddAuthorityCaveat(biscuit.Rule{
+	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
 		Head: biscuit.Predicate{Name: "valid_audience", IDs: []biscuit.Atom{biscuit.Variable(0)}},
 		Body: []biscuit.Predicate{
 			{Name: "audience_signature", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
 			{Name: "valid_audience_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(2)}},
 		},
-	}); err != nil {
+	}}}); err != nil {
 		return err
 	}
 
@@ -127,7 +127,7 @@ func (b *hubauthBuilder) withMetadata(m *Metadata) error {
 }
 
 func (b *hubauthBuilder) withExpire(exp time.Time) error {
-	if err := b.AddAuthorityCaveat(biscuit.Rule{
+	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
 		Head: biscuit.Predicate{Name: "not_expired", IDs: []biscuit.Atom{biscuit.Variable(0)}},
 		Body: []biscuit.Predicate{
 			{Name: "current_time", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0)}},
@@ -139,7 +139,7 @@ func (b *hubauthBuilder) withExpire(exp time.Time) error {
 				Date:       biscuit.Date(exp),
 			},
 		}},
-	}); err != nil {
+	}}}); err != nil {
 		return err
 	}
 
