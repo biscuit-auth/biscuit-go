@@ -173,8 +173,8 @@ func (b *Biscuit) Serialize() ([]byte, error) {
 var ErrFactNotFound = errors.New("biscuit: fact not found")
 
 // GetBlockID returns the first block index containing a fact
-// starting from the authority block and then each block in order they were added.
-// ErrFactNotFound is returned when no block contains the searched fact.
+// starting from the authority block and then each block in the order they were added.
+// ErrFactNotFound is returned when no block contains the fact.
 func (b *Biscuit) GetBlockID(fact Fact) (int, error) {
 	// don't store symbols from searched fact in the verifier table
 	symbols := b.symbols.Clone()
