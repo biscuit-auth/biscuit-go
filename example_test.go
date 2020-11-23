@@ -12,7 +12,7 @@ func ExampleBiscuit() {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := biscuit.NewBuilder(rng, root)
+	builder := biscuit.NewBuilder(root)
 
 	err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",

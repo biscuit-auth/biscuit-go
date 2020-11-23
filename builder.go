@@ -1,6 +1,7 @@
 package biscuit
 
 import (
+	"crypto/rand"
 	"errors"
 	"io"
 
@@ -34,19 +35,35 @@ type builder struct {
 	context      string
 }
 
-func NewBuilder(rng io.Reader, root sig.Keypair) Builder {
-	return BuilderWithSymbols(rng, root, defaultSymbolTable)
+type builderOption func(b *builder)
+
+func WihtRng(rng io.Reader) builderOption {
+	return func(b *builder) {
+		b.rng = rng
+	}
 }
 
-func BuilderWithSymbols(rng io.Reader, root sig.Keypair, symbols *datalog.SymbolTable) Builder {
-	return &builder{
-		rng:  rng,
-		root: root,
+func WithSymbols(symbols *datalog.SymbolTable) builderOption {
+	return func(b *builder) {
+		b.symbolsStart = symbols.Len()
+		b.symbols = symbols.Clone()
+	}
+}
 
-		symbolsStart: symbols.Len(),
-		symbols:      symbols.Clone(),
+func NewBuilder(root sig.Keypair, opts ...builderOption) Builder {
+	b := &builder{
+		rng:          rand.Reader,
+		root:         root,
+		symbols:      defaultSymbolTable.Clone(),
+		symbolsStart: defaultSymbolTable.Len(),
 		facts:        new(datalog.FactSet),
 	}
+
+	for _, o := range opts {
+		o(b)
+	}
+
+	return b
 }
 
 func (b *builder) AddAuthorityFact(fact Fact) error {

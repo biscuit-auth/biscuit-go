@@ -100,7 +100,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	rng := rand.Reader
 	serverKey := sig.GenerateKeypair(rng)
 
-	builder := biscuit.NewBuilder(rng, serverKey)
+	builder := biscuit.NewBuilder(serverKey)
 
 	// add "should_sign(#authority, dataID, alg, pubkey)" fact requesting the client sign the data
 	// with specified alg and the matching private key
