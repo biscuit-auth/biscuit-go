@@ -149,7 +149,7 @@ func WithSignatureVerification(v biscuit.Verifier, audience string, audienceKey 
 		return nil, nil, fmt.Errorf("biscuit: failed to retrieve user signature data: %w", err)
 	}
 
-	signatureBlockID, err := v.GetBlockID(biscuit.Fact{Predicate: biscuit.Predicate{
+	signatureBlockID, err := v.Biscuit().GetBlockID(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
 		IDs: []biscuit.Atom{
 			userVerificationData.DataID,
@@ -163,7 +163,7 @@ func WithSignatureVerification(v biscuit.Verifier, audience string, audienceKey 
 		return nil, nil, fmt.Errorf("biscuit: failed to retrieve signature blockID: %w", err)
 	}
 
-	signedTokenHash, err := v.SHA256Sum(signatureBlockID - 1)
+	signedTokenHash, err := v.Biscuit().SHA256Sum(signatureBlockID - 1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("biscuit: failed to generate token hash: %w", err)
 	}

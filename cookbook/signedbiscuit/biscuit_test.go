@@ -27,7 +27,7 @@ func TestBiscuit(t *testing.T) {
 		IssueTime: time.Now(),
 	}
 
-	builder := biscuit.NewBuilder(rand.Reader, rootKey)
+	builder := biscuit.NewBuilder(rootKey)
 
 	builder, err = WithSignableFacts(builder, audience, audienceKey, userKey.Public, time.Now().Add(5*time.Minute), metas)
 	require.NoError(t, err)
