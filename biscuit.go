@@ -170,6 +170,33 @@ func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
 }
 
+var ErrFactNotFound = errors.New("biscuit: fact not found")
+
+// GetBlockID returns the first block index containing a fact
+// starting from the authority block and then each block in the order they were added.
+// ErrFactNotFound is returned when no block contains the fact.
+func (b *Biscuit) GetBlockID(fact Fact) (int, error) {
+	// don't store symbols from searched fact in the verifier table
+	symbols := b.symbols.Clone()
+	datalogFact := fact.Predicate.convert(symbols)
+
+	for _, f := range *b.authority.facts {
+		if f.Equal(datalogFact) {
+			return 0, nil
+		}
+	}
+
+	for i, b := range b.blocks {
+		for _, f := range *b.facts {
+			if f.Equal(datalogFact) {
+				return i + 1, nil
+			}
+		}
+	}
+
+	return 0, ErrFactNotFound
+}
+
 // SHA256Sum returns a hash of `count` biscuit blocks + the authority block
 // along with their respective keys.
 func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {

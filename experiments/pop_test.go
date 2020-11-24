@@ -288,7 +288,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	require.True(t, ok)
 
 	// retrieve the block index containing user signature
-	blockIdx, err := verifier.GetBlockID(biscuit.Fact{Predicate: biscuit.Predicate{
+	blockIdx, err := verifier.Biscuit().GetBlockID(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
 		IDs:  []biscuit.Atom{dataID, pubkey, signature, signerNonce, signerTimestamp},
 	}})
