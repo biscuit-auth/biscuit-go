@@ -535,7 +535,7 @@ func TestBiscuitSha256Sum(t *testing.T) {
 func TestGetBlockID(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 
 	// add 3 facts authority_0_fact_{0,1,2} in authority block
 	for i := 0; i < 3; i++ {
