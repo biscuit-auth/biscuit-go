@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Atom
 
-Represents a Datalog type, can be one of: symbol, variable, integer, string, date, bytes, or list.
+Represents a Datalog type, can be one of: symbol, variable, integer, string, date, bytes, or set.
 
 - symbol is prefixed with a `#` sign followed by text, e.g. `#read`
 - variable is prefixed with a `$` sign followed by an unsigned 32bit base-10 integer,  e.g. `$0`
@@ -77,4 +77,4 @@ e.g. `*right(#authority, $1, #read) <- resource(#ambient, $1), owner(#ambient, $
 
 # Caveat
 
-A caveat is list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`
+A caveat is a list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`
