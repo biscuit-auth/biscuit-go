@@ -38,8 +38,14 @@ func (v Set) Equal(t ID) bool {
 	if !ok || len(c) != len(v) {
 		return false
 	}
-	for i, id := range v {
-		if !id.Equal(c[i]) {
+
+	cmap := make(map[ID]struct{}, len(c))
+	for _, v := range c {
+		cmap[v] = struct{}{}
+	}
+
+	for _, id := range v {
+		if _, ok := cmap[id]; !ok {
 			return false
 		}
 	}

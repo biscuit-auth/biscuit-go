@@ -649,3 +649,49 @@ func TestSymbolTableClone(t *testing.T) {
 	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
 	require.Equal(t, &SymbolTable{"a", "b", "c", "d", "e"}, s2)
 }
+
+func TestSetEqual(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		s1    Set
+		s2    Set
+		equal bool
+	}{
+		{
+			desc:  "equal with same values in same order",
+			s1:    Set{String("a"), String("b"), String("c")},
+			s2:    Set{String("a"), String("b"), String("c")},
+			equal: true,
+		},
+		{
+			desc:  "equal with same values different order",
+			s1:    Set{String("a"), String("b"), String("c")},
+			s2:    Set{String("b"), String("c"), String("a")},
+			equal: true,
+		},
+		{
+			desc:  "not equal when length mismatch",
+			s1:    Set{String("a"), String("b"), String("c")},
+			s2:    Set{String("a"), String("b")},
+			equal: false,
+		},
+		{
+			desc:  "not equal when length mismatch",
+			s1:    Set{String("a"), String("b"), String("c")},
+			s2:    Set{String("a"), String("b"), String("c"), String("d")},
+			equal: false,
+		},
+		{
+			desc:  "not equal when same length but different values",
+			s1:    Set{String("a"), String("b"), String("c")},
+			s2:    Set{String("a"), String("b"), String("d")},
+			equal: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.desc, func(t *testing.T) {
+			require.Equal(t, testCase.equal, testCase.s1.Equal(testCase.s2))
+		})
+	}
+}
