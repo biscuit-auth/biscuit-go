@@ -14,7 +14,7 @@ func TestBiscuit(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 
 	builder.AddAuthorityFact(Fact{
 		Predicate: Predicate{Name: "right", IDs: []Atom{Symbol("authority"), String("/a/file1"), Symbol("read")}},
@@ -106,7 +106,7 @@ func TestBiscuitRules(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 
 	builder.AddAuthorityRule(Rule{
 		Head: Predicate{Name: "right", IDs: []Atom{Variable(1), Symbol("read")}},
@@ -210,7 +210,7 @@ func TestCheckRootKey(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 
 	b, err := builder.Build()
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestGenerateWorld(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	build := NewBuilder(rng, root)
+	build := NewBuilder(root)
 
 	authorityFact1 := Fact{Predicate: Predicate{Name: "fact1", IDs: []Atom{Symbol("authority"), String("file1")}}}
 	authorityFact2 := Fact{Predicate: Predicate{Name: "fact2", IDs: []Atom{Symbol("authority"), String("file2")}}}
@@ -377,7 +377,7 @@ func TestGenerateWorldErrors(t *testing.T) {
 			rng := rand.Reader
 			root := sig.GenerateKeypair(rng)
 
-			builder := NewBuilder(rng, root)
+			builder := NewBuilder(root)
 			b, err := builder.Build()
 			require.NoError(t, err)
 
@@ -410,7 +410,7 @@ func TestGenerateWorldErrors(t *testing.T) {
 
 func TestAppendErrors(t *testing.T) {
 	rng := rand.Reader
-	builder := NewBuilder(rng, sig.GenerateKeypair(rng))
+	builder := NewBuilder(sig.GenerateKeypair(rng))
 
 	t.Run("symbols overlap", func(t *testing.T) {
 		b, err := builder.Build()
@@ -475,7 +475,7 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 	b, err := builder.Build()
 	require.NoError(t, err)
 
@@ -490,7 +490,7 @@ func TestBiscuitSha256Sum(t *testing.T) {
 	rng := rand.Reader
 	root := sig.GenerateKeypair(rng)
 
-	builder := NewBuilder(rng, root)
+	builder := NewBuilder(root)
 	b, err := builder.Build()
 	require.NoError(t, err)
 
