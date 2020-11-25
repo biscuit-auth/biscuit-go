@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Atom
 
-Represents a Datalog type, can be one of: symbol, variable, integer, string, date, or bytes.
+Represents a Datalog type, can be one of: symbol, variable, integer, string, date, bytes, or set.
 
 - symbol is prefixed with a `#` sign followed by text, e.g. `#read`
 - variable is prefixed with a `$` sign followed by an unsigned 32bit base-10 integer,  e.g. `$0`
@@ -12,6 +12,7 @@ Represents a Datalog type, can be one of: symbol, variable, integer, string, dat
 - string is any utf8 character sequence, between double quotes, e.g. `"/path/to/file.txt"`
 - date is RFC3339 encoded, e.g. `2006-01-02T15:04:05Z07:00`
 - bytes is an hexadecimal encoded string, prefixed with a `hex:` sequence
+- set is a sequence of any of the above types, except variable, between brackets, e.g. `[#read, #write, #update, "file1", "file2"]`
 
 ## Predicate
 
@@ -56,6 +57,11 @@ Constraints allows performing checks on a variable, below is the list of availab
 - In: `$0 in ["hex:3df97fb5", "hex:4a8feed1"]`
 - Not in: `$0 not in ["hex:3df97fb5", "hex:4a8feed1"]`
 
+### Set
+
+- Any: `$0 in [#read, #write]`
+- None: `$0 not in [#read, #write]`
+
 ## Fact
 
 A fact is a single predicate that does not contain any variables, e.g. `right(#authority, "file1.txt", #read)`.
@@ -71,4 +77,4 @@ e.g. `*right(#authority, $1, #read) <- resource(#ambient, $1), owner(#ambient, $
 
 # Caveat
 
-A caveat is list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`
+A caveat is a list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`
