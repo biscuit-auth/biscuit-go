@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -266,7 +267,7 @@ func (c IntegerInChecker) String(name Variable) string {
 	for k := range c.Set {
 		set = append(set, k.String())
 	}
-
+	sort.Strings(set)
 	return fmt.Sprintf("%s %s %s", name, op, strings.Join(set, ", "))
 }
 
@@ -320,6 +321,7 @@ func (c StringInChecker) String(name Variable) string {
 	for v := range c.Set {
 		set = append(set, v.String())
 	}
+	sort.Strings(set)
 	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
 }
 
@@ -382,6 +384,7 @@ func (c SymbolInChecker) String(name Variable) string {
 	for v := range c.Set {
 		set = append(set, v.String())
 	}
+	sort.Strings(set)
 	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
 }
 
@@ -425,6 +428,7 @@ func (c BytesInChecker) String(name Variable) string {
 	for v := range c.Set {
 		set = append(set, fmt.Sprintf("hex:%s", v))
 	}
+	sort.Strings(set)
 	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
 }
 
@@ -533,6 +537,6 @@ func (a Set) String() string {
 	for _, e := range a {
 		elts = append(elts, e.String())
 	}
-
+	sort.Strings(elts)
 	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
 }

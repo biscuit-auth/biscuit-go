@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -58,7 +59,7 @@ func (s Set) String() string {
 	for _, e := range s {
 		eltStr = append(eltStr, e.String())
 	}
-
+	sort.Strings(eltStr)
 	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
 }
 
@@ -194,6 +195,7 @@ func (m IntegerInChecker) String() string {
 	if m.Not {
 		prefix = "not "
 	}
+	sort.Strings(strs)
 	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
 }
 
@@ -272,6 +274,7 @@ func (m StringInChecker) String() string {
 	if m.Not {
 		prefix = "not "
 	}
+	sort.Strings(strs)
 	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
 }
 
@@ -395,6 +398,7 @@ func (m BytesInChecker) String() string {
 	if m.Not {
 		prefix = "not "
 	}
+	sort.Strings(strs)
 	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
 }
 
@@ -430,6 +434,7 @@ func (m SymbolInChecker) String() string {
 	if m.Not {
 		prefix = "not "
 	}
+	sort.Strings(strs)
 	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
 }
 
