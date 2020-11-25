@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -202,8 +203,13 @@ func (c Constraint) convert(symbols *datalog.SymbolTable) datalog.Constraint {
 	}
 }
 
+func (c Constraint) String() string {
+	return c.Checker.String(c.Name)
+}
+
 type Checker interface {
 	convert(symbols *datalog.SymbolTable) datalog.Checker
+	String(name Variable) string
 }
 
 type IntegerComparisonChecker struct {
@@ -216,6 +222,23 @@ func (c IntegerComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.
 		Comparison: c.Comparison,
 		Integer:    c.Integer.convert(symbols).(datalog.Integer),
 	}
+}
+
+func (c IntegerComparisonChecker) String(name Variable) string {
+	op := "??"
+	switch c.Comparison {
+	case datalog.IntegerComparisonEqual:
+		op = "=="
+	case datalog.IntegerComparisonGT:
+		op = ">"
+	case datalog.IntegerComparisonGTE:
+		op = ">="
+	case datalog.IntegerComparisonLT:
+		op = "<"
+	case datalog.IntegerComparisonLTE:
+		op = "<="
+	}
+	return fmt.Sprintf("%s %s %s", name, op, c.Integer)
 }
 
 type IntegerInChecker struct {
@@ -234,6 +257,20 @@ func (c IntegerInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker 
 	}
 }
 
+func (c IntegerInChecker) String(name Variable) string {
+	op := "in"
+	if c.Not {
+		op = "not in"
+	}
+
+	set := make([]string, 0, len(c.Set))
+	for k := range c.Set {
+		set = append(set, k.String())
+	}
+	sort.Strings(set)
+	return fmt.Sprintf("%s %s %s", name, op, strings.Join(set, ", "))
+}
+
 type StringComparison byte
 
 type StringComparisonChecker struct {
@@ -246,6 +283,18 @@ func (c StringComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.C
 		Comparison: c.Comparison,
 		Str:        c.Str.convert(symbols).(datalog.String),
 	}
+}
+func (c StringComparisonChecker) String(name Variable) string {
+	out := fmt.Sprintf("%s ?? %s", name, c.Str)
+	switch c.Comparison {
+	case datalog.StringComparisonEqual:
+		out = fmt.Sprintf("%s == %s", name, c.Str)
+	case datalog.StringComparisonPrefix:
+		out = fmt.Sprintf("prefix(%s, %s)", name, c.Str)
+	case datalog.StringComparisonSuffix:
+		out = fmt.Sprintf("suffix(%s, %s)", name, c.Str)
+	}
+	return out
 }
 
 type StringInChecker struct {
@@ -263,12 +312,28 @@ func (c StringInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 		Not: c.Not,
 	}
 }
+func (c StringInChecker) String(name Variable) string {
+	op := "in"
+	if c.Not {
+		op = "not in"
+	}
+	set := make([]string, 0, len(c.Set))
+	for v := range c.Set {
+		set = append(set, v.String())
+	}
+	sort.Strings(set)
+	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
+}
 
 type StringRegexpChecker regexp.Regexp
 
 func (c StringRegexpChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 	re := datalog.StringRegexpChecker(c)
 	return &re
+}
+func (c StringRegexpChecker) String(name Variable) string {
+	r := regexp.Regexp(c)
+	return fmt.Sprintf("%s match %s", name, r.String())
 }
 
 type DateComparison byte
@@ -283,6 +348,16 @@ func (c DateComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Che
 		Comparison: c.Comparison,
 		Date:       c.Date.convert(symbols).(datalog.Date),
 	}
+}
+func (c DateComparisonChecker) String(name Variable) string {
+	op := "??"
+	switch c.Comparison {
+	case datalog.DateComparisonAfter:
+		op = ">"
+	case datalog.DateComparisonBefore:
+		op = "<"
+	}
+	return fmt.Sprintf("%s %s %s", name, op, c.Date)
 }
 
 type SymbolInChecker struct {
@@ -300,6 +375,18 @@ func (c SymbolInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 		Not: c.Not,
 	}
 }
+func (c SymbolInChecker) String(name Variable) string {
+	op := "in"
+	if c.Not {
+		op = "not in"
+	}
+	set := make([]string, 0, len(c.Set))
+	for v := range c.Set {
+		set = append(set, v.String())
+	}
+	sort.Strings(set)
+	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
+}
 
 type BytesComparisonChecker struct {
 	Comparison datalog.BytesComparison
@@ -312,6 +399,14 @@ func (c BytesComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Ch
 		Bytes:      c.Bytes.convert(symbols).(datalog.Bytes),
 	}
 }
+func (c BytesComparisonChecker) String(name Variable) string {
+	op := "??"
+	switch c.Comparison {
+	case datalog.BytesComparisonEqual:
+		op = "=="
+	}
+	return fmt.Sprintf("%s %s %s", name, op, c.Bytes)
+}
 
 type BytesInChecker struct {
 	Set map[string]struct{}
@@ -323,6 +418,18 @@ func (c BytesInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
 		Set: c.Set,
 		Not: c.Not,
 	}
+}
+func (c BytesInChecker) String(name Variable) string {
+	op := "in"
+	if c.Not {
+		op = "not in"
+	}
+	set := make([]string, 0, len(c.Set))
+	for v := range c.Set {
+		set = append(set, fmt.Sprintf("hex:%s", v))
+	}
+	sort.Strings(set)
+	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
 }
 
 type Predicate struct {
@@ -430,6 +537,6 @@ func (a Set) String() string {
 	for _, e := range a {
 		elts = append(elts, e.String())
 	}
-
+	sort.Strings(elts)
 	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
 }
