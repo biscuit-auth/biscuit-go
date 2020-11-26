@@ -18,23 +18,20 @@ import (
 // Signature flow overview:
 //
 // ---- server generates a token to be signed ----
+// $data = staticCtx | randomChallenge[0:16]
 //
-// server adds:
+// then server adds:
 // - facts:
-//     - should_sign(#authority, dataID, alg, pubkey)
-//     - data(#authority, dataID, staticCtx | challenge[16])
+//     - should_sign(#authority, $dataID, $alg, $pubkey)
+//     - data(#authority, $dataID, $data)
 // - caveat:
-//     - *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
+//     - *valid($dataID)<- should_sign(#authority, $dataID, $alg, $pubkey, valid_signature(#ambient, $dataID, $alg, $pubkey)
 //
 // ---- server sends the token to the client ----
 //
 // client queries for:
-//     - *to_sign(dataID, $0, $1) <- should_sign(#authority, $0, $1, pubkey), data(#authority, $0, $2)
-// with:
-//     $0: dataID
-//     $1: alg
-//     $2: data
-//
+//     - *to_sign(dataID, $alg, $pubkey) <- should_sign(#authority, $dataID, $alg, $pubkey), data(#authority, $dataID, $data)
+
 // foreach to_sign facts:
 //     - verify data starts with staticCtx
 //     - let tokenHash = Sha256(authorityBlock | all blocks | all keys)
@@ -46,18 +43,10 @@ import (
 // ---- client sends the token to the server ----
 //
 // server queries for:
-//     - *to_validate($0, $1, $2, $3, $4, $5, $6) <-
-//         should_sign(#authority, $0, $1, $2),
-//         data(#authority, $0, $3),
-//         signature($0, $2, $4, $5, $6)
-// with:
-//     $0: dataID
-//     $1: alg
-//     $2: pubkey
-//     $3: data
-//     $4: signature
-//     $5: signerNonce
-//     $6: signerTimestamp
+//     - *to_validate($dataID, $alg, $pubkey, $data, $signature, $signerNonce, $signerTimestamp) <-
+//         should_sign(#authority, $dataID, $alg, $pubkey),
+//         data(#authority, $dataID, $data),
+//         signature($0, $pubkey, $signature, $signerNonce, $signerTimestamp)
 //
 // foreach to_validate facts:
 //     - let tokenHash = Sha256(authorityBlock | all blocks expect the last one | all keys except the last one)
@@ -128,13 +117,13 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 
 	// This caveat requires every "should_sign" fact to have a matching "valid_signature" fact,
 	// that can only provided by the verifier (due to the ambient tag)
-	// *valid(0?)<- should_sign(#authority, $0, $1, $2), valid_signature(#ambient, $0, $1, $2)
+	// *valid($dataID)<- should_sign(#authority, $dataID, $alg, $pubkey), valid_signature(#ambient, $dataID, $alg, $pubkey)
 	builder.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{
 		{
-			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable("dataID")}},
 			Body: []biscuit.Predicate{
-				{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-				{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+				{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+				{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
 			},
 		},
 	}})
@@ -158,13 +147,13 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 
 	t.Logf("clientSign world:\n%s", verifier.PrintWorld())
 
-	// This query returns to_sign(dataID, alg, data) facts which require a signature with a private key matching pubkey.
+	// This query returns to_sign($dataID, $alg, $data) facts which require a signature with a private key matching pubkey.
 	// in this example: [to_sign(0, "ed25519", "hex:7369676e2074686973")]
 	toSign, err := verifier.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "to_sign", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+		Head: biscuit.Predicate{Name: "to_sign", IDs: []biscuit.Atom{biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Bytes(pubkey)}},
-			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(2)}},
+			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Bytes(pubkey)}},
+			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("pubkey")}},
 		},
 	})
 	require.NoError(t, err)
@@ -185,9 +174,9 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 
 	// We have a "to_sign" fact, so we check if the token doesn't already hold a signature:
 	alreadySigned, err := verifier.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{biscuit.Variable("dataID")}},
 		Body: []biscuit.Predicate{
-			{Name: "signature", IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Variable(0)}},
+			{Name: "signature", IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Variable("dataID")}},
 		},
 	})
 	require.NoError(t, err)
@@ -248,23 +237,23 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 
 	t.Logf("verifySignature world before:\n%s", verifier.PrintWorld())
 
-	// Generate "to_validate(dataID, alg, pubkey, data, signerNonce, signerTimestamp, signature)" facts from existing signatures
+	// Generate "to_validate($dataID, $alg, $pubkey, $data, $signerNonce, $signerTimestamp, $signature)" facts from existing signatures
 	toValidate, err := verifier.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "to_validate",
 			IDs: []biscuit.Atom{
-				biscuit.Variable(0), // dataID
-				biscuit.Variable(1), // alg
-				biscuit.Variable(2), // pubkey
-				biscuit.Variable(3), // data
-				biscuit.Variable(4), // signature
-				biscuit.Variable(5), // signerNonce
-				biscuit.Variable(6), // signerTimestamp
+				biscuit.Variable("dataID"),
+				biscuit.Variable("alg"),
+				biscuit.Variable("pubkey"),
+				biscuit.Variable("data"),
+				biscuit.Variable("signature"),
+				biscuit.Variable("signerNonce"),
+				biscuit.Variable("signerTimestamp"),
 			}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(4), biscuit.Variable(5), biscuit.Variable(6)}},
+			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("data")}},
+			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable("dataID"), biscuit.Variable("pubkey"), biscuit.Variable("signature"), biscuit.Variable("signerNonce"), biscuit.Variable("signerTimestamp")}},
 		},
 	})
 	require.NoError(t, err)

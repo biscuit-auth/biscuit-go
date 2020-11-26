@@ -240,12 +240,12 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 			{
 				Head: biscuit.Predicate{
 					Name: "caveat1",
-					IDs:  []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)},
+					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
 				},
 				Body: []biscuit.Predicate{
-					{Name: "right", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable(0), biscuit.Variable(1)}},
-					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0)}},
-					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(1)}},
+					{Name: "right", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable("0"), biscuit.Variable("1")}},
+					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("0")}},
+					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("1")}},
 				},
 			},
 		},
@@ -387,20 +387,20 @@ func TestSample15_MultiQueriesCaveats(t *testing.T) {
 	rule1 := biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "test_must_be_present_authority",
-			IDs:  []biscuit.Atom{biscuit.Variable(0)},
+			IDs:  []biscuit.Atom{biscuit.Variable("0")},
 		},
 		Body: []biscuit.Predicate{
-			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable(0)}},
+			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable("0")}},
 		},
 	}
 
 	rule2 := biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "test_must_be_present",
-			IDs:  []biscuit.Atom{biscuit.Variable(0)},
+			IDs:  []biscuit.Atom{biscuit.Variable("0")},
 		},
 		Body: []biscuit.Predicate{
-			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Variable("0")}},
 		},
 	}
 

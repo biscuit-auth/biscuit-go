@@ -16,12 +16,12 @@ func TestGrammarPredicate(t *testing.T) {
 		Expected *Predicate
 	}{
 		{
-			Input: `resource(#ambient, $0)`,
+			Input: `resource(#ambient, $var1)`,
 			Expected: &Predicate{
 				Name: "resource",
 				IDs: []*Atom{
 					{Symbol: sptr("ambient")},
-					{Variable: ui32ptr(0)},
+					{Variable: sptr("var1")},
 				},
 			},
 		},
@@ -31,7 +31,7 @@ func TestGrammarPredicate(t *testing.T) {
 				Name: "resource",
 				IDs: []*Atom{
 					{Symbol: sptr("ambient")},
-					{Variable: ui32ptr(0)},
+					{Variable: sptr("0")},
 					{Symbol: sptr("read")},
 				},
 			},
@@ -63,7 +63,7 @@ func TestGrammarPredicate(t *testing.T) {
 				Name: "right",
 				IDs: []*Atom{
 					{String: sptr("/a/file1.txt")},
-					{Variable: ui32ptr(1)},
+					{Variable: sptr("1")},
 				},
 			},
 		},
@@ -72,7 +72,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Expected: &Predicate{
 				Name: "right",
 				IDs: []*Atom{
-					{Variable: ui32ptr(1)},
+					{Variable: sptr("1")},
 					{Bytes: hexsptr("41414141")},
 				},
 			},
@@ -82,7 +82,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Expected: &Predicate{
 				Name: "right",
 				IDs: []*Atom{
-					{Variable: ui32ptr(1)},
+					{Variable: sptr("1")},
 					{Set: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: sptr("sym")}}},
 				},
 			},
@@ -111,7 +111,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 == 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("=="),
 						Target:    i64ptr(1),
@@ -123,7 +123,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$1 > 2`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(1),
+					Variable: sptr("1"),
 					Int: &IntComparison{
 						Operation: sptr(">"),
 						Target:    i64ptr(2),
@@ -135,7 +135,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 >= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Int: &IntComparison{
 						Operation: sptr(">="),
 						Target:    i64ptr(1),
@@ -147,7 +147,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 < 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("<"),
 						Target:    i64ptr(1),
@@ -159,7 +159,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 <= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("<="),
 						Target:    i64ptr(1),
@@ -171,7 +171,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in [1, 2, 3]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Int: []int64{1, 2, 3},
 						Not: false,
@@ -183,7 +183,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in [4,5,6]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Int: []int64{4, 5, 6},
 						Not: true,
@@ -195,7 +195,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 == "abc"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					String: &StringComparison{
 						Operation: sptr("=="),
 						Target:    sptr("abc"),
@@ -208,7 +208,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("prefix"),
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Argument: sptr("abc"),
 				},
 			},
@@ -218,7 +218,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("suffix"),
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Argument: sptr("abc"),
 				},
 			},
@@ -228,7 +228,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("match"),
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Argument: sptr("^abc[a-z]+$"),
 				},
 			},
@@ -237,7 +237,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						String: []string{"abc", "def"},
 						Not:    false,
@@ -249,7 +249,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						String: []string{"abc", "def"},
 						Not:    true,
@@ -261,7 +261,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 < "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Date: &DateComparison{
 						Operation: sptr("<"),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
@@ -273,7 +273,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 > "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Date: &DateComparison{
 						Operation: sptr(">"),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
@@ -285,7 +285,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Symbols: []string{"a", "b", "c"},
 						Not:     false,
@@ -297,7 +297,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Symbols: []string{"a", "b", "c"},
 						Not:     true,
@@ -309,7 +309,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in ["hex:41", "hex:42", "hex:43"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Bytes: []HexString{"41", "42", "43"},
 						Not:   false,
@@ -321,7 +321,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in ["hex:abcdef", "hex:01234", "hex:56789"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: ui32ptr(0),
+					Variable: sptr("0"),
 					Set: &Set{
 						Bytes: []HexString{"abcdef", "01234", "56789"},
 						Not:   true,
@@ -435,7 +435,7 @@ func TestGrammarCaveat(t *testing.T) {
 					Constraints: []*Constraint{
 						{
 							VariableConstraint: &VariableConstraint{
-								Variable: ui32ptr(0),
+								Variable: sptr("0"),
 								Int: &IntComparison{
 									Operation: sptr(">"),
 									Target:    i64ptr(42),
@@ -445,7 +445,7 @@ func TestGrammarCaveat(t *testing.T) {
 						{
 							FunctionConstraint: &FunctionConstraint{
 								Function: sptr("prefix"),
-								Variable: ui32ptr(1),
+								Variable: sptr("1"),
 								Argument: sptr("test"),
 							},
 						},
@@ -530,7 +530,7 @@ func TestGrammarRule(t *testing.T) {
 				Constraints: []*Constraint{
 					{
 						VariableConstraint: &VariableConstraint{
-							Variable: ui32ptr(0),
+							Variable: sptr("0"),
 							Int: &IntComparison{
 								Operation: sptr(">"),
 								Target:    i64ptr(42),
@@ -540,7 +540,7 @@ func TestGrammarRule(t *testing.T) {
 					{
 						FunctionConstraint: &FunctionConstraint{
 							Function: sptr("prefix"),
-							Variable: ui32ptr(1),
+							Variable: sptr("1"),
 							Argument: sptr("test"),
 						},
 					},
@@ -561,9 +561,6 @@ func TestGrammarRule(t *testing.T) {
 
 func sptr(s string) *string {
 	return &s
-}
-func ui32ptr(i uint32) *uint32 {
-	return &i
 }
 func i64ptr(i int64) *int64 {
 	return &i
