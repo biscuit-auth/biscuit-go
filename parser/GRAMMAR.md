@@ -7,7 +7,7 @@ This document describes the currently supported Datalog grammar.
 Represents a Datalog type, can be one of: symbol, variable, integer, string, date, bytes, or set.
 
 - symbol is prefixed with a `#` sign followed by text, e.g. `#read`
-- variable is prefixed with a `$` sign followed by an unsigned 32bit base-10 integer,  e.g. `$0`
+- variable is prefixed with a `$` sign followed by a string or an unsigned 32bit base-10 integer,  e.g. `$0` or `$variable1`
 - integer is any base-10 int64
 - string is any utf8 character sequence, between double quotes, e.g. `"/path/to/file.txt"`
 - date is RFC3339 encoded, e.g. `2006-01-02T15:04:05Z07:00`
@@ -24,43 +24,43 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 ### Integer:
 
-- Equal: `$0 == 1`
-- Greater than: `$0 > 1`
-- Greater than or equal: `$0 >= 1`
-- Less than: `$0 < 1`
-- Less than or equal: `$0 <= 1`
-- In: `$0 in [1, 2, 3]`
-- Not in: `$0 not in [1, 2, 3]`
+- Equal: `$i == 1`
+- Greater than: `$i > 1`
+- Greater than or equal: `$i >= 1`
+- Less than: `$i < 1`
+- Less than or equal: `$i <= 1`
+- In: `$i in [1, 2, 3]`
+- Not in: `$i not in [1, 2, 3]`
 
 ###  String
 
-- Equal: `$0 == "abc"`
-- Starts with: `prefix($0, "abc")`
-- Ends with: `suffix($0, "abc")`
-- Regular expression: `match($0, "^abc\s+def$") `
-- In: `$0 in ["abc", "def"]`
-- Not in: `$0 not in ["abc", "def"]`
+- Equal: `$s == "abc"`
+- Starts with: `prefix($s, "abc")`
+- Ends with: `suffix($s, "abc")`
+- Regular expression: `match($s, "^abc\s+def$") `
+- In: `$s in ["abc", "def"]`
+- Not in: `$s not in ["abc", "def"]`
 
 ### Date
 
-- Before: `$0 < "2006-01-02T15:04:05Z07:00"`
-- After: `$0 > "2006-01-02T15:04:05Z07:00"`
+- Before: `$date < "2006-01-02T15:04:05Z07:00"`
+- After: `$date > "2006-01-02T15:04:05Z07:00"`
 
 ### Symbols
 
-- In:`$0 in [#a, #b, #c]`
-- Not in:`$0 not in [#a, #b, #c]`
+- In:`$sym in [#a, #b, #c]`
+- Not in:`$sym not in [#a, #b, #c]`
 
 ### Bytes
 
-- Equal: `$0 == "hex:3df97fb5"`
-- In: `$0 in ["hex:3df97fb5", "hex:4a8feed1"]`
-- Not in: `$0 not in ["hex:3df97fb5", "hex:4a8feed1"]`
+- Equal: `$b == "hex:3df97fb5"`
+- In: `$b in ["hex:3df97fb5", "hex:4a8feed1"]`
+- Not in: `$b not in ["hex:3df97fb5", "hex:4a8feed1"]`
 
 ### Set
 
-- Any: `$0 in [#read, #write]`
-- None: `$0 not in [#read, #write]`
+- Any: `$set in [#read, #write]`
+- None: `$set not in [#read, #write]`
 
 ## Fact
 
@@ -73,7 +73,7 @@ The head is a single predicate, the body is a list of predicates, and followed b
 
 It has the format: `*Head <- Body @ Constraints`
 
-e.g. `*right(#authority, $1, #read) <- resource(#ambient, $1), owner(#ambient, $0, $1) @ $0 == "username", prefix($1, "/home/username")`
+e.g. `*right(#authority, $file, #read) <- resource(#ambient, $file), owner(#ambient, $user, $file) @ $user == "username", prefix($file, "/home/username")`
 
 # Caveat
 

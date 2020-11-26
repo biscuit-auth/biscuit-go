@@ -31,7 +31,7 @@ type Caveat struct {
 
 type Atom struct {
 	Symbol   *string    `"#" @Ident`
-	Variable *uint32    `| "$" @Int`
+	Variable *string    `| "$" @(Int|Ident)`
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
@@ -44,7 +44,7 @@ type Constraint struct {
 }
 
 type VariableConstraint struct {
-	Variable *uint32           `"$" @Int`
+	Variable *string           `"$" @(Int|Ident)`
 	Date     *DateComparison   `((@@`
 	Bytes    *BytesComparison  `| @@`
 	String   *StringComparison `| @@`
@@ -54,7 +54,7 @@ type VariableConstraint struct {
 
 type FunctionConstraint struct {
 	Function *string `@( "prefix" | "suffix" | "match" ) "("`
-	Variable *uint32 `"$" @Int ","`
+	Variable *string `"$" @(Int|Ident) ","`
 	Argument *string `@String ")"`
 }
 
