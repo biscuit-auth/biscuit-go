@@ -90,14 +90,14 @@ func getRuleTestCases() []testCase {
 				},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonGT,
 							Integer:    42,
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.StringComparisonChecker{
 							Comparison: datalog.StringComparisonPrefix,
 							Str:        "abc",
@@ -148,14 +148,14 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.DateComparisonChecker{
 							Comparison: datalog.DateComparisonAfter,
 							Date:       biscuit.Date(t1),
 						},
 					},
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.DateComparisonChecker{
 							Comparison: datalog.DateComparisonBefore,
 							Date:       biscuit.Date(t2),
@@ -181,49 +181,49 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonGT,
 							Integer:    0,
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonLT,
 							Integer:    1,
 						},
 					},
 					{
-						Name: biscuit.Variable(2),
+						Name: biscuit.Variable("2"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonGTE,
 							Integer:    2,
 						},
 					},
 					{
-						Name: biscuit.Variable(3),
+						Name: biscuit.Variable("3"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonLTE,
 							Integer:    3,
 						},
 					},
 					{
-						Name: biscuit.Variable(4),
+						Name: biscuit.Variable("4"),
 						Checker: biscuit.IntegerComparisonChecker{
 							Comparison: datalog.IntegerComparisonEqual,
 							Integer:    4,
 						},
 					},
 					{
-						Name: biscuit.Variable(5),
+						Name: biscuit.Variable("5"),
 						Checker: biscuit.IntegerInChecker{
 							Set: map[biscuit.Integer]struct{}{1: {}, 2: {}, 3: {}},
 							Not: false,
 						},
 					},
 					{
-						Name: biscuit.Variable(6),
+						Name: biscuit.Variable("6"),
 						Checker: biscuit.IntegerInChecker{
 							Set: map[biscuit.Integer]struct{}{4: {}, 5: {}, 6: {}},
 							Not: true,
@@ -245,39 +245,39 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.StringComparisonChecker{
 							Comparison: datalog.StringComparisonEqual,
 							Str:        "abc",
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.StringComparisonChecker{
 							Comparison: datalog.StringComparisonPrefix,
 							Str:        "def",
 						},
 					},
 					{
-						Name: biscuit.Variable(2),
+						Name: biscuit.Variable("2"),
 						Checker: biscuit.StringComparisonChecker{
 							Comparison: datalog.StringComparisonSuffix,
 							Str:        "ghi",
 						},
 					},
 					{
-						Name:    biscuit.Variable(3),
+						Name:    biscuit.Variable("3"),
 						Checker: biscuit.StringRegexpChecker(*regexp.MustCompile(`file[0-9]+.txt`)),
 					},
 					{
-						Name: biscuit.Variable(4),
+						Name: biscuit.Variable("4"),
 						Checker: biscuit.StringInChecker{
 							Set: map[biscuit.String]struct{}{"a": {}, "b": {}},
 							Not: false,
 						},
 					},
 					{
-						Name: biscuit.Variable(5),
+						Name: biscuit.Variable("5"),
 						Checker: biscuit.StringInChecker{
 							Set: map[biscuit.String]struct{}{"c": {}, "d": {}},
 							Not: true,
@@ -299,14 +299,14 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.SymbolInChecker{
 							Set: map[biscuit.Symbol]struct{}{"a": {}, "b": {}},
 							Not: false,
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.SymbolInChecker{
 							Set: map[biscuit.Symbol]struct{}{"c": {}, "d": {}},
 							Not: true,
@@ -328,14 +328,14 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.BytesInChecker{
 							Set: map[string]struct{}{"AAAA": {}, "BBBB": {}},
 							Not: false,
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.BytesInChecker{
 							Set: map[string]struct{}{string([]byte{0x00, 0x00}): {}, string([]byte{0xFF, 0xFF}): {}},
 							Not: true,
@@ -357,7 +357,7 @@ func getRuleTestCases() []testCase {
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.BytesComparisonChecker{
 							Comparison: datalog.BytesComparisonEqual,
 							Bytes:      []byte("AAAA"),
@@ -375,18 +375,18 @@ func getRuleTestCases() []testCase {
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1)},
+					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
-						Name: biscuit.Variable(0),
+						Name: biscuit.Variable("0"),
 						Checker: biscuit.StringInChecker{
 							Set: map[biscuit.String]struct{}{biscuit.String("abc"): {}, biscuit.String("def"): {}},
 							Not: false,
 						},
 					},
 					{
-						Name: biscuit.Variable(1),
+						Name: biscuit.Variable("1"),
 						Checker: biscuit.IntegerInChecker{
 							Set: map[biscuit.Integer]struct{}{biscuit.Integer(41): {}, biscuit.Integer(42): {}},
 							Not: true,
@@ -419,7 +419,7 @@ func getCaveatTestCases() []testCase {
 					{
 						Head: biscuit.Predicate{
 							Name: "caveat0",
-							IDs:  []biscuit.Atom{biscuit.Variable(0)},
+							IDs:  []biscuit.Atom{biscuit.Variable("0")},
 						},
 						Body: []biscuit.Predicate{
 							{
@@ -439,7 +439,7 @@ func getCaveatTestCases() []testCase {
 						},
 						Constraints: []biscuit.Constraint{
 							{
-								Name: biscuit.Variable(0),
+								Name: biscuit.Variable("0"),
 								Checker: biscuit.IntegerInChecker{
 									Set: map[biscuit.Integer]struct{}{1: {}, 2: {}, 3: {}},
 								},

@@ -126,7 +126,7 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Atom, error) {
 	case datalog.IDTypeSymbol:
 		a = Symbol(symbols.Str(id.(datalog.Symbol)))
 	case datalog.IDTypeVariable:
-		a = Variable(id.(datalog.Variable))
+		a = Variable(symbols.Str(datalog.Symbol(id.(datalog.Variable))))
 	case datalog.IDTypeInteger:
 		a = Integer(id.(datalog.Integer))
 	case datalog.IDTypeString:
@@ -482,13 +482,13 @@ func (a Symbol) convert(symbols *datalog.SymbolTable) datalog.ID {
 }
 func (a Symbol) String() string { return fmt.Sprintf("#%s", string(a)) }
 
-type Variable uint32
+type Variable string
 
 func (a Variable) Type() AtomType { return AtomTypeVariable }
 func (a Variable) convert(symbols *datalog.SymbolTable) datalog.ID {
-	return datalog.Variable(a)
+	return datalog.Variable(symbols.Insert(string(a)))
 }
-func (a Variable) String() string { return fmt.Sprintf("$%d", a) }
+func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
 
 type Integer int64
 

@@ -12,7 +12,7 @@ import (
 func TestFromDatalogFact(t *testing.T) {
 	now := time.Now()
 
-	symbolTable := &datalog.SymbolTable{"sym0", "sym1"}
+	symbolTable := &datalog.SymbolTable{"sym0", "sym1", "var1"}
 	dlFact := datalog.Fact{
 		Predicate: datalog.Predicate{
 			Name: datalog.Symbol(0),
@@ -20,7 +20,7 @@ func TestFromDatalogFact(t *testing.T) {
 				datalog.Symbol(1),
 				datalog.Integer(42),
 				datalog.String("foo"),
-				datalog.Variable(12),
+				datalog.Variable(2),
 				datalog.Date(now.Unix()),
 				datalog.Bytes([]byte("some random bytes")),
 				datalog.Set{
@@ -42,7 +42,7 @@ func TestFromDatalogFact(t *testing.T) {
 				Symbol("sym1"),
 				Integer(42),
 				String("foo"),
-				Variable(12),
+				Variable("var1"),
 				Date(time.Unix(now.Unix(), 0)),
 				Bytes([]byte("some random bytes")),
 				Set{String("abc"), Integer(42), Symbol("sym1")},
@@ -168,15 +168,16 @@ func TestConstraintsConvert(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
+			v := testCase.SymbolTable.Insert("var1")
 			c := Constraint{
-				Name:    Variable(1),
+				Name:    Variable("var1"),
 				Checker: testCase.Checker,
 			}
 
 			dlConstraint := c.convert(testCase.SymbolTable)
 
 			expectedConstraint := datalog.Constraint{
-				Name:    datalog.Variable(1),
+				Name:    datalog.Variable(v),
 				Checker: testCase.ExpectedChecker,
 			}
 
