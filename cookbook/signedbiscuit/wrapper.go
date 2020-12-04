@@ -64,10 +64,20 @@ func (b *hubauthBuilder) withUserToSignFact(userPubkey []byte) error {
 	}
 
 	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
-		Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable("dataID")}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-			{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
+			{Name: "should_sign", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Variable("dataID"),
+				biscuit.Variable("alg"),
+				biscuit.Variable("pubkey"),
+			}},
+			{Name: "valid_signature", IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Variable("dataID"),
+				biscuit.Variable("alg"),
+				biscuit.Variable("pubkey"),
+			}},
 		},
 	}}}); err != nil {
 		return err
@@ -102,10 +112,19 @@ func (b *hubauthBuilder) withAudienceSignature(audience string, audienceKey cryp
 	}
 
 	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
-		Head: biscuit.Predicate{Name: "valid_audience", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		Head: biscuit.Predicate{Name: "valid_audience", IDs: []biscuit.Atom{biscuit.Variable("audience")}},
 		Body: []biscuit.Predicate{
-			{Name: "audience_signature", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-			{Name: "valid_audience_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0), biscuit.Variable(2)}},
+			{Name: "audience_signature", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Variable("audience"),
+				biscuit.Variable("challenge"),
+				biscuit.Variable("signature"),
+			}},
+			{Name: "valid_audience_signature", IDs: []biscuit.Atom{
+				biscuit.Symbol("ambient"),
+				biscuit.Variable("audience"),
+				biscuit.Variable("signature"),
+			}},
 		},
 	}}}); err != nil {
 		return err
@@ -128,12 +147,12 @@ func (b *hubauthBuilder) withMetadata(m *Metadata) error {
 
 func (b *hubauthBuilder) withExpire(exp time.Time) error {
 	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
-		Head: biscuit.Predicate{Name: "not_expired", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		Head: biscuit.Predicate{Name: "not_expired", IDs: []biscuit.Atom{biscuit.Variable("now")}},
 		Body: []biscuit.Predicate{
-			{Name: "current_time", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable(0)}},
+			{Name: "current_time", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("now")}},
 		},
 		Constraints: []biscuit.Constraint{{
-			Name: biscuit.Variable(0),
+			Name: biscuit.Variable("now"),
 			Checker: biscuit.DateComparisonChecker{
 				Comparison: datalog.DateComparisonBefore,
 				Date:       biscuit.Date(exp),
@@ -171,21 +190,21 @@ func (v *hubauthVerifier) getUserToSignData(userPubKey biscuit.Bytes) (*userToSi
 	toSign, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "to_sign",
-			IDs:  []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)},
+			IDs:  []biscuit.Atom{biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")},
 		},
 		Body: []biscuit.Predicate{
 			{
 				Name: "should_sign", IDs: []biscuit.Atom{
 					biscuit.SymbolAuthority,
-					biscuit.Variable(0),
-					biscuit.Variable(1),
+					biscuit.Variable("dataID"),
+					biscuit.Variable("alg"),
 					biscuit.Bytes(userPubKey),
 				},
 			}, {
 				Name: "data", IDs: []biscuit.Atom{
 					biscuit.SymbolAuthority,
-					biscuit.Variable(0),
-					biscuit.Variable(2),
+					biscuit.Variable("dataID"),
+					biscuit.Variable("pubkey"),
 				},
 			},
 		},
@@ -227,9 +246,15 @@ func (v *hubauthVerifier) getUserToSignData(userPubKey biscuit.Bytes) (*userToSi
 
 func (v *hubauthVerifier) ensureNotAlreadyUserSigned(dataID biscuit.Integer, userPubKey biscuit.Bytes) error {
 	alreadySigned, err := v.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{biscuit.Variable(0)}},
+		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{dataID, userPubKey, biscuit.Variable("signerTimestamp")}},
 		Body: []biscuit.Predicate{
-			{Name: "signature", IDs: []biscuit.Atom{dataID, userPubKey, biscuit.Variable(0)}},
+			{Name: "signature", IDs: []biscuit.Atom{
+				dataID,
+				userPubKey,
+				biscuit.Variable("signature"),
+				biscuit.Variable("signerNonce"),
+				biscuit.Variable("signerTimestamp"),
+			}},
 		},
 	})
 	if err != nil {
@@ -247,18 +272,33 @@ func (v *hubauthVerifier) getUserVerificationData() (*userVerificationData, erro
 		Head: biscuit.Predicate{
 			Name: "to_validate",
 			IDs: []biscuit.Atom{
-				biscuit.Variable(0), // dataID
-				biscuit.Variable(1), // alg
-				biscuit.Variable(2), // pubkey
-				biscuit.Variable(3), // data
-				biscuit.Variable(4), // signature
-				biscuit.Variable(5), // signerNonce
-				biscuit.Variable(6), // signerTimestamp
+				biscuit.Variable("dataID"),
+				biscuit.Variable("alg"),
+				biscuit.Variable("pubkey"),
+				biscuit.Variable("data"),
+				biscuit.Variable("signature"),
+				biscuit.Variable("signerNonce"),
+				biscuit.Variable("signerTimestamp"),
 			}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2)}},
-			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(3)}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable(0), biscuit.Variable(2), biscuit.Variable(4), biscuit.Variable(5), biscuit.Variable(6)}},
+			{Name: "should_sign", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Variable("dataID"),
+				biscuit.Variable("alg"),
+				biscuit.Variable("pubkey"),
+			}},
+			{Name: "data", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Variable("dataID"),
+				biscuit.Variable("data"),
+			}},
+			{Name: "signature", IDs: []biscuit.Atom{
+				biscuit.Variable("dataID"),
+				biscuit.Variable("pubkey"),
+				biscuit.Variable("signature"),
+				biscuit.Variable("signerNonce"),
+				biscuit.Variable("signerTimestamp"),
+			}},
 		},
 	})
 	if err != nil {
@@ -322,11 +362,16 @@ func (v *hubauthVerifier) getAudienceVerificationData(audience string) (*audienc
 		Head: biscuit.Predicate{
 			Name: "audience_to_validate",
 			IDs: []biscuit.Atom{
-				biscuit.Variable(0), // challenge
-				biscuit.Variable(1), // signature
+				biscuit.Variable("challenge"),
+				biscuit.Variable("signature"),
 			}},
 		Body: []biscuit.Predicate{
-			{Name: "audience_signature", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Symbol(audience), biscuit.Variable(0), biscuit.Variable(1)}},
+			{Name: "audience_signature", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Symbol(audience),
+				biscuit.Variable("challenge"),
+				biscuit.Variable("signature"),
+			}},
 		},
 	})
 	if err != nil {
@@ -361,13 +406,19 @@ func (v *hubauthVerifier) getMetadata() (*Metadata, error) {
 		Head: biscuit.Predicate{
 			Name: "metadata",
 			IDs: []biscuit.Atom{
-				biscuit.Variable(0), // clientID
-				biscuit.Variable(1), // userID
-				biscuit.Variable(2), // userEmail
-				biscuit.Variable(3), // issueTime
+				biscuit.Variable("clientID"),
+				biscuit.Variable("userID"),
+				biscuit.Variable("userEmail"),
+				biscuit.Variable("issueTime"),
 			}},
 		Body: []biscuit.Predicate{
-			{Name: "metadata", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable(0), biscuit.Variable(1), biscuit.Variable(2), biscuit.Variable(3)}},
+			{Name: "metadata", IDs: []biscuit.Atom{
+				biscuit.SymbolAuthority,
+				biscuit.Variable("clientID"),
+				biscuit.Variable("userID"),
+				biscuit.Variable("userEmail"),
+				biscuit.Variable("issueTime"),
+			}},
 		},
 	})
 	if err != nil {
