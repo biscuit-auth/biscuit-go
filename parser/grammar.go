@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/flynn/biscuit-go"
 	"github.com/flynn/biscuit-go/datalog"
 )

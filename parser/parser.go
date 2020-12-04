@@ -3,8 +3,8 @@ package parser
 import (
 	"errors"
 
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
+	"github.com/alecthomas/participle/v2"
+	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/flynn/biscuit-go"
 )
 
@@ -16,6 +16,7 @@ var (
 var defaultParserOptions = []participle.Option{
 	participle.Lexer(lexer.DefaultDefinition),
 	participle.UseLookahead(3),
+	participle.Unquote("String"),
 }
 
 type Parser interface {
@@ -55,7 +56,7 @@ func New() Parser {
 
 func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 	parsed := &Predicate{}
-	if err := p.factParser.ParseString(fact, parsed); err != nil {
+	if err := p.factParser.ParseString("fact", fact, parsed); err != nil {
 		return biscuit.Fact{}, err
 	}
 
@@ -75,7 +76,7 @@ func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 
 func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 	parsed := &Rule{}
-	if err := p.ruleParser.ParseString(rule, parsed); err != nil {
+	if err := p.ruleParser.ParseString("rule", rule, parsed); err != nil {
 		return biscuit.Rule{}, err
 	}
 
@@ -89,7 +90,7 @@ func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 
 func (p *parser) Caveat(caveat string) (biscuit.Caveat, error) {
 	parsed := &Caveat{}
-	if err := p.caveatParser.ParseString(caveat, parsed); err != nil {
+	if err := p.caveatParser.ParseString("caveat", caveat, parsed); err != nil {
 		return biscuit.Caveat{}, err
 	}
 
