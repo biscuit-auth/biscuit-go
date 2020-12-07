@@ -14,24 +14,51 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
+type Symbol string
+
+func (s *Symbol) Capture(values []string) error {
+	if len(values) != 1 {
+		return errors.New("parser: invalid symbol values")
+	}
+	if !strings.HasPrefix(values[0], "#") {
+		return errors.New("parser: invalid symbol prefix")
+	}
+	*s = Symbol(strings.TrimPrefix(values[0], "#"))
+	return nil
+}
+
+type Variable string
+
+func (v *Variable) Capture(values []string) error {
+	if len(values) != 1 {
+		return errors.New("parser: invalid variable values")
+	}
+	if !strings.HasPrefix(values[0], "$") {
+		return errors.New("parser: invalid variable prefix")
+	}
+	*v = Variable(strings.TrimPrefix(values[0], "$"))
+	return nil
+}
+
 type Rule struct {
-	Head        *Predicate    `"*" @@ "<" "-"`
-	Body        []*Predicate  `@@ ("," @@)*`
+	Comments    []string      `@Comment*`
+	Head        *Predicate    `"*" @@`
+	Body        []*Predicate  `"<-" @@ ("," @@)*`
 	Constraints []*Constraint `("@" @@ ("," @@)*)*`
 }
 
 type Predicate struct {
-	Name string  `@Ident`
+	Name *string `@Ident`
 	IDs  []*Atom `"(" (@@ ("," @@)*)* ")"`
 }
 
 type Caveat struct {
-	Queries []*Rule `"[" @@ ("|" "|" @@)* "]"`
+	Queries []*Rule `"[" @@ ( "||" @@ )* "]"`
 }
 
 type Atom struct {
-	Symbol   *string    `"#" @Ident`
-	Variable *string    `| "$" @(Int|Ident)`
+	Symbol   *Symbol    `@Symbol`
+	Variable *Variable  `| @Variable`
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
@@ -44,7 +71,7 @@ type Constraint struct {
 }
 
 type VariableConstraint struct {
-	Variable *string           `"$" @(Int|Ident)`
+	Variable *Variable         `@Variable`
 	Date     *DateComparison   `((@@`
 	Bytes    *BytesComparison  `| @@`
 	String   *StringComparison `| @@`
@@ -53,23 +80,23 @@ type VariableConstraint struct {
 }
 
 type FunctionConstraint struct {
-	Function *string `@( "prefix" | "suffix" | "match" ) "("`
-	Variable *string `"$" @(Int|Ident) ","`
-	Argument *string `@String ")"`
+	Function *string   `@Function "("`
+	Variable *Variable `@Variable ","`
+	Argument *string   `@String ")"`
 }
 
 type IntComparison struct {
-	Operation *string `@( (("="|">"|"<") "=") | "<" | ">" )`
+	Operation *string `@("=="|">="|"<="|">"|"<")`
 	Target    *int64  `@Int`
 }
 
 type StringComparison struct {
-	Operation *string `@("=" "=")`
+	Operation *string `@("==")`
 	Target    *string `@String`
 }
 
 type BytesComparison struct {
-	Operation *string    `@("=" "=")`
+	Operation *string    `@("==")`
 	Target    *HexString `@@`
 }
 
@@ -80,7 +107,7 @@ type DateComparison struct {
 
 type Set struct {
 	Not     bool        `@"not"? "in"`
-	Symbols []string    `("[" ("#" @Ident ("," "#" @Ident)*)+ "]"`
+	Symbols []Symbol    `("[" ( @Symbol ("," @Symbol)*)+ "]"`
 	Bytes   []HexString `| "[" ( @@ ("," @@)*)+ "]"`
 	String  []string    `| "[" (@String ("," @String)*)+ "]"`
 	Int     []int64     `| "[" (@Int ("," @Int)*)+ "]")`
@@ -123,7 +150,7 @@ func (p *Predicate) ToBiscuit() (*biscuit.Predicate, error) {
 	}
 
 	return &biscuit.Predicate{
-		Name: p.Name,
+		Name: *p.Name,
 		IDs:  atoms,
 	}, nil
 }

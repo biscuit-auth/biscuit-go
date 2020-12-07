@@ -18,61 +18,61 @@ func TestGrammarPredicate(t *testing.T) {
 		{
 			Input: `resource(#ambient, $var1)`,
 			Expected: &Predicate{
-				Name: "resource",
+				Name: sptr("resource"),
 				IDs: []*Atom{
-					{Symbol: sptr("ambient")},
-					{Variable: sptr("var1")},
+					{Symbol: symptr("ambient")},
+					{Variable: varptr("var1")},
 				},
 			},
 		},
 		{
 			Input: `resource(#ambient, $0, #read)`,
 			Expected: &Predicate{
-				Name: "resource",
+				Name: sptr("resource"),
 				IDs: []*Atom{
-					{Symbol: sptr("ambient")},
-					{Variable: sptr("0")},
-					{Symbol: sptr("read")},
+					{Symbol: symptr("ambient")},
+					{Variable: varptr("0")},
+					{Symbol: symptr("read")},
 				},
 			},
 		},
 		{
 			Input: `right(#authority, "/a/file1.txt", #read)`,
 			Expected: &Predicate{
-				Name: "right",
+				Name: sptr("right"),
 				IDs: []*Atom{
-					{Symbol: sptr("authority")},
+					{Symbol: symptr("authority")},
 					{String: sptr("/a/file1.txt")},
-					{Symbol: sptr("read")},
+					{Symbol: symptr("read")},
 				},
 			},
 		},
 		{
 			Input: `right("/a/file1.txt", #read)`,
 			Expected: &Predicate{
-				Name: "right",
+				Name: sptr("right"),
 				IDs: []*Atom{
 					{String: sptr("/a/file1.txt")},
-					{Symbol: sptr("read")},
+					{Symbol: symptr("read")},
 				},
 			},
 		},
 		{
 			Input: `right("/a/file1.txt", $1)`,
 			Expected: &Predicate{
-				Name: "right",
+				Name: sptr("right"),
 				IDs: []*Atom{
 					{String: sptr("/a/file1.txt")},
-					{Variable: sptr("1")},
+					{Variable: varptr("1")},
 				},
 			},
 		},
 		{
 			Input: `right($1, "hex:41414141")`,
 			Expected: &Predicate{
-				Name: "right",
+				Name: sptr("right"),
 				IDs: []*Atom{
-					{Variable: sptr("1")},
+					{Variable: varptr("1")},
 					{Bytes: hexsptr("41414141")},
 				},
 			},
@@ -80,10 +80,10 @@ func TestGrammarPredicate(t *testing.T) {
 		{
 			Input: `right($1, ["hex:41414141", #sym])`,
 			Expected: &Predicate{
-				Name: "right",
+				Name: sptr("right"),
 				IDs: []*Atom{
-					{Variable: sptr("1")},
-					{Set: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: sptr("sym")}}},
+					{Variable: varptr("1")},
+					{Set: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
 				},
 			},
 		},
@@ -111,7 +111,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 == 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("=="),
 						Target:    i64ptr(1),
@@ -123,7 +123,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$1 > 2`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("1"),
+					Variable: varptr("1"),
 					Int: &IntComparison{
 						Operation: sptr(">"),
 						Target:    i64ptr(2),
@@ -135,7 +135,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 >= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Int: &IntComparison{
 						Operation: sptr(">="),
 						Target:    i64ptr(1),
@@ -147,7 +147,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 < 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("<"),
 						Target:    i64ptr(1),
@@ -159,7 +159,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 <= 1`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Int: &IntComparison{
 						Operation: sptr("<="),
 						Target:    i64ptr(1),
@@ -171,7 +171,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in [1, 2, 3]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						Int: []int64{1, 2, 3},
 						Not: false,
@@ -183,7 +183,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in [4,5,6]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						Int: []int64{4, 5, 6},
 						Not: true,
@@ -195,7 +195,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 == "abc"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					String: &StringComparison{
 						Operation: sptr("=="),
 						Target:    sptr("abc"),
@@ -208,7 +208,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("prefix"),
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Argument: sptr("abc"),
 				},
 			},
@@ -218,7 +218,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("suffix"),
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Argument: sptr("abc"),
 				},
 			},
@@ -228,7 +228,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Expected: &Constraint{
 				FunctionConstraint: &FunctionConstraint{
 					Function: sptr("match"),
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Argument: sptr("^abc[a-z]+$"),
 				},
 			},
@@ -237,7 +237,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						String: []string{"abc", "def"},
 						Not:    false,
@@ -249,7 +249,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						String: []string{"abc", "def"},
 						Not:    true,
@@ -261,7 +261,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 < "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Date: &DateComparison{
 						Operation: sptr("<"),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
@@ -273,7 +273,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 > "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Date: &DateComparison{
 						Operation: sptr(">"),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
@@ -285,9 +285,9 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
-						Symbols: []string{"a", "b", "c"},
+						Symbols: []Symbol{"a", "b", "c"},
 						Not:     false,
 					},
 				},
@@ -297,9 +297,9 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in [#a, #b, #c]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
-						Symbols: []string{"a", "b", "c"},
+						Symbols: []Symbol{"a", "b", "c"},
 						Not:     true,
 					},
 				},
@@ -309,7 +309,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 in ["hex:41", "hex:42", "hex:43"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						Bytes: []HexString{"41", "42", "43"},
 						Not:   false,
@@ -321,7 +321,7 @@ func TestGrammarConstraint(t *testing.T) {
 			Input: `$0 not in ["hex:abcdef", "hex:01234", "hex:56789"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
-					Variable: sptr("0"),
+					Variable: varptr("0"),
 					Set: &Set{
 						Bytes: []HexString{"abcdef", "01234", "56789"},
 						Not:   true,
@@ -355,25 +355,25 @@ func TestGrammarCaveat(t *testing.T) {
 			Expected: &Caveat{[]*Rule{
 				{
 					Head: &Predicate{
-						Name: "grandparent",
+						Name: sptr("grandparent"),
 						IDs: []*Atom{
-							{Symbol: sptr("a")},
-							{Symbol: sptr("c")},
+							{Symbol: symptr("a")},
+							{Symbol: symptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("a")},
-								{Symbol: sptr("b")},
+								{Symbol: symptr("a")},
+								{Symbol: symptr("b")},
 							},
 						},
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("b")},
-								{Symbol: sptr("c")},
+								{Symbol: symptr("b")},
+								{Symbol: symptr("c")},
 							},
 						},
 					},
@@ -385,57 +385,57 @@ func TestGrammarCaveat(t *testing.T) {
 			Expected: &Caveat{[]*Rule{
 				{
 					Head: &Predicate{
-						Name: "grandparent",
+						Name: sptr("grandparent"),
 						IDs: []*Atom{
-							{Symbol: sptr("a")},
-							{Symbol: sptr("c")},
+							{Symbol: symptr("a")},
+							{Symbol: symptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("a")},
-								{Symbol: sptr("b")},
+								{Symbol: symptr("a")},
+								{Symbol: symptr("b")},
 							},
 						},
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("b")},
-								{Symbol: sptr("c")},
+								{Symbol: symptr("b")},
+								{Symbol: symptr("c")},
 							},
 						},
 					},
 				},
 				{
 					Head: &Predicate{
-						Name: "grandparent",
+						Name: sptr("grandparent"),
 						IDs: []*Atom{
-							{Symbol: sptr("a")},
-							{Symbol: sptr("c")},
+							{Symbol: symptr("a")},
+							{Symbol: symptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("a")},
-								{Symbol: sptr("b")},
+								{Symbol: symptr("a")},
+								{Symbol: symptr("b")},
 							},
 						},
 						{
-							Name: "parent",
+							Name: sptr("parent"),
 							IDs: []*Atom{
-								{Symbol: sptr("b")},
-								{Symbol: sptr("c")},
+								{Symbol: symptr("b")},
+								{Symbol: symptr("c")},
 							},
 						},
 					},
 					Constraints: []*Constraint{
 						{
 							VariableConstraint: &VariableConstraint{
-								Variable: sptr("0"),
+								Variable: varptr("0"),
 								Int: &IntComparison{
 									Operation: sptr(">"),
 									Target:    i64ptr(42),
@@ -445,7 +445,7 @@ func TestGrammarCaveat(t *testing.T) {
 						{
 							FunctionConstraint: &FunctionConstraint{
 								Function: sptr("prefix"),
-								Variable: sptr("1"),
+								Variable: varptr("1"),
 								Argument: sptr("test"),
 							},
 						},
@@ -477,25 +477,25 @@ func TestGrammarRule(t *testing.T) {
 			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: &Rule{
 				Head: &Predicate{
-					Name: "grandparent",
+					Name: sptr("grandparent"),
 					IDs: []*Atom{
-						{Symbol: sptr("a")},
-						{Symbol: sptr("c")},
+						{Symbol: symptr("a")},
+						{Symbol: symptr("c")},
 					},
 				},
 				Body: []*Predicate{
 					{
-						Name: "parent",
+						Name: sptr("parent"),
 						IDs: []*Atom{
-							{Symbol: sptr("a")},
-							{Symbol: sptr("b")},
+							{Symbol: symptr("a")},
+							{Symbol: symptr("b")},
 						},
 					},
 					{
-						Name: "parent",
+						Name: sptr("parent"),
 						IDs: []*Atom{
-							{Symbol: sptr("b")},
-							{Symbol: sptr("c")},
+							{Symbol: symptr("b")},
+							{Symbol: symptr("c")},
 						},
 					},
 				},
@@ -505,32 +505,32 @@ func TestGrammarRule(t *testing.T) {
 			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")`,
 			Expected: &Rule{
 				Head: &Predicate{
-					Name: "grandparent",
+					Name: sptr("grandparent"),
 					IDs: []*Atom{
-						{Symbol: sptr("a")},
-						{Symbol: sptr("c")},
+						{Symbol: symptr("a")},
+						{Symbol: symptr("c")},
 					},
 				},
 				Body: []*Predicate{
 					{
-						Name: "parent",
+						Name: sptr("parent"),
 						IDs: []*Atom{
-							{Symbol: sptr("a")},
-							{Symbol: sptr("b")},
+							{Symbol: symptr("a")},
+							{Symbol: symptr("b")},
 						},
 					},
 					{
-						Name: "parent",
+						Name: sptr("parent"),
 						IDs: []*Atom{
-							{Symbol: sptr("b")},
-							{Symbol: sptr("c")},
+							{Symbol: symptr("b")},
+							{Symbol: symptr("c")},
 						},
 					},
 				},
 				Constraints: []*Constraint{
 					{
 						VariableConstraint: &VariableConstraint{
-							Variable: sptr("0"),
+							Variable: varptr("0"),
 							Int: &IntComparison{
 								Operation: sptr(">"),
 								Target:    i64ptr(42),
@@ -540,7 +540,7 @@ func TestGrammarRule(t *testing.T) {
 					{
 						FunctionConstraint: &FunctionConstraint{
 							Function: sptr("prefix"),
-							Variable: sptr("1"),
+							Variable: varptr("1"),
 							Argument: sptr("test"),
 						},
 					},
@@ -559,9 +559,20 @@ func TestGrammarRule(t *testing.T) {
 	}
 }
 
+func symptr(s string) *Symbol {
+	sym := Symbol(s)
+	return &sym
+}
+
+func varptr(s string) *Variable {
+	v := Variable(s)
+	return &v
+}
+
 func sptr(s string) *string {
 	return &s
 }
+
 func i64ptr(i int64) *int64 {
 	return &i
 }
