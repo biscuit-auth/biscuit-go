@@ -8,7 +8,7 @@ import (
 )
 
 func TestGrammarPredicate(t *testing.T) {
-	parser, err := participle.Build(&Predicate{}, defaultParserOptions...)
+	parser, err := participle.Build(&Predicate{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -100,7 +100,7 @@ func TestGrammarPredicate(t *testing.T) {
 }
 
 func TestGrammarConstraint(t *testing.T) {
-	parser, err := participle.Build(&Constraint{}, defaultParserOptions...)
+	parser, err := participle.Build(&Constraint{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -343,7 +343,7 @@ func TestGrammarConstraint(t *testing.T) {
 }
 
 func TestGrammarCaveat(t *testing.T) {
-	parser, err := participle.Build(&Caveat{}, defaultParserOptions...)
+	parser, err := participle.Build(&Caveat{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -466,7 +466,7 @@ func TestGrammarCaveat(t *testing.T) {
 }
 
 func TestGrammarRule(t *testing.T) {
-	parser, err := participle.Build(&Rule{}, defaultParserOptions...)
+	parser, err := participle.Build(&Rule{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
