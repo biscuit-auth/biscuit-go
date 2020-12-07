@@ -13,7 +13,7 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var biscuitLexerRules = []stateful.Rule{
+var BiscuitLexerRules = []stateful.Rule{
 	{Name: "Keyword", Pattern: `rules|caveats`, Action: nil},
 	{Name: "Function", Pattern: `prefix|suffix|match`, Action: nil},
 	{Name: "Arrow", Pattern: `<-`, Action: nil},
@@ -30,8 +30,8 @@ var biscuitLexerRules = []stateful.Rule{
 	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`, Action: nil},
 }
 
-var defaultParserOptions = []participle.Option{
-	participle.Lexer(stateful.MustSimple(biscuitLexerRules)),
+var DefaultParserOptions = []participle.Option{
+	participle.Lexer(stateful.MustSimple(BiscuitLexerRules)),
 	participle.UseLookahead(1),
 	participle.Elide("Whitespace", "EOL"),
 	participle.Unquote("String"),
@@ -66,9 +66,9 @@ var _ MustParser = (*mustParser)(nil)
 
 func New() Parser {
 	return &parser{
-		factParser:   participle.MustBuild(&Predicate{}, defaultParserOptions...),
-		ruleParser:   participle.MustBuild(&Rule{}, defaultParserOptions...),
-		caveatParser: participle.MustBuild(&Caveat{}, defaultParserOptions...),
+		factParser:   participle.MustBuild(&Predicate{}, DefaultParserOptions...),
+		ruleParser:   participle.MustBuild(&Rule{}, DefaultParserOptions...),
+		caveatParser: participle.MustBuild(&Caveat{}, DefaultParserOptions...),
 	}
 }
 
