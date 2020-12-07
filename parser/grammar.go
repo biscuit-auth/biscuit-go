@@ -139,6 +139,10 @@ func (h *HexString) Decode() ([]byte, error) {
 	return hex.DecodeString(string(*h))
 }
 
+func (h *HexString) String() string {
+	return string(*h)
+}
+
 func (p *Predicate) ToBiscuit() (*biscuit.Predicate, error) {
 	atoms := make([]biscuit.Atom, 0, len(p.IDs))
 	for _, a := range p.IDs {
