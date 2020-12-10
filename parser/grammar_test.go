@@ -474,8 +474,10 @@ func TestGrammarRule(t *testing.T) {
 		Expected *Rule
 	}{
 		{
-			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+			Input: `// some comment
+	*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: &Rule{
+				Comments: []*Comment{commentptr("some comment")},
 				Head: &Predicate{
 					Name: sptr("grandparent"),
 					IDs: []*Atom{
@@ -580,4 +582,9 @@ func i64ptr(i int64) *int64 {
 func hexsptr(s string) *HexString {
 	h := HexString(s)
 	return &h
+}
+
+func commentptr(s string) *Comment {
+	c := Comment(s)
+	return &c
 }

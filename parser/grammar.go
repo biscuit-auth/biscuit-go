@@ -14,6 +14,19 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
+type Comment string
+
+func (c *Comment) Capture(values []string) error {
+	if len(values) != 1 {
+		return errors.New("parser: invalid comment values")
+	}
+	if !strings.HasPrefix(values[0], "//") {
+		return errors.New("parser: invalid comment prefix")
+	}
+	*c = Comment(strings.TrimSpace(strings.TrimPrefix(values[0], "//")))
+	return nil
+}
+
 type Symbol string
 
 func (s *Symbol) Capture(values []string) error {
@@ -41,7 +54,7 @@ func (v *Variable) Capture(values []string) error {
 }
 
 type Rule struct {
-	Comments    []string      `@Comment*`
+	Comments    []*Comment    `@Comment*`
 	Head        *Predicate    `"*" @@`
 	Body        []*Predicate  `"<-" @@ ("," @@)*`
 	Constraints []*Constraint `("@" @@ ("," @@)*)*`
