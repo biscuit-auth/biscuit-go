@@ -23,14 +23,14 @@ var (
 	nonceSize     = 16
 )
 
-type hubauthBuilder struct {
+type signedBiscuitBuilder struct {
 	biscuit.Builder
 }
 
 // withUserToSignFact add an authority should_sign fact and associated data to the biscuit
 // with an authority caveat requiring the verifier to provide a valid_signature fact.
 // the verifier is responsible of ensuring that a valid signature exists over the data.
-func (b *hubauthBuilder) withUserToSignFact(userPubkey []byte) error {
+func (b *signedBiscuitBuilder) withUserToSignFact(userPubkey []byte) error {
 	dataID := biscuit.Integer(0)
 
 	if err := validatePKIXP256PublicKey(userPubkey); err != nil {
@@ -90,7 +90,7 @@ func (b *hubauthBuilder) withUserToSignFact(userPubkey []byte) error {
 // a matching signature using the audience key.
 // the verifier is responsible of providing a valid_audience_signature fact, after
 // verifying the signature using the audience pubkey.
-func (b *hubauthBuilder) withAudienceSignature(audience string, audienceKey crypto.Signer) error {
+func (b *signedBiscuitBuilder) withAudienceSignature(audience string, audienceKey crypto.Signer) error {
 	if len(audience) == 0 {
 		return errors.New("audience is required")
 	}
@@ -133,7 +133,7 @@ func (b *hubauthBuilder) withAudienceSignature(audience string, audienceKey cryp
 	return nil
 }
 
-func (b *hubauthBuilder) withMetadata(m *Metadata) error {
+func (b *signedBiscuitBuilder) withMetadata(m *Metadata) error {
 	return b.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "metadata",
 		IDs: []biscuit.Atom{
@@ -145,7 +145,7 @@ func (b *hubauthBuilder) withMetadata(m *Metadata) error {
 	}})
 }
 
-func (b *hubauthBuilder) withExpire(exp time.Time) error {
+func (b *signedBiscuitBuilder) withExpire(exp time.Time) error {
 	if err := b.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{{
 		Head: biscuit.Predicate{Name: "not_expired", IDs: []biscuit.Atom{biscuit.Variable("now")}},
 		Body: []biscuit.Predicate{
@@ -165,11 +165,11 @@ func (b *hubauthBuilder) withExpire(exp time.Time) error {
 	return nil
 }
 
-type hubauthBlockBuilder struct {
+type signedBiscuitBlockBuilder struct {
 	biscuit.BlockBuilder
 }
 
-func (b *hubauthBlockBuilder) withUserSignature(sigData *userSignatureData) error {
+func (b *signedBiscuitBlockBuilder) withUserSignature(sigData *userSignatureData) error {
 	return b.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
 		IDs: []biscuit.Atom{
@@ -182,11 +182,11 @@ func (b *hubauthBlockBuilder) withUserSignature(sigData *userSignatureData) erro
 	}})
 }
 
-type hubauthVerifier struct {
+type signedBiscuitVerifier struct {
 	biscuit.Verifier
 }
 
-func (v *hubauthVerifier) getUserToSignData(userPubKey biscuit.Bytes) (*userToSignData, error) {
+func (v *signedBiscuitVerifier) getUserToSignData(userPubKey biscuit.Bytes) (*userToSignData, error) {
 	toSign, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "to_sign",
@@ -244,7 +244,7 @@ func (v *hubauthVerifier) getUserToSignData(userPubKey biscuit.Bytes) (*userToSi
 	return sigData, nil
 }
 
-func (v *hubauthVerifier) ensureNotAlreadyUserSigned(dataID biscuit.Integer, userPubKey biscuit.Bytes) error {
+func (v *signedBiscuitVerifier) ensureNotAlreadyUserSigned(dataID biscuit.Integer, userPubKey biscuit.Bytes) error {
 	alreadySigned, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{dataID, userPubKey, biscuit.Variable("signerTimestamp")}},
 		Body: []biscuit.Predicate{
@@ -267,7 +267,7 @@ func (v *hubauthVerifier) ensureNotAlreadyUserSigned(dataID biscuit.Integer, use
 	return nil
 }
 
-func (v *hubauthVerifier) getUserVerificationData() (*userVerificationData, error) {
+func (v *signedBiscuitVerifier) getUserVerificationData() (*userVerificationData, error) {
 	toValidate, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "to_validate",
@@ -348,7 +348,7 @@ func (v *hubauthVerifier) getUserVerificationData() (*userVerificationData, erro
 	return toVerify, nil
 }
 
-func (v *hubauthVerifier) withValidatedUserSignature(data *userVerificationData) error {
+func (v *signedBiscuitVerifier) withValidatedUserSignature(data *userVerificationData) error {
 	v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "valid_signature",
 		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), data.DataID, data.Alg, data.UserPubKey},
@@ -357,7 +357,7 @@ func (v *hubauthVerifier) withValidatedUserSignature(data *userVerificationData)
 	return nil
 }
 
-func (v *hubauthVerifier) getAudienceVerificationData(audience string) (*audienceVerificationData, error) {
+func (v *signedBiscuitVerifier) getAudienceVerificationData(audience string) (*audienceVerificationData, error) {
 	toValidate, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "audience_to_validate",
@@ -401,7 +401,7 @@ func (v *hubauthVerifier) getAudienceVerificationData(audience string) (*audienc
 	return toVerify, nil
 }
 
-func (v *hubauthVerifier) getMetadata() (*Metadata, error) {
+func (v *signedBiscuitVerifier) getMetadata() (*Metadata, error) {
 	metaFacts, err := v.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "metadata",
@@ -455,7 +455,7 @@ func (v *hubauthVerifier) getMetadata() (*Metadata, error) {
 	}, nil
 }
 
-func (v *hubauthVerifier) withValidatedAudienceSignature(data *audienceVerificationData) error {
+func (v *signedBiscuitVerifier) withValidatedAudienceSignature(data *audienceVerificationData) error {
 	v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "valid_audience_signature",
 		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), data.Audience, data.Signature},
@@ -464,7 +464,7 @@ func (v *hubauthVerifier) withValidatedAudienceSignature(data *audienceVerificat
 	return nil
 }
 
-func (v *hubauthVerifier) withCurrentTime(t time.Time) error {
+func (v *signedBiscuitVerifier) withCurrentTime(t time.Time) error {
 	v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "current_time",
 		IDs: []biscuit.Atom{
