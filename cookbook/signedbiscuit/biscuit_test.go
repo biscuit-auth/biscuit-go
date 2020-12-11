@@ -21,10 +21,11 @@ func TestBiscuit(t *testing.T) {
 
 	userKey := generateUserKeyPair(t)
 	metas := &Metadata{
-		ClientID:  "abcd",
-		UserEmail: "1234@example.com",
-		UserID:    "1234",
-		IssueTime: time.Now(),
+		ClientID:   "abcd",
+		UserEmail:  "1234@example.com",
+		UserID:     "1234",
+		UserGroups: []string{"grp1", "grp2"},
+		IssueTime:  time.Now(),
 	}
 
 	builder := biscuit.NewBuilder(rootKey)
@@ -55,6 +56,7 @@ func TestBiscuit(t *testing.T) {
 		require.Equal(t, metas.ClientID, res.ClientID)
 		require.Equal(t, metas.UserID, res.UserID)
 		require.Equal(t, metas.UserEmail, res.UserEmail)
+		require.Equal(t, metas.UserGroups, res.UserGroups)
 		require.WithinDuration(t, metas.IssueTime, res.IssueTime, 1*time.Second)
 		require.NotEmpty(t, res.UserSignatureNonce)
 		require.NotEmpty(t, res.UserSignatureTimestamp)

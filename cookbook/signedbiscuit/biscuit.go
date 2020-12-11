@@ -13,10 +13,11 @@ import (
 )
 
 type Metadata struct {
-	ClientID  string
-	UserID    string
-	UserEmail string
-	IssueTime time.Time
+	ClientID   string
+	UserID     string
+	UserEmail  string
+	UserGroups []string
+	IssueTime  time.Time
 }
 
 type UserKeyPair struct {
@@ -42,7 +43,7 @@ func NewECDSAKeyPair(priv *ecdsa.PrivateKey) (*UserKeyPair, error) {
 // WithSignableFacts returns a biscuit which will only verify after being
 // signed with the private key matching the given userPubkey.
 func WithSignableFacts(b biscuit.Builder, audience string, audienceKey crypto.Signer, userPublicKey []byte, expireTime time.Time, m *Metadata) (biscuit.Builder, error) {
-	builder := &hubauthBuilder{
+	builder := &signedBiscuitBuilder{
 		Builder: b,
 	}
 
@@ -79,7 +80,7 @@ func Sign(token []byte, rootPubKey sig.PublicKey, userKey *UserKeyPair) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("biscuit: failed to verify: %w", err)
 	}
-	verifier := &hubauthVerifier{
+	verifier := &signedBiscuitVerifier{
 		Verifier: v,
 	}
 
@@ -102,7 +103,7 @@ func Sign(token []byte, rootPubKey sig.PublicKey, userKey *UserKeyPair) ([]byte,
 		return nil, fmt.Errorf("biscuit: signature failed: %w", err)
 	}
 
-	builder := &hubauthBlockBuilder{
+	builder := &signedBiscuitBlockBuilder{
 		BlockBuilder: b.CreateBlock(),
 	}
 	if err := builder.withUserSignature(signData); err != nil {
@@ -128,7 +129,7 @@ type UserSignatureMetadata struct {
 // The user signature metadata are returned to the caller to handle the anti replay checks, but they shouldn't be used
 // before having called verifier.Verify()
 func WithSignatureVerification(v biscuit.Verifier, audience string, audienceKey *ecdsa.PublicKey) (biscuit.Verifier, *UserSignatureMetadata, error) {
-	verifier := &hubauthVerifier{
+	verifier := &signedBiscuitVerifier{
 		Verifier: v,
 	}
 
