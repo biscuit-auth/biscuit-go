@@ -134,12 +134,19 @@ func (b *signedBiscuitBuilder) withAudienceSignature(audience string, audienceKe
 }
 
 func (b *signedBiscuitBuilder) withMetadata(m *Metadata) error {
+
+	userGroups := make(biscuit.Set, 0, len(m.UserGroups))
+	for _, g := range m.UserGroups {
+		userGroups = append(userGroups, biscuit.String(g))
+	}
+
 	return b.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "metadata",
 		IDs: []biscuit.Atom{
 			biscuit.String(m.ClientID),
 			biscuit.String(m.UserID),
 			biscuit.String(m.UserEmail),
+			userGroups,
 			biscuit.Date(m.IssueTime),
 		},
 	}})
@@ -409,6 +416,7 @@ func (v *signedBiscuitVerifier) getMetadata() (*Metadata, error) {
 				biscuit.Variable("clientID"),
 				biscuit.Variable("userID"),
 				biscuit.Variable("userEmail"),
+				biscuit.Variable("userGroups"),
 				biscuit.Variable("issueTime"),
 			}},
 		Body: []biscuit.Predicate{
@@ -417,6 +425,7 @@ func (v *signedBiscuitVerifier) getMetadata() (*Metadata, error) {
 				biscuit.Variable("clientID"),
 				biscuit.Variable("userID"),
 				biscuit.Variable("userEmail"),
+				biscuit.Variable("userGroups"),
 				biscuit.Variable("issueTime"),
 			}},
 		},
@@ -443,15 +452,30 @@ func (v *signedBiscuitVerifier) getMetadata() (*Metadata, error) {
 	if !ok {
 		return nil, errors.New("invalid metadata atom: userEmail")
 	}
-	issueTime, ok := metaFact.IDs[3].(biscuit.Date)
+	userGroups, ok := metaFact.IDs[3].(biscuit.Set)
+	if !ok {
+		return nil, errors.New("invalid metadata atom: userGroups")
+	}
+	issueTime, ok := metaFact.IDs[4].(biscuit.Date)
 	if !ok {
 		return nil, errors.New("invalid metadata atom: issueTime")
 	}
+
+	groups := make([]string, 0, len(userGroups))
+	for _, g := range userGroups {
+		grpStr, ok := g.(biscuit.String)
+		if !ok {
+			return nil, fmt.Errorf("invalid set atom: got %T, want biscuit.String", g)
+		}
+		groups = append(groups, string(grpStr))
+	}
+
 	return &Metadata{
-		ClientID:  string(clientID),
-		UserID:    string(userID),
-		UserEmail: string(userEmail),
-		IssueTime: time.Time(issueTime),
+		ClientID:   string(clientID),
+		UserID:     string(userID),
+		UserEmail:  string(userEmail),
+		UserGroups: groups,
+		IssueTime:  time.Time(issueTime),
 	}, nil
 }
 
