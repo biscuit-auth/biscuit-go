@@ -71,9 +71,9 @@ A fact is a single predicate that does not contain any variables, e.g. `right(#a
 A rule is formed from a head, a body, and a list of constraints.
 The head is a single predicate, the body is a list of predicates, and followed by an optional list of constraints.
 
-It has the format: `*Head <- Body @ Constraints`
+It has the format: `Head <- Body @ Constraints`.
 
-e.g. `*right(#authority, $file, #read) <- resource(#ambient, $file), owner(#ambient, $user, $file) @ $user == "username", prefix($file, "/home/username")`
+e.g. `right(#authority, $file, #read) <- resource(#ambient, $file), owner(#ambient, $user, $file) @ $user == "username", prefix($file, "/home/username")`
 
 # Caveat
 

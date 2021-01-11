@@ -63,7 +63,7 @@ func getRuleTestCases() []testCase {
 
 	return []testCase{
 		{
-			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "abc")`,
+			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "abc")`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
@@ -107,7 +107,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
@@ -136,7 +136,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: fmt.Sprintf(`*rule1(#a) <- body1(#b) @ $0 > "%s", $0 < "%s"`, t1.Format(time.RFC3339), t2.Format(time.RFC3339)),
+			Input: fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 > "%s", $0 < "%s"`, t1.Format(time.RFC3339), t2.Format(time.RFC3339)),
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -165,11 +165,11 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input:         fmt.Sprintf(`*rule1(#a) <- body1(#b) @ $0 > "%s"`, t1.Format(time.RFC1123)),
+			Input:         fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 > "%s"`, t1.Format(time.RFC1123)),
 			ExpectFailure: true,
 		},
 		{
-			Input: `*rule1(#a) <- body1(#b) @ $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, $5 in [1, 2, 3], $6 not in [4,5,6]`,
+			Input: `rule1(#a) <- body1(#b) @ $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, $5 in [1, 2, 3], $6 not in [4,5,6]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -233,7 +233,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1(#b) @ $0 == "abc", prefix($1, "def"), suffix($2, "ghi"), match($3, "file[0-9]+.txt"), $4 in ["a","b"], $5 not in ["c", "d"]`,
+			Input: `rule1(#a) <- body1(#b) @ $0 == "abc", prefix($1, "def"), suffix($2, "ghi"), match($3, "file[0-9]+.txt"), $4 in ["a","b"], $5 not in ["c", "d"]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -287,7 +287,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1(#b) @ $0 in [#a, #b], $1 not in [#c, #d]`,
+			Input: `rule1(#a) <- body1(#b) @ $0 in [#a, #b], $1 not in [#c, #d]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -316,7 +316,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1("hex:41414141") @ $0 in ["hex:41414141", "hex:42424242"], $1 not in ["hex:0000" "hex:ffff"]`,
+			Input: `rule1(#a) <- body1("hex:41414141") @ $0 in ["hex:41414141", "hex:42424242"], $1 not in ["hex:0000" "hex:ffff"]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -345,7 +345,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1("hex:41414141") @ $0 == "hex:41414141"`,
+			Input: `rule1(#a) <- body1("hex:41414141") @ $0 == "hex:41414141"`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -367,7 +367,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `*rule1(#a) <- body1($0, $1) @ $0 in ["abc", "def"], $1 not in [41, 42]`,
+			Input: `rule1(#a) <- body1($0, $1) @ $0 in ["abc", "def"], $1 not in [41, 42]`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -396,7 +396,21 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input:         `*grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
+			Input: `empty() <- body1($0, $1)`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "empty",
+					IDs:  []biscuit.Atom{},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
+				}},
+				Constraints: []biscuit.Constraint{},
+			},
+		},
+		{
+			Input:         `grandparent(#a, #c) <-- parent(#a, #b), parent(#b, #c)`,
 			ExpectFailure: true,
 		},
 		{
@@ -404,7 +418,7 @@ func getRuleTestCases() []testCase {
 			ExpectFailure: true,
 		},
 		{
-			Input:         `*rule1(#a) <- body1($0, $1) @ $0 in [$1, "foo"]`,
+			Input:         `rule1(#a) <- body1($0, $1) @ $0 in [$1, "foo"]`,
 			ExpectFailure: true,
 		},
 	}
@@ -413,7 +427,7 @@ func getRuleTestCases() []testCase {
 func getCaveatTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `[ *caveat0($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3] || *caveat1() <- right(#read, "/a/file1.txt") ]`,
+			Input: `[ caveat0($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3] || caveat1() <- right(#read, "/a/file1.txt") ]`,
 			Expected: biscuit.Caveat{
 				Queries: []biscuit.Rule{
 					{
@@ -466,7 +480,7 @@ func getCaveatTestCases() []testCase {
 			},
 		},
 		{
-			Input:         `[ *caveat1($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3]`,
+			Input:         `[ caveat1($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3]`,
 			ExpectFailure: true,
 		},
 	}
