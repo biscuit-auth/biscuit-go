@@ -695,3 +695,78 @@ func TestSetEqual(t *testing.T) {
 		})
 	}
 }
+
+func TestWorldRunLimits(t *testing.T) {
+	syms := &SymbolTable{}
+	a := syms.Insert("A")
+	b := syms.Insert("B")
+	c := syms.Insert("C")
+	d := syms.Insert("D")
+	parent := syms.Insert("parent")
+	grandparent := syms.Insert("grandparent")
+
+	testCases := []struct {
+		desc        string
+		opts        []WorldOption
+		expectedErr error
+	}{
+		{
+			desc:        "valid defaults",
+			expectedErr: nil,
+		},
+		{
+			desc: "timeout",
+			opts: []WorldOption{
+				WithMaxDuration(0),
+			},
+			expectedErr: ErrWorldRunLimitTimeout,
+		},
+		{
+			desc: "max iteration exceeded",
+			opts: []WorldOption{
+				WithMaxIterations(1),
+			},
+			expectedErr: ErrWorldRunLimitMaxIterations,
+		},
+		{
+			desc: "max iteration ok",
+			opts: []WorldOption{
+				WithMaxIterations(2),
+			},
+			expectedErr: nil,
+		},
+		{
+			desc: "max facts exceeded",
+			opts: []WorldOption{
+				WithMaxFacts(5),
+			},
+			expectedErr: ErrWorldRunLimitMaxFacts,
+		},
+		{
+			desc: "max facts ok",
+			opts: []WorldOption{
+				WithMaxFacts(6),
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		w := NewWorld(tc.opts...)
+
+		w.AddFact(Fact{Predicate{parent, []ID{a, b}}})
+		w.AddFact(Fact{Predicate{parent, []ID{b, c}}})
+		w.AddFact(Fact{Predicate{parent, []ID{c, d}}})
+
+		r1 := Rule{
+			Head: Predicate{grandparent, []ID{hashVar("grandparent"), hashVar("grandchild")}},
+			Body: []Predicate{
+				{parent, []ID{hashVar("grandparent"), hashVar("parent")}},
+				{parent, []ID{hashVar("parent"), hashVar("grandchild")}},
+			},
+		}
+
+		w.AddRule(r1)
+		require.Equal(t, tc.expectedErr, w.Run())
+	}
+}
