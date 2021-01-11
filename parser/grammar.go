@@ -55,7 +55,7 @@ func (v *Variable) Capture(values []string) error {
 
 type Rule struct {
 	Comments    []*Comment    `@Comment*`
-	Head        *Predicate    `"*" @@`
+	Head        *Predicate    `@@`
 	Body        []*Predicate  `"<-" @@ ("," @@)*`
 	Constraints []*Constraint `("@" @@ ("," @@)*)*`
 }

@@ -351,7 +351,7 @@ func TestGrammarCaveat(t *testing.T) {
 		Expected *Caveat
 	}{
 		{
-			Input: `[*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)]`,
+			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)]`,
 			Expected: &Caveat{[]*Rule{
 				{
 					Head: &Predicate{
@@ -381,7 +381,34 @@ func TestGrammarCaveat(t *testing.T) {
 			}},
 		},
 		{
-			Input: `[*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) || *grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")]`,
+			Input: `[empty() <- parent(#a, #b), parent(#b, #c)]`,
+			Expected: &Caveat{[]*Rule{
+				{
+					Head: &Predicate{
+						Name: sptr("empty"),
+						IDs:  nil,
+					},
+					Body: []*Predicate{
+						{
+							Name: sptr("parent"),
+							IDs: []*Atom{
+								{Symbol: symptr("a")},
+								{Symbol: symptr("b")},
+							},
+						},
+						{
+							Name: sptr("parent"),
+							IDs: []*Atom{
+								{Symbol: symptr("b")},
+								{Symbol: symptr("c")},
+							},
+						},
+					},
+				},
+			}},
+		},
+		{
+			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) || grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")]`,
 			Expected: &Caveat{[]*Rule{
 				{
 					Head: &Predicate{
@@ -475,7 +502,7 @@ func TestGrammarRule(t *testing.T) {
 	}{
 		{
 			Input: `// some comment
-	*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+	grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
 			Expected: &Rule{
 				Comments: []*Comment{commentptr("some comment")},
 				Head: &Predicate{
@@ -504,7 +531,31 @@ func TestGrammarRule(t *testing.T) {
 			},
 		},
 		{
-			Input: `*grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")`,
+			Input: `empty() <- parent(#a, #b), parent(#b, #c)`,
+			Expected: &Rule{
+				Head: &Predicate{
+					Name: sptr("empty"),
+				},
+				Body: []*Predicate{
+					{
+						Name: sptr("parent"),
+						IDs: []*Atom{
+							{Symbol: symptr("a")},
+							{Symbol: symptr("b")},
+						},
+					},
+					{
+						Name: sptr("parent"),
+						IDs: []*Atom{
+							{Symbol: symptr("b")},
+							{Symbol: symptr("c")},
+						},
+					},
+				},
+			},
+		},
+		{
+			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: sptr("grandparent"),
