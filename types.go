@@ -105,23 +105,23 @@ func fromDatalogFact(symbols *datalog.SymbolTable, f datalog.Fact) (*Fact, error
 }
 
 func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*Predicate, error) {
-	atoms := make([]Atom, 0, len(p.IDs))
+	terms := make([]Term, 0, len(p.IDs))
 	for _, id := range p.IDs {
 		a, err := fromDatalogID(symbols, id)
 		if err != nil {
 			return nil, err
 		}
-		atoms = append(atoms, a)
+		terms = append(terms, a)
 	}
 
 	return &Predicate{
 		Name: symbols.Str(p.Name),
-		IDs:  atoms,
+		IDs:  terms,
 	}, nil
 }
 
-func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Atom, error) {
-	var a Atom
+func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
+	var a Term
 	switch id.Type() {
 	case datalog.IDTypeSymbol:
 		a = Symbol(symbols.Str(id.(datalog.Symbol)))
@@ -139,15 +139,15 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Atom, error) {
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
 		for _, i := range setIDs {
-			setAtom, err := fromDatalogID(symbols, i)
+			setTerm, err := fromDatalogID(symbols, i)
 			if err != nil {
 				return nil, err
 			}
-			set = append(set, setAtom)
+			set = append(set, setTerm)
 		}
 		a = set
 	default:
-		return nil, fmt.Errorf("unsupported atom type: %v", a.Type())
+		return nil, fmt.Errorf("unsupported term type: %v", a.Type())
 	}
 
 	return a, nil
@@ -434,7 +434,7 @@ func (c BytesInChecker) String(name Variable) string {
 
 type Predicate struct {
 	Name string
-	IDs  []Atom
+	IDs  []Term
 }
 
 func (p Predicate) convert(symbols *datalog.SymbolTable) datalog.Predicate {
@@ -449,34 +449,34 @@ func (p Predicate) convert(symbols *datalog.SymbolTable) datalog.Predicate {
 	}
 }
 func (p Predicate) String() string {
-	atoms := make([]string, 0, len(p.IDs))
+	terms := make([]string, 0, len(p.IDs))
 	for _, a := range p.IDs {
-		atoms = append(atoms, a.String())
+		terms = append(terms, a.String())
 	}
-	return fmt.Sprintf("%s(%s)", p.Name, strings.Join(atoms, ", "))
+	return fmt.Sprintf("%s(%s)", p.Name, strings.Join(terms, ", "))
 }
 
-type AtomType byte
+type TermType byte
 
 const (
-	AtomTypeSymbol AtomType = iota
-	AtomTypeVariable
-	AtomTypeInteger
-	AtomTypeString
-	AtomTypeDate
-	AtomTypeBytes
-	AtomTypeSet
+	TermTypeSymbol TermType = iota
+	TermTypeVariable
+	TermTypeInteger
+	TermTypeString
+	TermTypeDate
+	TermTypeBytes
+	TermTypeSet
 )
 
-type Atom interface {
-	Type() AtomType
+type Term interface {
+	Type() TermType
 	String() string
 	convert(symbols *datalog.SymbolTable) datalog.ID
 }
 
 type Symbol string
 
-func (a Symbol) Type() AtomType { return AtomTypeSymbol }
+func (a Symbol) Type() TermType { return TermTypeSymbol }
 func (a Symbol) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Symbol(symbols.Insert(string(a)))
 }
@@ -484,7 +484,7 @@ func (a Symbol) String() string { return fmt.Sprintf("#%s", string(a)) }
 
 type Variable string
 
-func (a Variable) Type() AtomType { return AtomTypeVariable }
+func (a Variable) Type() TermType { return TermTypeVariable }
 func (a Variable) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Variable(symbols.Insert(string(a)))
 }
@@ -492,7 +492,7 @@ func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
 
 type Integer int64
 
-func (a Integer) Type() AtomType { return AtomTypeInteger }
+func (a Integer) Type() TermType { return TermTypeInteger }
 func (a Integer) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Integer(a)
 }
@@ -500,7 +500,7 @@ func (a Integer) String() string { return fmt.Sprintf("%d", a) }
 
 type String string
 
-func (a String) Type() AtomType { return AtomTypeString }
+func (a String) Type() TermType { return TermTypeString }
 func (a String) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.String(a)
 }
@@ -508,7 +508,7 @@ func (a String) String() string { return fmt.Sprintf("%q", string(a)) }
 
 type Date time.Time
 
-func (a Date) Type() AtomType { return AtomTypeDate }
+func (a Date) Type() TermType { return TermTypeDate }
 func (a Date) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Date(time.Time(a).Unix())
 }
@@ -516,15 +516,15 @@ func (a Date) String() string { return time.Time(a).Format(time.RFC3339) }
 
 type Bytes []byte
 
-func (a Bytes) Type() AtomType { return AtomTypeBytes }
+func (a Bytes) Type() TermType { return TermTypeBytes }
 func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Bytes(a)
 }
 func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }
 
-type Set []Atom
+type Set []Term
 
-func (a Set) Type() AtomType { return AtomTypeSet }
+func (a Set) Type() TermType { return TermTypeSet }
 func (a Set) convert(symbols *datalog.SymbolTable) datalog.ID {
 	datalogSet := make(datalog.Set, 0, len(a))
 	for _, e := range a {

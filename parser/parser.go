@@ -84,7 +84,7 @@ func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 	}
 
 	for _, a := range pred.IDs {
-		if a.Type() == biscuit.AtomTypeVariable {
+		if a.Type() == biscuit.TermTypeVariable {
 			return biscuit.Fact{}, ErrVariableInFact
 		}
 	}

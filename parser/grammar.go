@@ -62,20 +62,20 @@ type Rule struct {
 
 type Predicate struct {
 	Name *string `@Ident`
-	IDs  []*Atom `"(" (@@ ("," @@)*)* ")"`
+	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
 }
 
 type Caveat struct {
 	Queries []*Rule `"[" @@ ( "||" @@ )* "]"`
 }
 
-type Atom struct {
+type Term struct {
 	Symbol   *Symbol    `@Symbol`
 	Variable *Variable  `| @Variable`
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
-	Set      []*Atom    `| "[" @@ ("," @@)* "]"`
+	Set      []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
 type Constraint struct {
@@ -157,56 +157,56 @@ func (h *HexString) String() string {
 }
 
 func (p *Predicate) ToBiscuit() (*biscuit.Predicate, error) {
-	atoms := make([]biscuit.Atom, 0, len(p.IDs))
+	terms := make([]biscuit.Term, 0, len(p.IDs))
 	for _, a := range p.IDs {
-		biscuitAtom, err := a.ToBiscuit()
+		biscuitTerm, err := a.ToBiscuit()
 		if err != nil {
 			return nil, err
 		}
-		atoms = append(atoms, biscuitAtom)
+		terms = append(terms, biscuitTerm)
 	}
 
 	return &biscuit.Predicate{
 		Name: *p.Name,
-		IDs:  atoms,
+		IDs:  terms,
 	}, nil
 }
 
-func (a *Atom) ToBiscuit() (biscuit.Atom, error) {
-	var biscuitAtom biscuit.Atom
+func (a *Term) ToBiscuit() (biscuit.Term, error) {
+	var biscuitTerm biscuit.Term
 	switch {
 	case a.Integer != nil:
-		biscuitAtom = biscuit.Integer(*a.Integer)
+		biscuitTerm = biscuit.Integer(*a.Integer)
 	case a.String != nil:
-		biscuitAtom = biscuit.String(*a.String)
+		biscuitTerm = biscuit.String(*a.String)
 	case a.Symbol != nil:
-		biscuitAtom = biscuit.Symbol(*a.Symbol)
+		biscuitTerm = biscuit.Symbol(*a.Symbol)
 	case a.Variable != nil:
-		biscuitAtom = biscuit.Variable(*a.Variable)
+		biscuitTerm = biscuit.Variable(*a.Variable)
 	case a.Bytes != nil:
 		b, err := a.Bytes.Decode()
 		if err != nil {
 			return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 		}
-		biscuitAtom = biscuit.Bytes(b)
+		biscuitTerm = biscuit.Bytes(b)
 	case a.Set != nil:
 		biscuitSet := make(biscuit.Set, 0, len(a.Set))
-		for _, atom := range a.Set {
-			setAtom, err := atom.ToBiscuit()
+		for _, term := range a.Set {
+			setTerm, err := term.ToBiscuit()
 			if err != nil {
 				return nil, err
 			}
-			if setAtom.Type() == biscuit.AtomTypeVariable {
+			if setTerm.Type() == biscuit.TermTypeVariable {
 				return nil, ErrVariableInSet
 			}
-			biscuitSet = append(biscuitSet, setAtom)
+			biscuitSet = append(biscuitSet, setTerm)
 		}
-		biscuitAtom = biscuitSet
+		biscuitTerm = biscuitSet
 	default:
 		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
 	}
 
-	return biscuitAtom, nil
+	return biscuitTerm, nil
 }
 
 func (c *Constraint) ToBiscuit() (*biscuit.Constraint, error) {

@@ -38,7 +38,7 @@ func TestFromDatalogFact(t *testing.T) {
 	expectedFact := &Fact{
 		Predicate: Predicate{
 			Name: "sym0",
-			IDs: []Atom{
+			IDs: []Term{
 				Symbol("sym1"),
 				Integer(42),
 				String("foo"),

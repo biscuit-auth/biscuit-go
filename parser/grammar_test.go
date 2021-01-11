@@ -19,7 +19,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `resource(#ambient, $var1)`,
 			Expected: &Predicate{
 				Name: sptr("resource"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{Symbol: symptr("ambient")},
 					{Variable: varptr("var1")},
 				},
@@ -29,7 +29,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `resource(#ambient, $0, #read)`,
 			Expected: &Predicate{
 				Name: sptr("resource"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{Symbol: symptr("ambient")},
 					{Variable: varptr("0")},
 					{Symbol: symptr("read")},
@@ -40,7 +40,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `right(#authority, "/a/file1.txt", #read)`,
 			Expected: &Predicate{
 				Name: sptr("right"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{Symbol: symptr("authority")},
 					{String: sptr("/a/file1.txt")},
 					{Symbol: symptr("read")},
@@ -51,7 +51,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `right("/a/file1.txt", #read)`,
 			Expected: &Predicate{
 				Name: sptr("right"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{String: sptr("/a/file1.txt")},
 					{Symbol: symptr("read")},
 				},
@@ -61,7 +61,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `right("/a/file1.txt", $1)`,
 			Expected: &Predicate{
 				Name: sptr("right"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{String: sptr("/a/file1.txt")},
 					{Variable: varptr("1")},
 				},
@@ -71,7 +71,7 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `right($1, "hex:41414141")`,
 			Expected: &Predicate{
 				Name: sptr("right"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{Variable: varptr("1")},
 					{Bytes: hexsptr("41414141")},
 				},
@@ -81,9 +81,9 @@ func TestGrammarPredicate(t *testing.T) {
 			Input: `right($1, ["hex:41414141", #sym])`,
 			Expected: &Predicate{
 				Name: sptr("right"),
-				IDs: []*Atom{
+				IDs: []*Term{
 					{Variable: varptr("1")},
-					{Set: []*Atom{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
+					{Set: []*Term{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
 				},
 			},
 		},
@@ -356,7 +356,7 @@ func TestGrammarCaveat(t *testing.T) {
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("c")},
 						},
@@ -364,14 +364,14 @@ func TestGrammarCaveat(t *testing.T) {
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("a")},
 								{Symbol: symptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("b")},
 								{Symbol: symptr("c")},
 							},
@@ -391,14 +391,14 @@ func TestGrammarCaveat(t *testing.T) {
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("a")},
 								{Symbol: symptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("b")},
 								{Symbol: symptr("c")},
 							},
@@ -413,7 +413,7 @@ func TestGrammarCaveat(t *testing.T) {
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("c")},
 						},
@@ -421,14 +421,14 @@ func TestGrammarCaveat(t *testing.T) {
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("a")},
 								{Symbol: symptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("b")},
 								{Symbol: symptr("c")},
 							},
@@ -438,7 +438,7 @@ func TestGrammarCaveat(t *testing.T) {
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("c")},
 						},
@@ -446,14 +446,14 @@ func TestGrammarCaveat(t *testing.T) {
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("a")},
 								{Symbol: symptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
-							IDs: []*Atom{
+							IDs: []*Term{
 								{Symbol: symptr("b")},
 								{Symbol: symptr("c")},
 							},
@@ -507,7 +507,7 @@ func TestGrammarRule(t *testing.T) {
 				Comments: []*Comment{commentptr("some comment")},
 				Head: &Predicate{
 					Name: sptr("grandparent"),
-					IDs: []*Atom{
+					IDs: []*Term{
 						{Symbol: symptr("a")},
 						{Symbol: symptr("c")},
 					},
@@ -515,14 +515,14 @@ func TestGrammarRule(t *testing.T) {
 				Body: []*Predicate{
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("b")},
 							{Symbol: symptr("c")},
 						},
@@ -539,14 +539,14 @@ func TestGrammarRule(t *testing.T) {
 				Body: []*Predicate{
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("b")},
 							{Symbol: symptr("c")},
 						},
@@ -559,7 +559,7 @@ func TestGrammarRule(t *testing.T) {
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: sptr("grandparent"),
-					IDs: []*Atom{
+					IDs: []*Term{
 						{Symbol: symptr("a")},
 						{Symbol: symptr("c")},
 					},
@@ -567,14 +567,14 @@ func TestGrammarRule(t *testing.T) {
 				Body: []*Predicate{
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("a")},
 							{Symbol: symptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
-						IDs: []*Atom{
+						IDs: []*Term{
 							{Symbol: symptr("b")},
 							{Symbol: symptr("c")},
 						},

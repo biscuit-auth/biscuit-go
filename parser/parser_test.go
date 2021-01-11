@@ -25,7 +25,7 @@ func getFactTestCases() []testCase {
 			Expected: biscuit.Fact{
 				Predicate: biscuit.Predicate{
 					Name: "right",
-					IDs: []biscuit.Atom{
+					IDs: []biscuit.Term{
 						biscuit.Symbol("authority"),
 						biscuit.String("/a/file1.txt"),
 						biscuit.Symbol("read"),
@@ -67,7 +67,7 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
-					IDs: []biscuit.Atom{
+					IDs: []biscuit.Term{
 						biscuit.Symbol("a"),
 						biscuit.Symbol("c"),
 					},
@@ -75,14 +75,14 @@ func getRuleTestCases() []testCase {
 				Body: []biscuit.Predicate{
 					{
 						Name: "parent",
-						IDs: []biscuit.Atom{
+						IDs: []biscuit.Term{
 							biscuit.Symbol("a"),
 							biscuit.Symbol("b"),
 						},
 					},
 					{
 						Name: "parent",
-						IDs: []biscuit.Atom{
+						IDs: []biscuit.Term{
 							biscuit.Symbol("b"),
 							biscuit.Symbol("c"),
 						},
@@ -111,7 +111,7 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "grandparent",
-					IDs: []biscuit.Atom{
+					IDs: []biscuit.Term{
 						biscuit.Symbol("a"),
 						biscuit.Symbol("c"),
 					},
@@ -119,14 +119,14 @@ func getRuleTestCases() []testCase {
 				Body: []biscuit.Predicate{
 					{
 						Name: "parent",
-						IDs: []biscuit.Atom{
+						IDs: []biscuit.Term{
 							biscuit.Symbol("a"),
 							biscuit.Symbol("b"),
 						},
 					},
 					{
 						Name: "parent",
-						IDs: []biscuit.Atom{
+						IDs: []biscuit.Term{
 							biscuit.Symbol("b"),
 							biscuit.Symbol("c"),
 						},
@@ -140,11 +140,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+					IDs:  []biscuit.Term{biscuit.Symbol("b")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -173,11 +173,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+					IDs:  []biscuit.Term{biscuit.Symbol("b")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -237,11 +237,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+					IDs:  []biscuit.Term{biscuit.Symbol("b")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -291,11 +291,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("b")},
+					IDs:  []biscuit.Term{biscuit.Symbol("b")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -320,11 +320,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+					IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -349,11 +349,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+					IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -371,11 +371,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
-					IDs:  []biscuit.Atom{biscuit.Symbol("a")},
+					IDs:  []biscuit.Term{biscuit.Symbol("a")},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
+					IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
 				}},
 				Constraints: []biscuit.Constraint{
 					{
@@ -400,11 +400,11 @@ func getRuleTestCases() []testCase {
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "empty",
-					IDs:  []biscuit.Atom{},
+					IDs:  []biscuit.Term{},
 				},
 				Body: []biscuit.Predicate{{
 					Name: "body1",
-					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
+					IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
 				}},
 				Constraints: []biscuit.Constraint{},
 			},
@@ -433,19 +433,19 @@ func getCaveatTestCases() []testCase {
 					{
 						Head: biscuit.Predicate{
 							Name: "caveat0",
-							IDs:  []biscuit.Atom{biscuit.Variable("0")},
+							IDs:  []biscuit.Term{biscuit.Variable("0")},
 						},
 						Body: []biscuit.Predicate{
 							{
 								Name: "parent",
-								IDs: []biscuit.Atom{
+								IDs: []biscuit.Term{
 									biscuit.Symbol("a"),
 									biscuit.Symbol("b"),
 								},
 							},
 							{
 								Name: "parent",
-								IDs: []biscuit.Atom{
+								IDs: []biscuit.Term{
 									biscuit.Symbol("b"),
 									biscuit.Symbol("c"),
 								},
@@ -463,12 +463,12 @@ func getCaveatTestCases() []testCase {
 					{
 						Head: biscuit.Predicate{
 							Name: "caveat1",
-							IDs:  []biscuit.Atom{},
+							IDs:  []biscuit.Term{},
 						},
 						Body: []biscuit.Predicate{
 							{
 								Name: "right",
-								IDs: []biscuit.Atom{
+								IDs: []biscuit.Term{
 									biscuit.Symbol("read"),
 									biscuit.String("/a/file1.txt"),
 								},
