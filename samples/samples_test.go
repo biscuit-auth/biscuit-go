@@ -17,21 +17,21 @@ type sampleVerifier struct {
 func (s *sampleVerifier) AddOperation(op string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "operation",
-		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol(op)}}},
+		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol(op)}}},
 	)
 }
 
 func (s *sampleVerifier) AddResource(res string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "resource",
-		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String(res)}}},
+		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.String(res)}}},
 	)
 }
 
 func (s *sampleVerifier) SetTime(t time.Time) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "time",
-		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Date(t)}}},
+		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Date(t)}}},
 	)
 }
 
@@ -170,7 +170,7 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
-			IDs: []biscuit.Atom{
+			IDs: []biscuit.Term{
 				biscuit.Symbol("ambient"),
 				biscuit.Symbol("alice"),
 				biscuit.String("file1"),
@@ -185,7 +185,7 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
-			IDs: []biscuit.Atom{
+			IDs: []biscuit.Term{
 				biscuit.Symbol("ambient"),
 				biscuit.Symbol("alice"),
 				biscuit.String("file1"),
@@ -201,7 +201,7 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
-			IDs: []biscuit.Atom{
+			IDs: []biscuit.Term{
 				biscuit.Symbol("ambient"),
 				biscuit.Symbol("alice"),
 				biscuit.String("file1"),
@@ -216,7 +216,7 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	verifier.AddFact(biscuit.Fact{
 		Predicate: biscuit.Predicate{
 			Name: "owner",
-			IDs: []biscuit.Atom{
+			IDs: []biscuit.Term{
 				biscuit.Symbol("ambient"),
 				biscuit.Symbol("alice"),
 				biscuit.String("file1"),
@@ -240,12 +240,12 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 			{
 				Head: biscuit.Predicate{
 					Name: "caveat1",
-					IDs:  []biscuit.Atom{biscuit.Variable("0"), biscuit.Variable("1")},
+					IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
 				},
 				Body: []biscuit.Predicate{
-					{Name: "right", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable("0"), biscuit.Variable("1")}},
-					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("0")}},
-					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("1")}},
+					{Name: "right", IDs: []biscuit.Term{biscuit.Symbol("authority"), biscuit.Variable("0"), biscuit.Variable("1")}},
+					{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("0")}},
+					{Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("1")}},
 				},
 			},
 		},
@@ -387,20 +387,20 @@ func TestSample15_MultiQueriesCaveats(t *testing.T) {
 	rule1 := biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "test_must_be_present_authority",
-			IDs:  []biscuit.Atom{biscuit.Variable("0")},
+			IDs:  []biscuit.Term{biscuit.Variable("0")},
 		},
 		Body: []biscuit.Predicate{
-			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Symbol("authority"), biscuit.Variable("0")}},
+			{Name: "must_be_present", IDs: []biscuit.Term{biscuit.Symbol("authority"), biscuit.Variable("0")}},
 		},
 	}
 
 	rule2 := biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "test_must_be_present",
-			IDs:  []biscuit.Atom{biscuit.Variable("0")},
+			IDs:  []biscuit.Term{biscuit.Variable("0")},
 		},
 		Body: []biscuit.Predicate{
-			{Name: "must_be_present", IDs: []biscuit.Atom{biscuit.Variable("0")}},
+			{Name: "must_be_present", IDs: []biscuit.Term{biscuit.Variable("0")}},
 		},
 	}
 
@@ -429,7 +429,7 @@ func TestSample16_CaveatHeadName(t *testing.T) {
 
 	v.Reset()
 	v.AddFact(biscuit.Fact{
-		Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("hello")}},
+		Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("hello")}},
 	})
 	require.NoError(t, v.Verify())
 }

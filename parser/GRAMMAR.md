@@ -2,7 +2,7 @@
 
 This document describes the currently supported Datalog grammar.
 
-## Atom
+## Term
 
 Represents a Datalog type, can be one of: symbol, variable, integer, string, date, bytes, or set.
 
@@ -16,7 +16,7 @@ Represents a Datalog type, can be one of: symbol, variable, integer, string, dat
 
 ## Predicate
 
-A predicate is a list of atoms, grouped under a name in the form `Name(Atom0, Atom1, ..., AtomN)` , e.g. `parent(#a, #b)`.
+A predicate is a list of terms, grouped under a name in the form `Name(Term0, Term1, ..., TermN)` , e.g. `parent(#a, #b)`.
 
 ## Constraints
 

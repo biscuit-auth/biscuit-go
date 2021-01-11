@@ -16,7 +16,7 @@ func ExampleBiscuit() {
 
 	err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Symbol("authority"),
 			biscuit.String("/a/file1.txt"),
 			biscuit.Symbol("read"),
@@ -27,7 +27,7 @@ func ExampleBiscuit() {
 	}
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Symbol("authority"),
 			biscuit.String("/a/file1.txt"),
 			biscuit.Symbol("write"),
@@ -38,7 +38,7 @@ func ExampleBiscuit() {
 	}
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Symbol("authority"),
 			biscuit.String("/a/file2.txt"),
 			biscuit.Symbol("read"),
@@ -49,7 +49,7 @@ func ExampleBiscuit() {
 	}
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Symbol("authority"),
 			biscuit.String("/a/file3.txt"),
 			biscuit.Symbol("write"),
@@ -82,11 +82,11 @@ func ExampleBiscuit() {
 			{
 				Head: biscuit.Predicate{
 					Name: "caveat",
-					IDs:  []biscuit.Atom{biscuit.String("/a/file1.txt")},
+					IDs:  []biscuit.Term{biscuit.String("/a/file1.txt")},
 				},
 				Body: []biscuit.Predicate{
-					{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}},
-					{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("read")}},
+					{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}},
+					{Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("read")}},
 				},
 			},
 		},
@@ -116,8 +116,8 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to create verifier: %v", err))
 	}
 
-	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}}})
-	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "operation", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Symbol("read")}}})
+	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}}})
+	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("read")}}})
 
 	if err := v1.Verify(); err != nil {
 		fmt.Printf("failed to verify token: %v\n", err)

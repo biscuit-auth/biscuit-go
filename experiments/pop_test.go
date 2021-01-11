@@ -95,7 +95,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	// with specified alg and the matching private key
 	builder.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "should_sign",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Integer(0),
 			biscuit.Symbol("ed25519"),
 			biscuit.Bytes(pubkey),
@@ -109,7 +109,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	// add "data(#authority, dataID, content)" fact holding the data to be signed
 	builder.AddAuthorityFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "data",
-		IDs: []biscuit.Atom{
+		IDs: []biscuit.Term{
 			biscuit.Integer(0),
 			biscuit.Bytes(append(signStaticCtx, challenge...)),
 		},
@@ -120,10 +120,10 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 	// *valid($dataID)<- should_sign(#authority, $dataID, $alg, $pubkey), valid_signature(#ambient, $dataID, $alg, $pubkey)
 	builder.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{
 		{
-			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Atom{biscuit.Variable("dataID")}},
+			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Term{biscuit.Variable("dataID")}},
 			Body: []biscuit.Predicate{
-				{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
-				{Name: "valid_signature", IDs: []biscuit.Atom{biscuit.Symbol("ambient"), biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+				{Name: "should_sign", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+				{Name: "valid_signature", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
 			},
 		},
 	}})
@@ -150,10 +150,10 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 	// This query returns to_sign($dataID, $alg, $data) facts which require a signature with a private key matching pubkey.
 	// in this example: [to_sign(0, "ed25519", "hex:7369676e2074686973")]
 	toSign, err := verifier.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "to_sign", IDs: []biscuit.Atom{biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+		Head: biscuit.Predicate{Name: "to_sign", IDs: []biscuit.Term{biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Bytes(pubkey)}},
-			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("pubkey")}},
+			{Name: "should_sign", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Bytes(pubkey)}},
+			{Name: "data", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("pubkey")}},
 		},
 	})
 	require.NoError(t, err)
@@ -174,9 +174,9 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 
 	// We have a "to_sign" fact, so we check if the token doesn't already hold a signature:
 	alreadySigned, err := verifier.Query(biscuit.Rule{
-		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Atom{biscuit.Variable("dataID")}},
+		Head: biscuit.Predicate{Name: "already_signed", IDs: []biscuit.Term{biscuit.Variable("dataID")}},
 		Body: []biscuit.Predicate{
-			{Name: "signature", IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), biscuit.Variable("dataID")}},
+			{Name: "signature", IDs: []biscuit.Term{dataID, biscuit.Bytes(pubkey), biscuit.Variable("dataID")}},
 		},
 	})
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func clientSign(t *testing.T, rootPubkey sig.PublicKey, pubkey ed25519.PublicKey
 		Name: "signature",
 		// Add back the pubkey so we can have multiple signatures across the same data
 		// + the anti replay nonce and timestamp
-		IDs: []biscuit.Atom{dataID, biscuit.Bytes(pubkey), signedData, biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
+		IDs: []biscuit.Term{dataID, biscuit.Bytes(pubkey), signedData, biscuit.Bytes(signerNonce), biscuit.Date(signerTimestamp)},
 	}})
 	require.NoError(t, err)
 
@@ -241,7 +241,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	toValidate, err := verifier.Query(biscuit.Rule{
 		Head: biscuit.Predicate{
 			Name: "to_validate",
-			IDs: []biscuit.Atom{
+			IDs: []biscuit.Term{
 				biscuit.Variable("dataID"),
 				biscuit.Variable("alg"),
 				biscuit.Variable("pubkey"),
@@ -251,9 +251,9 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 				biscuit.Variable("signerTimestamp"),
 			}},
 		Body: []biscuit.Predicate{
-			{Name: "should_sign", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
-			{Name: "data", IDs: []biscuit.Atom{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("data")}},
-			{Name: "signature", IDs: []biscuit.Atom{biscuit.Variable("dataID"), biscuit.Variable("pubkey"), biscuit.Variable("signature"), biscuit.Variable("signerNonce"), biscuit.Variable("signerTimestamp")}},
+			{Name: "should_sign", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+			{Name: "data", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("data")}},
+			{Name: "signature", IDs: []biscuit.Term{biscuit.Variable("dataID"), biscuit.Variable("pubkey"), biscuit.Variable("signature"), biscuit.Variable("signerNonce"), biscuit.Variable("signerTimestamp")}},
 		},
 	})
 	require.NoError(t, err)
@@ -279,7 +279,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	// retrieve the block index containing user signature
 	blockIdx, err := verifier.Biscuit().GetBlockID(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "signature",
-		IDs:  []biscuit.Atom{dataID, pubkey, signature, signerNonce, signerTimestamp},
+		IDs:  []biscuit.Term{dataID, pubkey, signature, signerNonce, signerTimestamp},
 	}})
 	require.NoError(t, err)
 	// the signedTokenHash is on all the blocks before the one containing the signature.
@@ -302,7 +302,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 
 	verifier.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "valid_signature",
-		IDs:  []biscuit.Atom{biscuit.Symbol("ambient"), dataID, alg, pubkey},
+		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), dataID, alg, pubkey},
 	}})
 
 	t.Logf("verifySignature world after:\n%s", verifier.PrintWorld())
