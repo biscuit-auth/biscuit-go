@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/alecthomas/participle"
+	"github.com/alecthomas/participle/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,7 +92,7 @@ func TestGrammarPredicate(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
 			parsed := &Predicate{}
-			err := parser.ParseString(testCase.Input, parsed)
+			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
@@ -334,7 +334,7 @@ func TestGrammarConstraint(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
 			parsed := &Constraint{}
-			err := parser.ParseString(testCase.Input, parsed)
+			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
@@ -458,7 +458,7 @@ func TestGrammarCaveat(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
 			parsed := &Caveat{}
-			err := parser.ParseString(testCase.Input, parsed)
+			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
@@ -552,7 +552,7 @@ func TestGrammarRule(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
 			parsed := &Rule{}
-			err := parser.ParseString(testCase.Input, parsed)
+			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
