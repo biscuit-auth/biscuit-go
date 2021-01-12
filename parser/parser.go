@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer/stateful"
 	"github.com/flynn/biscuit-go"
 )
 
@@ -13,9 +13,27 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var defaultParserOptions = []participle.Option{
-	participle.Lexer(lexer.DefaultDefinition),
-	participle.UseLookahead(3),
+var BiscuitLexerRules = []stateful.Rule{
+	{Name: "Keyword", Pattern: `rules|caveats`, Action: nil},
+	{Name: "Function", Pattern: `prefix|suffix|match`, Action: nil},
+	{Name: "Arrow", Pattern: `<-`, Action: nil},
+	{Name: "Or", Pattern: `\|\|`, Action: nil},
+	{Name: "Operator", Pattern: `==|>=|<=|>|<|not|in`, Action: nil},
+	{Name: "Comment", Pattern: `//[^\n]*`, Action: nil},
+	{Name: "String", Pattern: `\"[^\"]*\"`, Action: nil},
+	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_]+`, Action: nil},
+	{Name: "Int", Pattern: `[0-9]+`, Action: nil},
+	{Name: "Symbol", Pattern: `#[a-zA-Z0-9_]+`, Action: nil},
+	{Name: "Ident", Pattern: `[a-zA-Z0-9_]+`, Action: nil},
+	{Name: "Whitespace", Pattern: `[ \t]+`, Action: nil},
+	{Name: "EOL", Pattern: `[\n\r]+`, Action: nil},
+	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`, Action: nil},
+}
+
+var DefaultParserOptions = []participle.Option{
+	participle.Lexer(stateful.MustSimple(BiscuitLexerRules)),
+	participle.UseLookahead(1),
+	participle.Elide("Whitespace", "EOL"),
 	participle.Unquote("String"),
 }
 
@@ -48,9 +66,9 @@ var _ MustParser = (*mustParser)(nil)
 
 func New() Parser {
 	return &parser{
-		factParser:   participle.MustBuild(&Predicate{}, defaultParserOptions...),
-		ruleParser:   participle.MustBuild(&Rule{}, defaultParserOptions...),
-		caveatParser: participle.MustBuild(&Caveat{}, defaultParserOptions...),
+		factParser:   participle.MustBuild(&Predicate{}, DefaultParserOptions...),
+		ruleParser:   participle.MustBuild(&Rule{}, DefaultParserOptions...),
+		caveatParser: participle.MustBuild(&Caveat{}, DefaultParserOptions...),
 	}
 }
 
