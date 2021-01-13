@@ -762,4 +762,8 @@ func TestBlockConvert(t *testing.T) {
 	out, err := protoBlockToTokenBlock(pbBlock)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
+
+	pbBlock.Version = MaxSchemaVersion + 1
+	_, err = protoBlockToTokenBlock(pbBlock)
+	require.Error(t, err)
 }
