@@ -13,6 +13,8 @@ import (
 
 const SymbolAuthority = Symbol("authority")
 
+const MaxSchemaVersion uint32 = 0
+
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
 var defaultSymbolTable = &datalog.SymbolTable{
@@ -32,6 +34,7 @@ type Block struct {
 	rules   []datalog.Rule
 	caveats []datalog.Caveat
 	context string
+	version uint32
 }
 
 func (b *Block) String(symbols *datalog.SymbolTable) string {
@@ -54,6 +57,7 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		facts: %v
 		rules: %v
 		caveats: %v
+		version: %d
 	}`,
 		b.index,
 		*b.symbols,
@@ -61,6 +65,7 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		debug.FactSet(b.facts),
 		rules,
 		caveats,
+		b.version,
 	)
 }
 

@@ -45,6 +45,7 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 		Rules:   pbRules,
 		Caveats: pbCaveats,
 		Context: input.context,
+		Version: input.version,
 	}, nil
 }
 
@@ -78,6 +79,10 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		caveats[i] = *c
 	}
 
+	if input.Version > MaxSchemaVersion {
+		return nil, fmt.Errorf("biscuit: unsupported block version: %d", input.Version)
+	}
+
 	return &Block{
 		index:   input.Index,
 		symbols: &symbols,
@@ -85,6 +90,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		rules:   rules,
 		caveats: caveats,
 		context: input.Context,
+		version: input.Version,
 	}, nil
 }
 

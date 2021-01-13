@@ -110,6 +110,7 @@ func (b *builder) Build() (*Biscuit, error) {
 		rules:   b.rules,
 		caveats: b.caveats,
 		context: b.context,
+		version: MaxSchemaVersion,
 	})
 }
 
@@ -270,5 +271,6 @@ func (b *blockBuilder) Build() *Block {
 		rules:   rules,
 		caveats: caveats,
 		context: b.context,
+		version: MaxSchemaVersion,
 	}
 }
