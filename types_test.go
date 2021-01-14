@@ -23,6 +23,8 @@ func TestFromDatalogFact(t *testing.T) {
 				datalog.Variable(2),
 				datalog.Date(now.Unix()),
 				datalog.Bytes([]byte("some random bytes")),
+				datalog.Bool(true),
+				datalog.Bool(false),
 				datalog.Set{
 					datalog.String("abc"),
 					datalog.Integer(42),
@@ -45,6 +47,8 @@ func TestFromDatalogFact(t *testing.T) {
 				Variable("var1"),
 				Date(time.Unix(now.Unix(), 0)),
 				Bytes([]byte("some random bytes")),
+				Bool(true),
+				Bool(false),
 				Set{String("abc"), Integer(42), Symbol("sym1")},
 			},
 		},

@@ -140,6 +140,8 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
 		a = Date(time.Unix(int64(id.(datalog.Date)), 0))
 	case datalog.IDTypeBytes:
 		a = Bytes(id.(datalog.Bytes))
+	case datalog.IDTypeBool:
+		a = Bool(id.(datalog.Bool))
 	case datalog.IDTypeSet:
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
@@ -152,7 +154,7 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
 		}
 		a = set
 	default:
-		return nil, fmt.Errorf("unsupported term type: %v", a.Type())
+		return nil, fmt.Errorf("unsupported term type: %v", id.Type())
 	}
 
 	return a, nil
@@ -470,6 +472,7 @@ const (
 	TermTypeString
 	TermTypeDate
 	TermTypeBytes
+	TermTypeBool
 	TermTypeSet
 )
 
@@ -526,6 +529,14 @@ func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
 	return datalog.Bytes(a)
 }
 func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }
+
+type Bool bool
+
+func (b Bool) Type() TermType { return TermTypeBool }
+func (b Bool) convert(symbols *datalog.SymbolTable) datalog.ID {
+	return datalog.Bool(b)
+}
+func (b Bool) String() string { return fmt.Sprintf("%t", b) }
 
 type Set []Term
 
