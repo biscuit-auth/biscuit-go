@@ -171,10 +171,10 @@ message IntConstraintV0 {
 
 message IntConstraintV1 {
   enum Kind {
-    LOWER = 0;
-    LARGER = 1;
-    LOWER_OR_EQUAL = 2;
-    LARGER_OR_EQUAL = 3;
+    LESS_THAN = 0;
+    GREATER_THAN = 1;
+    LESS_OR_EQUAL = 2;
+    GREATER_OR_EQUAL = 3;
     EQUAL = 4;
     IN = 5;
     NOT_IN = 6;
@@ -182,10 +182,10 @@ message IntConstraintV1 {
 
   Kind kind = 1;
 
-  int64 lower = 2;
-  int64 larger = 3;
-  int64 lower_or_equal = 4;
-  int64 larger_or_equal = 5;
+  int64 less_than = 2;
+  int64 greater_than = 3;
+  int64 less_or_equal = 4;
+  int64 greater_or_equal = 5;
   int64 equal = 6;
   repeated int64 in_set = 7 [ packed = true ];
   repeated int64 not_in_set = 8 [ packed = true ];
