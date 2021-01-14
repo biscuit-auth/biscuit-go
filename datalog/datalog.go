@@ -26,6 +26,7 @@ const (
 	IDTypeString
 	IDTypeDate
 	IDTypeBytes
+	IDTypeBool
 	IDTypeSet
 )
 
@@ -111,6 +112,14 @@ func (Bytes) Type() IDType      { return IDTypeBytes }
 func (b Bytes) Equal(t ID) bool { c, ok := t.(Bytes); return ok && bytes.Equal(b, c) }
 func (b Bytes) String() string {
 	return fmt.Sprintf("\"hex:%s\"", hex.EncodeToString(b))
+}
+
+type Bool bool
+
+func (Bool) Type() IDType      { return IDTypeBool }
+func (b Bool) Equal(t ID) bool { c, ok := t.(Bool); return ok && b == c }
+func (b Bool) String() string {
+	return fmt.Sprintf("%t", b)
 }
 
 type IntegerComparison byte
