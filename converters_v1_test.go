@@ -95,8 +95,8 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:   pb.IntConstraintV1_LARGER,
-				Larger: n,
+				Kind:        pb.IntConstraintV1_GREATER_THAN,
+				GreaterThan: n,
 			},
 		},
 		{
@@ -106,8 +106,8 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:          pb.IntConstraintV1_LARGER_OR_EQUAL,
-				LargerOrEqual: n,
+				Kind:           pb.IntConstraintV1_GREATER_OR_EQUAL,
+				GreaterOrEqual: n,
 			},
 		},
 		{
@@ -117,8 +117,8 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:  pb.IntConstraintV1_LOWER,
-				Lower: n,
+				Kind:     pb.IntConstraintV1_LESS_THAN,
+				LessThan: n,
 			},
 		},
 		{
@@ -128,8 +128,8 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:         pb.IntConstraintV1_LOWER_OR_EQUAL,
-				LowerOrEqual: n,
+				Kind:        pb.IntConstraintV1_LESS_OR_EQUAL,
+				LessOrEqual: n,
 			},
 		},
 	}
