@@ -13,7 +13,7 @@ import (
 
 const SymbolAuthority = Symbol("authority")
 
-const MaxSchemaVersion uint32 = 0
+const MaxSchemaVersion uint32 = 1
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
