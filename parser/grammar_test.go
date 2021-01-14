@@ -77,6 +77,27 @@ func TestGrammarPredicate(t *testing.T) {
 				},
 			},
 		},
+		{
+			Input: `right($1, ["hex:41414141", #sym])`,
+			Expected: &Predicate{
+				Name: sptr("right"),
+				IDs: []*Term{
+					{Variable: varptr("1")},
+					{Set: []*Term{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
+				},
+			},
+		},
+		{
+			Input: `right($1, true, false)`,
+			Expected: &Predicate{
+				Name: sptr("right"),
+				IDs: []*Term{
+					{Variable: varptr("1")},
+					{Bool: boolptr(true)},
+					{Bool: boolptr(false)},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -628,4 +649,9 @@ func hexsptr(s string) *HexString {
 func commentptr(s string) *Comment {
 	c := Comment(s)
 	return &c
+}
+
+func boolptr(b bool) *Bool {
+	v := Bool(b)
+	return &v
 }
