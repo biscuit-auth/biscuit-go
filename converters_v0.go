@@ -96,20 +96,6 @@ func tokenIDToProtoIDV0(input datalog.ID) (*pb.IDV0, error) {
 			Kind:  pb.IDV0_BYTES,
 			Bytes: input.(datalog.Bytes),
 		}
-	case datalog.IDTypeSet:
-		datalogSet := input.(datalog.Set)
-		protoSet := make([]*pb.IDV0, 0, len(datalogSet))
-		for _, datalogElt := range datalogSet {
-			protoElt, err := tokenIDToProtoIDV0(datalogElt)
-			if err != nil {
-				return nil, err
-			}
-			protoSet = append(protoSet, protoElt)
-		}
-		pbId = &pb.IDV0{
-			Kind: pb.IDV0_SET,
-			Set:  protoSet,
-		}
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: unsupported id type: %v", input.Type())
 	}
@@ -131,16 +117,6 @@ func protoIDToTokenIDV0(input *pb.IDV0) (*datalog.ID, error) {
 		id = datalog.Variable(input.Variable)
 	case pb.IDV0_BYTES:
 		id = datalog.Bytes(input.Bytes)
-	case pb.IDV0_SET:
-		datalogSet := make(datalog.Set, 0, len(input.Set))
-		for _, protoElt := range input.Set {
-			datalogElt, err := protoIDToTokenIDV0(protoElt)
-			if err != nil {
-				return nil, err
-			}
-			datalogSet = append(datalogSet, *datalogElt)
-		}
-		id = datalogSet
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id kind: %v", input.Kind)
 	}
