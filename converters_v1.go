@@ -400,23 +400,23 @@ func tokenIntConstraintToProtoIntConstraintV1(input datalog.IntegerComparisonChe
 		}
 	case datalog.IntegerComparisonGT:
 		pbIntConstraint = &pb.IntConstraintV1{
-			Kind:   pb.IntConstraintV1_LARGER,
-			Larger: int64(input.Integer),
+			Kind:        pb.IntConstraintV1_GREATER_THAN,
+			GreaterThan: int64(input.Integer),
 		}
 	case datalog.IntegerComparisonGTE:
 		pbIntConstraint = &pb.IntConstraintV1{
-			Kind:          pb.IntConstraintV1_LARGER_OR_EQUAL,
-			LargerOrEqual: int64(input.Integer),
+			Kind:           pb.IntConstraintV1_GREATER_OR_EQUAL,
+			GreaterOrEqual: int64(input.Integer),
 		}
 	case datalog.IntegerComparisonLT:
 		pbIntConstraint = &pb.IntConstraintV1{
-			Kind:  pb.IntConstraintV1_LOWER,
-			Lower: int64(input.Integer),
+			Kind:     pb.IntConstraintV1_LESS_THAN,
+			LessThan: int64(input.Integer),
 		}
 	case datalog.IntegerComparisonLTE:
 		pbIntConstraint = &pb.IntConstraintV1{
-			Kind:         pb.IntConstraintV1_LOWER_OR_EQUAL,
-			LowerOrEqual: int64(input.Integer),
+			Kind:        pb.IntConstraintV1_LESS_OR_EQUAL,
+			LessOrEqual: int64(input.Integer),
 		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported int constraint: %v", input.Comparison)
@@ -472,25 +472,25 @@ func protoIntConstraintToTokenIntConstraintV1(input *pb.IntConstraintV1) (*datal
 			Set: set,
 			Not: true,
 		}
-	case pb.IntConstraintV1_LARGER:
+	case pb.IntConstraintV1_GREATER_THAN:
 		checker = datalog.IntegerComparisonChecker{
 			Comparison: datalog.IntegerComparisonGT,
-			Integer:    datalog.Integer(input.Larger),
+			Integer:    datalog.Integer(input.GreaterThan),
 		}
-	case pb.IntConstraintV1_LARGER_OR_EQUAL:
+	case pb.IntConstraintV1_GREATER_OR_EQUAL:
 		checker = datalog.IntegerComparisonChecker{
 			Comparison: datalog.IntegerComparisonGTE,
-			Integer:    datalog.Integer(input.LargerOrEqual),
+			Integer:    datalog.Integer(input.GreaterOrEqual),
 		}
-	case pb.IntConstraintV1_LOWER:
+	case pb.IntConstraintV1_LESS_THAN:
 		checker = datalog.IntegerComparisonChecker{
 			Comparison: datalog.IntegerComparisonLT,
-			Integer:    datalog.Integer(input.Lower),
+			Integer:    datalog.Integer(input.LessThan),
 		}
-	case pb.IntConstraintV1_LOWER_OR_EQUAL:
+	case pb.IntConstraintV1_LESS_OR_EQUAL:
 		checker = datalog.IntegerComparisonChecker{
 			Comparison: datalog.IntegerComparisonLTE,
-			Integer:    datalog.Integer(input.LowerOrEqual),
+			Integer:    datalog.Integer(input.LessOrEqual),
 		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported int constraint kind: %v", input.Kind)
