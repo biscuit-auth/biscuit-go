@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,20 @@ func (v *Variable) Capture(values []string) error {
 	return nil
 }
 
+type Bool bool
+
+func (b *Bool) Capture(values []string) error {
+	if len(values) != 1 {
+		return errors.New("parser: invalid bool values")
+	}
+	v, err := strconv.ParseBool(values[0])
+	if err != nil {
+		return err
+	}
+	*b = Bool(v)
+	return nil
+}
+
 type Rule struct {
 	Comments    []*Comment    `@Comment*`
 	Head        *Predicate    `@@`
@@ -75,6 +90,8 @@ type Term struct {
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
+	Bool     *Bool      `| @Bool`
+	Set      []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
 type Constraint struct {
@@ -188,6 +205,21 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 			return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 		}
 		biscuitTerm = biscuit.Bytes(b)
+	case a.Bool != nil:
+		biscuitTerm = biscuit.Bool(*a.Bool)
+	case a.Set != nil:
+		biscuitSet := make(biscuit.Set, 0, len(a.Set))
+		for _, term := range a.Set {
+			setTerm, err := term.ToBiscuit()
+			if err != nil {
+				return nil, err
+			}
+			if setTerm.Type() == biscuit.TermTypeVariable {
+				return nil, ErrVariableInSet
+			}
+			biscuitSet = append(biscuitSet, setTerm)
+		}
+		biscuitTerm = biscuitSet
 	default:
 		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
 	}
