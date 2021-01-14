@@ -71,7 +71,6 @@ message IDV0 {
     STR = 3;
     DATE = 4;
     BYTES = 5;
-    SET = 6;
   }
 
   Kind kind = 1;
@@ -81,7 +80,6 @@ message IDV0 {
   string str = 5;
   uint64 date = 6;
   bytes bytes = 7;
-  repeated IDV0 set = 8;
 }
 
 message IDV1 {
@@ -104,7 +102,6 @@ message ConstraintV0 {
     DATE = 2;
     SYMBOL = 3;
     BYTES = 4;
-    SET = 5;
   }
 
   Kind kind = 2;
