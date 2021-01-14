@@ -102,7 +102,6 @@ message ConstraintV0 {
     DATE = 2;
     SYMBOL = 3;
     BYTES = 4;
-    SET = 5;
   }
 
   Kind kind = 2;
