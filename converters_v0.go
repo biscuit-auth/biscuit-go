@@ -111,7 +111,7 @@ func tokenIDToProtoIDV0(input datalog.ID) (*pb.IDV0, error) {
 			Set:  protoSet,
 		}
 	default:
-		return nil, fmt.Errorf("biscuit: unsupported id type: %v", input.Type())
+		return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: unsupported id type: %v", input.Type())
 	}
 	return pbId, nil
 }
@@ -142,7 +142,7 @@ func protoIDToTokenIDV0(input *pb.IDV0) (*datalog.ID, error) {
 		}
 		id = datalogSet
 	default:
-		return nil, fmt.Errorf("biscuit: unsupported id kind: %v", input.Kind)
+		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id kind: %v", input.Kind)
 	}
 
 	return &id, nil
