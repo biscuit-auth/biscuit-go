@@ -28,8 +28,7 @@ func TestConstraintConvertDateComparisonV1(t *testing.T) {
 				Date:       datalog.Date(now.Unix()),
 			},
 			Expected: &pb.DateConstraintV1{
-				Kind:  pb.DateConstraintV1_AFTER,
-				After: uint64(now.Unix()),
+				Constraint: &pb.DateConstraintV1_After{After: uint64(now.Unix())},
 			},
 		},
 		{
@@ -39,8 +38,7 @@ func TestConstraintConvertDateComparisonV1(t *testing.T) {
 				Date:       datalog.Date(123456789),
 			},
 			Expected: &pb.DateConstraintV1{
-				Kind:   pb.DateConstraintV1_BEFORE,
-				Before: uint64(123456789),
+				Constraint: &pb.DateConstraintV1_Before{Before: uint64(123456789)},
 			},
 		},
 	}
@@ -57,9 +55,8 @@ func TestConstraintConvertDateComparisonV1(t *testing.T) {
 			require.NoError(t, err)
 
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_DATE,
-				Date: testCase.Expected,
+				Id:         i,
+				Constraint: &pb.ConstraintV1_Date{Date: testCase.Expected},
 			}
 			require.Equal(t, expected, out)
 
@@ -84,8 +81,7 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:  pb.IntConstraintV1_EQUAL,
-				Equal: n,
+				Constraint: &pb.IntConstraintV1_Equal{Equal: n},
 			},
 		},
 		{
@@ -95,8 +91,7 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:        pb.IntConstraintV1_GREATER_THAN,
-				GreaterThan: n,
+				Constraint: &pb.IntConstraintV1_GreaterThan{GreaterThan: n},
 			},
 		},
 		{
@@ -106,8 +101,7 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:           pb.IntConstraintV1_GREATER_OR_EQUAL,
-				GreaterOrEqual: n,
+				Constraint: &pb.IntConstraintV1_GreaterOrEqual{GreaterOrEqual: n},
 			},
 		},
 		{
@@ -117,8 +111,7 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:     pb.IntConstraintV1_LESS_THAN,
-				LessThan: n,
+				Constraint: &pb.IntConstraintV1_LessThan{LessThan: n},
 			},
 		},
 		{
@@ -128,8 +121,7 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 				Integer:    datalog.Integer(n),
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:        pb.IntConstraintV1_LESS_OR_EQUAL,
-				LessOrEqual: n,
+				Constraint: &pb.IntConstraintV1_LessOrEqual{LessOrEqual: n},
 			},
 		},
 	}
@@ -145,9 +137,8 @@ func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_INT,
-				Int:  testCase.Expected,
+				Id:         i,
+				Constraint: &pb.ConstraintV1_Int{Int: testCase.Expected},
 			}
 			require.Equal(t, expected, out)
 
@@ -179,8 +170,9 @@ func TestConstraintConvertIntegerInV1(t *testing.T) {
 				Not: false,
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:  pb.IntConstraintV1_IN,
-				InSet: []int64{n1, n2, n3},
+				Constraint: &pb.IntConstraintV1_InSet{
+					InSet: &pb.IntSet{Set: []int64{n1, n2, n3}},
+				},
 			},
 		},
 		{
@@ -194,8 +186,9 @@ func TestConstraintConvertIntegerInV1(t *testing.T) {
 				Not: true,
 			},
 			Expected: &pb.IntConstraintV1{
-				Kind:     pb.IntConstraintV1_NOT_IN,
-				NotInSet: []int64{n1, n2, n3},
+				Constraint: &pb.IntConstraintV1_NotInSet{
+					NotInSet: &pb.IntSet{Set: []int64{n1, n2, n3}},
+				},
 			},
 		},
 	}
@@ -210,9 +203,8 @@ func TestConstraintConvertIntegerInV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_INT,
-				Int:  testCase.Expected,
+				Id:         i,
+				Constraint: &pb.ConstraintV1_Int{Int: testCase.Expected},
 			}
 
 			sortIt := func(s []int64) {
@@ -221,11 +213,18 @@ func TestConstraintConvertIntegerInV1(t *testing.T) {
 				})
 			}
 
-			sortIt(out.Int.InSet)
-			sortIt(expected.Int.InSet)
-			sortIt(out.Int.NotInSet)
-			sortIt(expected.Int.NotInSet)
-
+			if s := out.GetInt().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetInt().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := out.GetInt().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetInt().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
 			require.Equal(t, expected, out)
 
 			dlout, err := protoConstraintToTokenConstraintV1(out)
@@ -248,8 +247,9 @@ func TestConstraintConvertStringComparisonV1(t *testing.T) {
 				Str:        "abcd",
 			},
 			Expected: &pb.StringConstraintV1{
-				Kind:  pb.StringConstraintV1_EQUAL,
-				Equal: "abcd",
+				Constraint: &pb.StringConstraintV1_Equal{
+					Equal: "abcd",
+				},
 			},
 		},
 		{
@@ -259,8 +259,9 @@ func TestConstraintConvertStringComparisonV1(t *testing.T) {
 				Str:        "abcd",
 			},
 			Expected: &pb.StringConstraintV1{
-				Kind:   pb.StringConstraintV1_PREFIX,
-				Prefix: "abcd",
+				Constraint: &pb.StringConstraintV1_Prefix{
+					Prefix: "abcd",
+				},
 			},
 		},
 		{
@@ -270,8 +271,9 @@ func TestConstraintConvertStringComparisonV1(t *testing.T) {
 				Str:        "abcd",
 			},
 			Expected: &pb.StringConstraintV1{
-				Kind:   pb.StringConstraintV1_SUFFIX,
-				Suffix: "abcd",
+				Constraint: &pb.StringConstraintV1_Suffix{
+					Suffix: "abcd",
+				},
 			},
 		},
 	}
@@ -286,9 +288,10 @@ func TestConstraintConvertStringComparisonV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_STRING,
-				Str:  testCase.Expected,
+				Id: i,
+				Constraint: &pb.ConstraintV1_Str{
+					Str: testCase.Expected,
+				},
 			}
 			require.Equal(t, expected, out)
 
@@ -315,8 +318,9 @@ func TestConstraintConvertStringInV1(t *testing.T) {
 				Not: false,
 			},
 			Expected: &pb.StringConstraintV1{
-				Kind:  pb.StringConstraintV1_IN,
-				InSet: []string{s1, s2},
+				Constraint: &pb.StringConstraintV1_InSet{
+					InSet: &pb.StringSet{Set: []string{s1, s2}},
+				},
 			},
 		},
 		{
@@ -326,8 +330,9 @@ func TestConstraintConvertStringInV1(t *testing.T) {
 				Not: true,
 			},
 			Expected: &pb.StringConstraintV1{
-				Kind:     pb.StringConstraintV1_NOT_IN,
-				NotInSet: []string{s1, s2},
+				Constraint: &pb.StringConstraintV1_NotInSet{
+					NotInSet: &pb.StringSet{Set: []string{s1, s2}},
+				},
 			},
 		},
 	}
@@ -342,15 +347,24 @@ func TestConstraintConvertStringInV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_STRING,
-				Str:  testCase.Expected,
+				Id: i,
+				Constraint: &pb.ConstraintV1_Str{
+					Str: testCase.Expected,
+				},
 			}
 
-			sort.Strings(expected.Str.InSet)
-			sort.Strings(out.Str.InSet)
-			sort.Strings(expected.Str.NotInSet)
-			sort.Strings(out.Str.NotInSet)
+			if s := out.GetStr().GetInSet(); s != nil {
+				sort.Strings(s.Set)
+			}
+			if s := expected.GetStr().GetInSet(); s != nil {
+				sort.Strings(s.Set)
+			}
+			if s := out.GetStr().GetNotInSet(); s != nil {
+				sort.Strings(s.Set)
+			}
+			if s := expected.GetStr().GetNotInSet(); s != nil {
+				sort.Strings(s.Set)
+			}
 
 			require.Equal(t, expected, out)
 
@@ -374,8 +388,9 @@ func TestConstraintConvertStringRegexpV1(t *testing.T) {
 			Desc:  "string regexp",
 			Input: &dlre,
 			Expected: &pb.StringConstraintV1{
-				Kind:  pb.StringConstraintV1_REGEX,
-				Regex: re.String(),
+				Constraint: &pb.StringConstraintV1_Regex{
+					Regex: re.String(),
+				},
 			},
 		},
 	}
@@ -390,9 +405,10 @@ func TestConstraintConvertStringRegexpV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:   i,
-				Kind: pb.ConstraintV1_STRING,
-				Str:  testCase.Expected,
+				Id: i,
+				Constraint: &pb.ConstraintV1_Str{
+					Str: testCase.Expected,
+				},
 			}
 			require.Equal(t, expected, out)
 
@@ -420,8 +436,9 @@ func TestConstraintConvertBytesComparisonV1(t *testing.T) {
 				Bytes:      b,
 			},
 			Expected: &pb.BytesConstraintV1{
-				Kind:  pb.BytesConstraintV1_EQUAL,
-				Equal: b,
+				Constraint: &pb.BytesConstraintV1_Equal{
+					Equal: b,
+				},
 			},
 		},
 	}
@@ -436,9 +453,10 @@ func TestConstraintConvertBytesComparisonV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:    i,
-				Kind:  pb.ConstraintV1_BYTES,
-				Bytes: testCase.Expected,
+				Id: i,
+				Constraint: &pb.ConstraintV1_Bytes{
+					Bytes: testCase.Expected,
+				},
 			}
 			require.Equal(t, expected, out)
 
@@ -470,8 +488,9 @@ func TestConstraintConvertBytesInV1(t *testing.T) {
 				Not: false,
 			},
 			Expected: &pb.BytesConstraintV1{
-				Kind:  pb.BytesConstraintV1_IN,
-				InSet: [][]byte{b1, b2},
+				Constraint: &pb.BytesConstraintV1_InSet{
+					InSet: &pb.BytesSet{Set: [][]byte{b1, b2}},
+				},
 			},
 		},
 		{
@@ -481,8 +500,9 @@ func TestConstraintConvertBytesInV1(t *testing.T) {
 				Not: true,
 			},
 			Expected: &pb.BytesConstraintV1{
-				Kind:     pb.BytesConstraintV1_NOT_IN,
-				NotInSet: [][]byte{b1, b2},
+				Constraint: &pb.BytesConstraintV1_NotInSet{
+					NotInSet: &pb.BytesSet{Set: [][]byte{b1, b2}},
+				},
 			},
 		},
 	}
@@ -497,9 +517,8 @@ func TestConstraintConvertBytesInV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:    i,
-				Kind:  pb.ConstraintV1_BYTES,
-				Bytes: testCase.Expected,
+				Id:         i,
+				Constraint: &pb.ConstraintV1_Bytes{Bytes: testCase.Expected},
 			}
 
 			sortIt := func(s [][]byte) {
@@ -508,11 +527,18 @@ func TestConstraintConvertBytesInV1(t *testing.T) {
 				})
 			}
 
-			sortIt(out.Bytes.InSet)
-			sortIt(expected.Bytes.InSet)
-			sortIt(out.Bytes.NotInSet)
-			sortIt(expected.Bytes.NotInSet)
-
+			if s := out.GetBytes().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetBytes().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := out.GetBytes().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetBytes().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
 			require.Equal(t, expected, out)
 
 			dlout, err := protoConstraintToTokenConstraintV1(out)
@@ -543,8 +569,9 @@ func TestConstraintConvertSymbolInV1(t *testing.T) {
 				Not: false,
 			},
 			Expected: &pb.SymbolConstraintV1{
-				Kind:  pb.SymbolConstraintV1_IN,
-				InSet: []uint64{s1, s2, s3},
+				Constraint: &pb.SymbolConstraintV1_InSet{
+					InSet: &pb.SymbolSet{Set: []uint64{s1, s2, s3}},
+				},
 			},
 		},
 		{
@@ -558,8 +585,9 @@ func TestConstraintConvertSymbolInV1(t *testing.T) {
 				Not: true,
 			},
 			Expected: &pb.SymbolConstraintV1{
-				Kind:     pb.SymbolConstraintV1_NOT_IN,
-				NotInSet: []uint64{s1, s2, s3},
+				Constraint: &pb.SymbolConstraintV1_NotInSet{
+					NotInSet: &pb.SymbolSet{Set: []uint64{s1, s2, s3}},
+				},
 			},
 		},
 	}
@@ -574,9 +602,10 @@ func TestConstraintConvertSymbolInV1(t *testing.T) {
 			out, err := tokenConstraintToProtoConstraintV1(*in)
 			require.NoError(t, err)
 			expected := &pb.ConstraintV1{
-				Id:     i,
-				Kind:   pb.ConstraintV1_SYMBOL,
-				Symbol: testCase.Expected,
+				Id: i,
+				Constraint: &pb.ConstraintV1_Symbol{
+					Symbol: testCase.Expected,
+				},
 			}
 
 			sortIt := func(s []uint64) {
@@ -585,11 +614,18 @@ func TestConstraintConvertSymbolInV1(t *testing.T) {
 				})
 			}
 
-			sortIt(out.Symbol.InSet)
-			sortIt(expected.Symbol.InSet)
-			sortIt(out.Symbol.NotInSet)
-			sortIt(expected.Symbol.NotInSet)
-
+			if s := out.GetSymbol().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetSymbol().GetInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := out.GetSymbol().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
+			if s := expected.GetSymbol().GetNotInSet(); s != nil {
+				sortIt(s.Set)
+			}
 			require.Equal(t, expected, out)
 
 			dlout, err := protoConstraintToTokenConstraintV1(out)
@@ -634,14 +670,28 @@ func TestRuleConvertV1(t *testing.T) {
 	}
 
 	expectedPbRule := &pb.RuleV1{
-		Head: &pb.PredicateV1{Name: 42, Ids: []*pb.IDV1{{Kind: pb.IDV1_INTEGER, Integer: 1}, {Kind: pb.IDV1_STR, Str: "id_1"}}},
+		Head: &pb.PredicateV1{Name: 42, Ids: []*pb.IDV1{
+			{Content: &pb.IDV1_Integer{Integer: 1}},
+			{Content: &pb.IDV1_Str{Str: "id_1"}},
+		}},
 		Body: []*pb.PredicateV1{
-			{Name: 43, Ids: []*pb.IDV1{{Kind: pb.IDV1_SYMBOL, Symbol: 2}, {Kind: pb.IDV1_DATE, Date: uint64(now.Unix())}}},
-			{Name: 44, Ids: []*pb.IDV1{{Kind: pb.IDV1_BYTES, Bytes: []byte("abcd")}}},
+			{
+				Name: 43,
+				Ids: []*pb.IDV1{
+					{Content: &pb.IDV1_Symbol{Symbol: 2}},
+					{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}},
+				},
+			},
+			{
+				Name: 44,
+				Ids: []*pb.IDV1{
+					{Content: &pb.IDV1_Bytes{Bytes: []byte("abcd")}},
+				},
+			},
 		},
 		Constraints: []*pb.ConstraintV1{
-			{Id: 9, Kind: pb.ConstraintV1_INT, Int: &pb.IntConstraintV1{Kind: pb.IntConstraintV1_EQUAL, Equal: 42}},
-			{Id: 99, Kind: pb.ConstraintV1_STRING, Str: &pb.StringConstraintV1{Kind: pb.StringConstraintV1_PREFIX, Prefix: "abcd"}},
+			{Id: 9, Constraint: &pb.ConstraintV1_Int{Int: &pb.IntConstraintV1{Constraint: &pb.IntConstraintV1_Equal{Equal: 42}}}},
+			{Id: 99, Constraint: &pb.ConstraintV1_Str{Str: &pb.StringConstraintV1{Constraint: &pb.StringConstraintV1_Prefix{Prefix: "abcd"}}}},
 		},
 	}
 
@@ -664,28 +714,18 @@ func TestFactConvertV1(t *testing.T) {
 			datalog.Bytes([]byte("bytes")),
 			datalog.String("abcd"),
 			datalog.Date(now.Unix()),
-			datalog.Set{
-				datalog.String("abc"),
-				datalog.String("def"),
-				datalog.Integer(42),
-			},
 		},
 	}}
 
 	expectedPbFact := &pb.FactV1{Predicate: &pb.PredicateV1{
 		Name: 42,
 		Ids: []*pb.IDV1{
-			{Kind: pb.IDV1_SYMBOL, Symbol: 1},
-			{Kind: pb.IDV1_INTEGER, Integer: 2},
-			{Kind: pb.IDV1_VARIABLE, Variable: 3},
-			{Kind: pb.IDV1_BYTES, Bytes: []byte("bytes")},
-			{Kind: pb.IDV1_STR, Str: "abcd"},
-			{Kind: pb.IDV1_DATE, Date: uint64(now.Unix())},
-			{Kind: pb.IDV1_SET, Set: []*pb.IDV1{
-				{Kind: pb.IDV1_STR, Str: "abc"},
-				{Kind: pb.IDV1_STR, Str: "def"},
-				{Kind: pb.IDV1_INTEGER, Integer: 42},
-			}},
+			{Content: &pb.IDV1_Symbol{Symbol: 1}},
+			{Content: &pb.IDV1_Integer{Integer: 2}},
+			{Content: &pb.IDV1_Variable{Variable: 3}},
+			{Content: &pb.IDV1_Bytes{Bytes: []byte("bytes")}},
+			{Content: &pb.IDV1_Str{Str: "abcd"}},
+			{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}},
 		},
 	}}
 
@@ -706,7 +746,7 @@ func TestBlockConvertV1(t *testing.T) {
 
 	pbPredicate := &pb.PredicateV1{
 		Name: 12,
-		Ids:  []*pb.IDV1{{Kind: pb.IDV1_STR, Str: "abcd"}},
+		Ids:  []*pb.IDV1{{Content: &pb.IDV1_Str{Str: "abcd"}}},
 	}
 
 	rule := &datalog.Rule{
@@ -728,9 +768,10 @@ func TestBlockConvertV1(t *testing.T) {
 		Body: []*pb.PredicateV1{pbPredicate},
 		Constraints: []*pb.ConstraintV1{
 			{
-				Id:   13,
-				Kind: pb.ConstraintV1_INT,
-				Int:  &pb.IntConstraintV1{Kind: pb.IntConstraintV1_EQUAL, Equal: 1234},
+				Id: 13,
+				Constraint: &pb.ConstraintV1_Int{Int: &pb.IntConstraintV1{
+					Constraint: &pb.IntConstraintV1_Equal{Equal: 1234},
+				}},
 			},
 		},
 	}
