@@ -90,6 +90,10 @@ func tokenIDToProtoIDV1(input datalog.ID) (*pb.IDV1, error) {
 		pbId = &pb.IDV1{
 			Content: &pb.IDV1_Bytes{Bytes: input.(datalog.Bytes)},
 		}
+	case datalog.IDTypeBool:
+		pbId = &pb.IDV1{
+			Content: &pb.IDV1_Bool{Bool: bool(input.(datalog.Bool))},
+		}
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: unsupported id type: %v", input.Type())
 	}
@@ -111,6 +115,8 @@ func protoIDToTokenIDV1(input *pb.IDV1) (*datalog.ID, error) {
 		id = datalog.Variable(input.Content.(*pb.IDV1_Variable).Variable)
 	case *pb.IDV1_Bytes:
 		id = datalog.Bytes(input.Content.(*pb.IDV1_Bytes).Bytes)
+	case *pb.IDV1_Bool:
+		id = datalog.Bool(input.Content.(*pb.IDV1_Bool).Bool)
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id type: %T", input.Content)
 	}
