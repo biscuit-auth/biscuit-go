@@ -91,8 +91,11 @@ message IDV1 {
     uint64 date = 5;
     bytes bytes = 6;
     bool bool = 7;
+    IDSet set = 8;
   }
 }
+
+message IDSet { repeated IDV1 set = 1; }
 
 message ConstraintV0 {
   uint32 id = 1;
