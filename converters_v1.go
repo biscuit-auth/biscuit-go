@@ -103,9 +103,9 @@ func tokenIDToProtoIDV1(input datalog.ID) (*pb.IDV1, error) {
 		expectedEltType := datalogSet[0].Type()
 		switch expectedEltType {
 		case datalog.IDTypeVariable:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain variable")
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
 		case datalog.IDTypeSet:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain other sets")
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
 		}
 
 		protoSet := make([]*pb.IDV1, 0, len(datalogSet))
@@ -164,9 +164,9 @@ func protoIDToTokenIDV1(input *pb.IDV1) (*datalog.ID, error) {
 		expectedEltType := reflect.TypeOf(elts[0].GetContent())
 		switch expectedEltType {
 		case reflect.TypeOf(&pb.IDV1_Variable{}):
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain variable")
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
 		case reflect.TypeOf(&pb.IDV1_Set{}):
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain other sets")
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
 		}
 
 		datalogSet := make(datalog.Set, 0, len(elts))
