@@ -714,6 +714,11 @@ func TestFactConvertV1(t *testing.T) {
 			datalog.Bytes([]byte("bytes")),
 			datalog.String("abcd"),
 			datalog.Date(now.Unix()),
+			datalog.Bool(true),
+			datalog.Set{
+				datalog.String("abc"),
+				datalog.String("def"),
+			},
 		},
 	}}
 
@@ -726,6 +731,11 @@ func TestFactConvertV1(t *testing.T) {
 			{Content: &pb.IDV1_Bytes{Bytes: []byte("bytes")}},
 			{Content: &pb.IDV1_Str{Str: "abcd"}},
 			{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}},
+			{Content: &pb.IDV1_Bool{Bool: true}},
+			{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+				{Content: &pb.IDV1_Str{Str: "abc"}},
+				{Content: &pb.IDV1_Str{Str: "def"}},
+			}}}},
 		},
 	}}
 
@@ -736,6 +746,94 @@ func TestFactConvertV1(t *testing.T) {
 	out, err := protoFactToTokenFactV1(pbFact)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
+}
+
+func TestConvertInvalidSets(t *testing.T) {
+	tokenTestCases := []struct {
+		desc string
+		in   datalog.Set
+	}{
+		{
+			desc: "empty set",
+			in:   datalog.Set{},
+		},
+		{
+			desc: "mixed element types",
+			in: datalog.Set{
+				datalog.String("abc"),
+				datalog.Integer(1),
+			},
+		},
+		{
+			desc: "set with variables",
+			in: datalog.Set{
+				datalog.Variable(0),
+				datalog.Variable(1),
+			},
+		},
+		{
+			desc: "set with sub sets",
+			in: datalog.Set{
+				datalog.Set{
+					datalog.String("abc"),
+					datalog.String("def"),
+				},
+			},
+		},
+	}
+
+	protoTestCases := []struct {
+		desc string
+		in   *pb.IDV1
+	}{
+		{
+			desc: "empty set",
+			in: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{
+				Set: []*pb.IDV1{},
+			}}},
+		},
+		{
+			desc: "mixed element types",
+			in: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{
+				Set: []*pb.IDV1{
+					{Content: &pb.IDV1_Str{Str: "abc"}},
+					{Content: &pb.IDV1_Integer{Integer: 0}},
+				},
+			}}},
+		},
+		{
+			desc: "set with variables",
+			in: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{
+				Set: []*pb.IDV1{
+					{Content: &pb.IDV1_Variable{Variable: 1}},
+				},
+			}}},
+		},
+		{
+			desc: "set with sub sets",
+			in: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{
+				Set: []*pb.IDV1{
+					{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Str{Str: "abc"}},
+					}}}},
+				},
+			}}},
+		},
+	}
+
+	for _, tc := range tokenTestCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := tokenIDToProtoIDV1(tc.in)
+			require.Error(t, err)
+		})
+	}
+
+	for _, tc := range protoTestCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := protoIDToTokenIDV1(tc.in)
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestBlockConvertV1(t *testing.T) {
