@@ -12,7 +12,7 @@ cleanup() {
     rm -rf "${DIR}/../build/biscuit_spec"
 }
 
-#trap "cleanup" ERR
+trap "cleanup" ERR
 
 # Clone and sync sample files from spec repo
 if [ -d "${TMP_DIR}/biscuit_spec" ]; then
@@ -29,8 +29,6 @@ for f in $(find "${SAMPLES_DIR}/data" -name README.md); do
     PUBLIC_KEY=$( grep "root public key: " "${f}"  | grep -oE "[a-fA-F0-9]{64}" | xxd -r -p ) || true 
     KEY_DIR=$(dirname "${f}")
     if [ ! -z "${PRIVATE_KEY}" ]; then
-        
-    
         echo -n "${PRIVATE_KEY}" > "${KEY_DIR}/root_key"
     fi
     if [ ! -z "${PUBLIC_KEY}" ]; then
