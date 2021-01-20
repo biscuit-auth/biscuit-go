@@ -21,7 +21,7 @@ type testCase struct {
 func getFactTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `right(#authority, "/a/file1.txt", #read, [#read, "/a/file2.txt"])`,
+			Input: `right(#authority, "/a/file1.txt", #read)`,
 			Expected: biscuit.Fact{
 				Predicate: biscuit.Predicate{
 					Name: "right",
@@ -29,10 +29,6 @@ func getFactTestCases() []testCase {
 						biscuit.Symbol("authority"),
 						biscuit.String("/a/file1.txt"),
 						biscuit.Symbol("read"),
-						biscuit.Set{
-							biscuit.Symbol("read"),
-							biscuit.String("/a/file2.txt"),
-						},
 					},
 				},
 			},

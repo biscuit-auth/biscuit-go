@@ -75,7 +75,6 @@ type Term struct {
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
-	Set      []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
 type Constraint struct {
@@ -189,19 +188,6 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 			return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 		}
 		biscuitTerm = biscuit.Bytes(b)
-	case a.Set != nil:
-		biscuitSet := make(biscuit.Set, 0, len(a.Set))
-		for _, term := range a.Set {
-			setTerm, err := term.ToBiscuit()
-			if err != nil {
-				return nil, err
-			}
-			if setTerm.Type() == biscuit.TermTypeVariable {
-				return nil, ErrVariableInSet
-			}
-			biscuitSet = append(biscuitSet, setTerm)
-		}
-		biscuitTerm = biscuitSet
 	default:
 		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
 	}

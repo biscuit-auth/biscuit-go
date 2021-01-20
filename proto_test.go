@@ -664,11 +664,6 @@ func TestFactConvert(t *testing.T) {
 			datalog.Bytes([]byte("bytes")),
 			datalog.String("abcd"),
 			datalog.Date(now.Unix()),
-			datalog.Set{
-				datalog.String("abc"),
-				datalog.String("def"),
-				datalog.Integer(42),
-			},
 		},
 	}}
 
@@ -681,11 +676,6 @@ func TestFactConvert(t *testing.T) {
 			{Kind: pb.ID_BYTES, Bytes: []byte("bytes")},
 			{Kind: pb.ID_STR, Str: "abcd"},
 			{Kind: pb.ID_DATE, Date: uint64(now.Unix())},
-			{Kind: pb.ID_SET, Set: []*pb.ID{
-				{Kind: pb.ID_STR, Str: "abc"},
-				{Kind: pb.ID_STR, Str: "def"},
-				{Kind: pb.ID_INTEGER, Integer: 42},
-			}},
 		},
 	}}
 
