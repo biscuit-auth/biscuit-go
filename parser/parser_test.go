@@ -136,7 +136,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 > "%s", $0 < "%s"`, t1.Format(time.RFC3339), t2.Format(time.RFC3339)),
+			Input: fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 >= "%s", $0 <= "%s"`, t1.Format(time.RFC3339), t2.Format(time.RFC3339)),
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -165,7 +165,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input:         fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 > "%s"`, t1.Format(time.RFC1123)),
+			Input:         fmt.Sprintf(`rule1(#a) <- body1(#b) @ $0 >= "%s"`, t1.Format(time.RFC1123)),
 			ExpectFailure: true,
 		},
 		{

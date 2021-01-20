@@ -43,8 +43,8 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 ### Date
 
-- Before: `$date < "2006-01-02T15:04:05Z07:00"`
-- After: `$date > "2006-01-02T15:04:05Z07:00"`
+- Before: `$date <= "2006-01-02T15:04:05Z07:00"`
+- After: `$date >= "2006-01-02T15:04:05Z07:00"`
 
 ### Symbols
 

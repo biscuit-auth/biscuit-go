@@ -114,7 +114,7 @@ type BytesComparison struct {
 }
 
 type DateComparison struct {
-	Operation *string `@("<" | ">")`
+	Operation *string `@("<=" | ">=")`
 	Target    *string `@String`
 }
 
@@ -240,12 +240,12 @@ func (c *VariableConstraint) ToBiscuit() (*biscuit.Constraint, error) {
 			return nil, err
 		}
 		switch *c.Date.Operation {
-		case "<":
+		case "<=":
 			constraint.Checker = biscuit.DateComparisonChecker{
 				Comparison: datalog.DateComparisonBefore,
 				Date:       biscuit.Date(date),
 			}
-		case ">":
+		case ">=":
 			constraint.Checker = biscuit.DateComparisonChecker{
 				Comparison: datalog.DateComparisonAfter,
 				Date:       biscuit.Date(date),
