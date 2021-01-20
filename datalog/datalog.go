@@ -614,7 +614,7 @@ type runLimits struct {
 var defaultRunLimits = runLimits{
 	maxFacts:      1000,
 	maxIterations: 100,
-	maxDuration:   1 * time.Millisecond,
+	maxDuration:   2 * time.Millisecond,
 }
 
 var (
