@@ -2,7 +2,9 @@ package biscuit
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"github.com/flynn/biscuit-go/datalog"
@@ -94,6 +96,44 @@ func tokenIDToProtoIDV1(input datalog.ID) (*pb.IDV1, error) {
 		pbId = &pb.IDV1{
 			Content: &pb.IDV1_Bool{Bool: bool(input.(datalog.Bool))},
 		}
+	case datalog.IDTypeSet:
+		datalogSet := input.(datalog.Set)
+		if len(datalogSet) == 0 {
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot be empty")
+		}
+
+		expectedEltType := datalogSet[0].Type()
+		switch expectedEltType {
+		case datalog.IDTypeVariable:
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain variable")
+		case datalog.IDTypeSet:
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain other sets")
+		}
+
+		protoSet := make([]*pb.IDV1, 0, len(datalogSet))
+		for _, datalogElt := range datalogSet {
+			if datalogElt.Type() != expectedEltType {
+				return nil, fmt.Errorf(
+					"biscuit: failed to convert token ID to proto ID: set elements must have the same type (got %x, want %x)",
+					datalogElt.Type(),
+					expectedEltType,
+				)
+			}
+
+			protoElt, err := tokenIDToProtoIDV1(datalogElt)
+			if err != nil {
+				return nil, err
+			}
+
+			protoSet = append(protoSet, protoElt)
+		}
+		pbId = &pb.IDV1{
+			Content: &pb.IDV1_Set{
+				Set: &pb.IDSet{
+					Set: protoSet,
+				},
+			},
+		}
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: unsupported id type: %v", input.Type())
 	}
@@ -104,19 +144,50 @@ func protoIDToTokenIDV1(input *pb.IDV1) (*datalog.ID, error) {
 	var id datalog.ID
 	switch input.Content.(type) {
 	case *pb.IDV1_Str:
-		id = datalog.String(input.Content.(*pb.IDV1_Str).Str)
+		id = datalog.String(input.GetStr())
 	case *pb.IDV1_Date:
-		id = datalog.Date(input.Content.(*pb.IDV1_Date).Date)
+		id = datalog.Date(input.GetDate())
 	case *pb.IDV1_Integer:
-		id = datalog.Integer(input.Content.(*pb.IDV1_Integer).Integer)
+		id = datalog.Integer(input.GetInteger())
 	case *pb.IDV1_Symbol:
-		id = datalog.Symbol(input.Content.(*pb.IDV1_Symbol).Symbol)
+		id = datalog.Symbol(input.GetSymbol())
 	case *pb.IDV1_Variable:
-		id = datalog.Variable(input.Content.(*pb.IDV1_Variable).Variable)
+		id = datalog.Variable(input.GetVariable())
 	case *pb.IDV1_Bytes:
-		id = datalog.Bytes(input.Content.(*pb.IDV1_Bytes).Bytes)
+		id = datalog.Bytes(input.GetBytes())
 	case *pb.IDV1_Bool:
-		id = datalog.Bool(input.Content.(*pb.IDV1_Bool).Bool)
+		id = datalog.Bool(input.GetBool())
+	case *pb.IDV1_Set:
+		elts := input.GetSet().Set
+		if len(elts) == 0 {
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot be empty")
+		}
+
+		expectedEltType := reflect.TypeOf(elts[0].GetContent())
+		switch expectedEltType {
+		case reflect.TypeOf(&pb.IDV1_Variable{}):
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain variable")
+		case reflect.TypeOf(&pb.IDV1_Set{}):
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain other sets")
+		}
+
+		datalogSet := make(datalog.Set, 0, len(elts))
+		for _, protoElt := range elts {
+			if eltType := reflect.TypeOf(protoElt.GetContent()); eltType != expectedEltType {
+				return nil, fmt.Errorf(
+					"biscuit: failed to convert proto ID to token ID: set elements must have the same type (got %x, want %x)",
+					eltType,
+					expectedEltType,
+				)
+			}
+
+			datalogElt, err := protoIDToTokenIDV1(protoElt)
+			if err != nil {
+				return nil, err
+			}
+			datalogSet = append(datalogSet, *datalogElt)
+		}
+		id = datalogSet
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id type: %T", input.Content)
 	}
