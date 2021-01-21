@@ -6,16 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
-
-type Checker interface {
-	Check(ID) bool
-	String() string
-}
 
 type IDType byte
 
@@ -122,301 +116,6 @@ func (b Bool) String() string {
 	return fmt.Sprintf("%t", b)
 }
 
-type IntegerComparison byte
-
-const (
-	IntegerComparisonEqual IntegerComparison = iota
-	IntegerComparisonLT
-	IntegerComparisonGT
-	IntegerComparisonLTE
-	IntegerComparisonGTE
-)
-
-type IntegerComparisonChecker struct {
-	Comparison IntegerComparison
-	Integer    Integer
-}
-
-func (m IntegerComparisonChecker) Check(id ID) bool {
-	if id.Type() != IDTypeInteger {
-		return false
-	}
-	v := id.(Integer)
-	switch m.Comparison {
-	case IntegerComparisonEqual:
-		return v == m.Integer
-	case IntegerComparisonLT:
-		return v < m.Integer
-	case IntegerComparisonGT:
-		return v > m.Integer
-	case IntegerComparisonLTE:
-		return v <= m.Integer
-	case IntegerComparisonGTE:
-		return v >= m.Integer
-	default:
-		return false
-	}
-}
-func (m IntegerComparisonChecker) String() string {
-	op := "??"
-	switch m.Comparison {
-	case IntegerComparisonEqual:
-		op = "=="
-	case IntegerComparisonLT:
-		op = "<"
-	case IntegerComparisonGT:
-		op = ">"
-	case IntegerComparisonLTE:
-		op = "<="
-	case IntegerComparisonGTE:
-		op = ">="
-	}
-	return fmt.Sprintf("%s %s", op, m.Integer)
-}
-
-type IntegerInChecker struct {
-	Set map[Integer]struct{}
-	Not bool
-}
-
-func (m IntegerInChecker) Check(id ID) bool {
-	i, ok := id.(Integer)
-	if !ok {
-		return false
-	}
-	_, ok = m.Set[i]
-	return ok == !m.Not
-}
-
-func (m IntegerInChecker) String() string {
-	strs := make([]string, 0, len(m.Set))
-	for s := range m.Set {
-		strs = append(strs, fmt.Sprintf("%d", int64(s)))
-	}
-	prefix := ""
-	if m.Not {
-		prefix = "not "
-	}
-	sort.Strings(strs)
-	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
-}
-
-type StringComparison byte
-
-const (
-	StringComparisonEqual StringComparison = iota
-	StringComparisonPrefix
-	StringComparisonSuffix
-)
-
-type StringComparisonChecker struct {
-	Comparison StringComparison
-	Str        String
-}
-
-func (m StringComparisonChecker) Check(id ID) bool {
-	v, ok := id.(String)
-	if !ok {
-		return false
-	}
-	switch m.Comparison {
-	case StringComparisonEqual:
-		return m.Str == v
-	case StringComparisonPrefix:
-		return strings.HasPrefix(string(v), string(m.Str))
-	case StringComparisonSuffix:
-		return strings.HasSuffix(string(v), string(m.Str))
-	default:
-		return false
-	}
-}
-
-func (m StringComparisonChecker) String() string {
-	var op string
-	switch m.Comparison {
-	case StringComparisonEqual:
-		op = "=="
-	case StringComparisonPrefix:
-		op = "has prefix"
-	case StringComparisonSuffix:
-		op = "has suffix"
-	}
-	return fmt.Sprintf("%s %q", op, string(m.Str))
-}
-
-type StringInChecker struct {
-	Set map[String]struct{}
-	Not bool
-}
-
-func (m StringInChecker) Check(id ID) bool {
-	s, ok := id.(String)
-	if !ok {
-		return false
-	}
-	_, match := m.Set[s]
-	return match == !m.Not
-}
-
-func (m StringInChecker) String() string {
-	strs := make([]string, 0, len(m.Set))
-	for s := range m.Set {
-		strs = append(strs, fmt.Sprintf("%q", string(s)))
-	}
-	prefix := ""
-	if m.Not {
-		prefix = "not "
-	}
-	sort.Strings(strs)
-	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
-}
-
-type StringRegexpChecker regexp.Regexp
-
-func (m *StringRegexpChecker) Check(id ID) bool {
-	s, ok := id.(String)
-	if !ok {
-		return false
-	}
-	return (*regexp.Regexp)(m).MatchString(string(s))
-}
-
-func (m *StringRegexpChecker) String() string {
-	return fmt.Sprintf("matches /%s/", (*regexp.Regexp)(m))
-}
-
-type DateComparison byte
-
-const (
-	DateComparisonBefore DateComparison = iota
-	DateComparisonAfter
-)
-
-type DateComparisonChecker struct {
-	Comparison DateComparison
-	Date       Date
-}
-
-func (m DateComparisonChecker) Check(id ID) bool {
-	v, ok := id.(Date)
-	if !ok {
-		return false
-	}
-	switch m.Comparison {
-	case DateComparisonBefore:
-		return v <= m.Date
-	case DateComparisonAfter:
-		return v >= m.Date
-	default:
-		return false
-	}
-}
-
-func (m DateComparisonChecker) String() string {
-	var op string
-	switch m.Comparison {
-	case DateComparisonBefore:
-		op = "<="
-	case DateComparisonAfter:
-		op = ">="
-	}
-	return fmt.Sprintf("%s %s", op, m.Date)
-}
-
-type BytesComparison byte
-
-const (
-	BytesComparisonEqual BytesComparison = iota
-)
-
-type BytesComparisonChecker struct {
-	Comparison BytesComparison
-	Bytes      Bytes
-}
-
-func (m BytesComparisonChecker) Check(id ID) bool {
-	v, ok := id.(Bytes)
-	if !ok {
-		return false
-	}
-
-	switch m.Comparison {
-	case BytesComparisonEqual:
-		return bytes.Equal(m.Bytes, v)
-	default:
-		return false
-	}
-}
-
-func (m BytesComparisonChecker) String() string {
-	op := "??"
-	switch m.Comparison {
-	case BytesComparisonEqual:
-		op = "=="
-	}
-
-	return fmt.Sprintf("%s %s", op, m.Bytes.String())
-}
-
-type BytesInChecker struct {
-	Set map[string]struct{}
-	Not bool
-}
-
-func (m BytesInChecker) Check(id ID) bool {
-	b, ok := id.(Bytes)
-	if !ok {
-		return false
-	}
-
-	_, match := m.Set[string(b)]
-	return match == !m.Not
-}
-
-func (m BytesInChecker) String() string {
-	strs := make([]string, 0, len(m.Set))
-	for s := range m.Set {
-		strs = append(strs, fmt.Sprintf("%q", s))
-	}
-	prefix := ""
-	if m.Not {
-		prefix = "not "
-	}
-	sort.Strings(strs)
-	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
-}
-
-type SymbolInChecker struct {
-	Set map[Symbol]struct{}
-	Not bool
-}
-
-func (m SymbolInChecker) Check(id ID) bool {
-	sym, ok := id.(Symbol)
-	if !ok {
-		return false
-	}
-	_, match := m.Set[sym]
-	return match == !m.Not
-}
-
-func (m SymbolInChecker) String() string {
-	strs := make([]string, 0, len(m.Set))
-	for s := range m.Set {
-		strs = append(strs, fmt.Sprintf("%q", uint32(s)))
-	}
-	prefix := ""
-	if m.Not {
-		prefix = "not "
-	}
-	sort.Strings(strs)
-	return fmt.Sprintf(prefix+"in [%s]", strings.Join(strs, ", "))
-}
-
-type InvalidChecker struct{}
-
-func (InvalidChecker) Match(ID) bool { return false }
-
 type Predicate struct {
 	Name Symbol
 	IDs  []ID
@@ -462,29 +161,10 @@ type Fact struct {
 	Predicate
 }
 
-type Constraint struct {
-	Name Variable
-	Checker
-}
-
-func (c Constraint) Check(name Variable, id ID) bool {
-	if c.Name != name {
-		return true
-	}
-	if _, ok := id.(Variable); ok {
-		panic("should not check constraint on a variable")
-	}
-	return c.Checker.Check(id)
-}
-
-func (c Constraint) String() string {
-	return fmt.Sprintf("%v %v", c.Name, c.Checker)
-}
-
 type Rule struct {
 	Head        Predicate
 	Body        []Predicate
-	Constraints []Constraint
+	Expressions []Expression
 }
 
 type InvalidRuleError struct {
@@ -509,7 +189,11 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
 		}
 	}
 
-	for _, h := range NewCombinator(variables, r.Body, r.Constraints, facts).Combine() {
+	combined, err := NewCombinator(variables, r.Body, r.Expressions, facts).Combine()
+	if err != nil {
+		return err
+	}
+	for _, h := range combined {
 		p := r.Head.Clone()
 		for i, id := range p.IDs {
 			k, ok := id.(Variable)
@@ -759,16 +443,16 @@ func (m MatchedVariables) Clone() MatchedVariables {
 type Combinator struct {
 	variables    MatchedVariables
 	predicates   []Predicate
-	constraints  []Constraint
+	expressions  []Expression
 	allFacts     *FactSet
 	currentFacts *FactSet
 }
 
-func NewCombinator(variables MatchedVariables, predicates []Predicate, constraints []Constraint, allFacts *FactSet) *Combinator {
+func NewCombinator(variables MatchedVariables, predicates []Predicate, expressions []Expression, allFacts *FactSet) *Combinator {
 	c := &Combinator{
 		variables:   variables,
 		predicates:  predicates,
-		constraints: constraints,
+		expressions: expressions,
 		allFacts:    allFacts,
 	}
 	currentFacts := make(FactSet, 0, len(*allFacts))
@@ -781,14 +465,14 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, constrain
 	return c
 }
 
-func (c *Combinator) Combine() []map[Variable]*ID {
+func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 	var variables []map[Variable]*ID
 	// Stop when no more predicates are available
 	if len(c.predicates) == 0 {
 		if vars := c.variables.Complete(); vars != nil {
 			variables = append(variables, vars)
 		}
-		return variables
+		return variables, nil
 	}
 
 	for i, pred := range c.predicates {
@@ -809,12 +493,12 @@ func (c *Combinator) Combine() []map[Variable]*ID {
 					continue
 				}
 				v := currentFact.Predicate.IDs[j]
-				for _, con := range c.constraints {
-					if !con.Check(k, v) {
-						matchIDs = false
-						break
-					}
-				}
+				// for _, con := range c.constraints {
+				// 	if !con.Check(k, v) {
+				// 		matchIDs = false
+				// 		break
+				// 	}
+				// }
 				if !vars.Insert(k, v) {
 					matchIDs = false
 				}
@@ -828,23 +512,39 @@ func (c *Combinator) Combine() []map[Variable]*ID {
 			}
 
 			if len(c.predicates) > i+1 {
-				next := NewCombinator(vars, c.predicates[i+1:], c.constraints, c.allFacts).Combine()
+				next, err := NewCombinator(vars, c.predicates[i+1:], c.expressions, c.allFacts).Combine()
+				if err != nil {
+					return nil, err
+				}
 				if len(next) == 0 {
 					// returns only if there is no more current facts, otherwise process next one
 					if ii == len(*c.currentFacts)-1 {
-						return variables
+						return variables, nil
 					}
 					continue
 				}
 				variables = append(variables, next...)
 			} else {
 				if v := vars.Complete(); v != nil {
-					variables = append(variables, v)
+					valid := true
+					for _, e := range c.expressions {
+						res, err := e.Evaluate(v)
+						if err != nil {
+							return nil, err
+						}
+						if res.Equal(Bool(false)) {
+							valid = false
+						}
+					}
+
+					if valid {
+						variables = append(variables, v)
+					}
 				}
 			}
 		}
 	}
-	return variables
+	return variables, nil
 }
 
 type SymbolTable []string
@@ -945,17 +645,17 @@ func (d SymbolDebugger) Rule(r Rule) string {
 	for i, p := range r.Body {
 		preds[i] = d.Predicate(p)
 	}
-	constraints := make([]string, len(r.Constraints))
-	for i, c := range r.Constraints {
-		constraints[i] = c.String()
+	expressions := make([]string, len(r.Expressions))
+	for i, e := range r.Expressions {
+		expressions[i] = e.String()
 	}
 
-	var constraintStart string
-	if len(constraints) > 0 {
-		constraintStart = " @ "
+	var expressionsStart string
+	if len(expressions) > 0 {
+		expressionsStart = " @ "
 	}
 
-	return fmt.Sprintf("*%s <- %s%s%s", head, strings.Join(preds, ", "), constraintStart, strings.Join(constraints, ", "))
+	return fmt.Sprintf("*%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
 }
 
 func (d SymbolDebugger) Caveat(c Caveat) string {
