@@ -12,7 +12,6 @@ import (
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/flynn/biscuit-go"
-	"github.com/flynn/biscuit-go/datalog"
 )
 
 type Comment string
@@ -227,15 +226,15 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 	return biscuitTerm, nil
 }
 
-func (c *Constraint) ToBiscuit() (*biscuit.Constraint, error) {
-	var constraint *biscuit.Constraint
+func (c *Constraint) ToExpr() (biscuit.Expression, error) {
+	var expr biscuit.Expression
 	var err error
 
 	switch {
 	case c.VariableConstraint != nil:
-		constraint, err = c.VariableConstraint.ToBiscuit()
+		expr, err = c.VariableConstraint.ToExpr()
 	case c.FunctionConstraint != nil:
-		constraint, err = c.FunctionConstraint.ToBiscuit()
+		expr, err = c.FunctionConstraint.ToExpr()
 	default:
 		err = errors.New("parser: unsupported constraint, must be one of variable or function")
 	}
@@ -244,13 +243,11 @@ func (c *Constraint) ToBiscuit() (*biscuit.Constraint, error) {
 		return nil, err
 	}
 
-	return constraint, nil
+	return expr, nil
 }
 
-func (c *VariableConstraint) ToBiscuit() (*biscuit.Constraint, error) {
-	constraint := &biscuit.Constraint{
-		Name: biscuit.Variable(*c.Variable),
-	}
+func (c *VariableConstraint) ToExpr() (biscuit.Expression, error) {
+	var expr biscuit.Expression
 	switch {
 	case c.Date != nil:
 		date, err := time.Parse(time.RFC3339, *c.Date.Target)
@@ -259,14 +256,16 @@ func (c *VariableConstraint) ToBiscuit() (*biscuit.Constraint, error) {
 		}
 		switch *c.Date.Operation {
 		case "<=":
-			constraint.Checker = biscuit.DateComparisonChecker{
-				Comparison: datalog.DateComparisonBefore,
-				Date:       biscuit.Date(date),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Date(date)},
+				biscuit.BinaryLessOrEqual,
 			}
 		case ">=":
-			constraint.Checker = biscuit.DateComparisonChecker{
-				Comparison: datalog.DateComparisonAfter,
-				Date:       biscuit.Date(date),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Date(date)},
+				biscuit.BinaryGreaterOrEqual,
 			}
 		default:
 			return nil, fmt.Errorf("parser: unsupported date operation: %s", *c.Date.Operation)
@@ -274,37 +273,43 @@ func (c *VariableConstraint) ToBiscuit() (*biscuit.Constraint, error) {
 	case c.Int != nil:
 		switch *c.Int.Operation {
 		case "<":
-			constraint.Checker = biscuit.IntegerComparisonChecker{
-				Comparison: datalog.IntegerComparisonLT,
-				Integer:    biscuit.Integer(*c.Int.Target),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Integer(*c.Int.Target)},
+				biscuit.BinaryLessThan,
 			}
 		case "<=":
-			constraint.Checker = biscuit.IntegerComparisonChecker{
-				Comparison: datalog.IntegerComparisonLTE,
-				Integer:    biscuit.Integer(*c.Int.Target),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Integer(*c.Int.Target)},
+				biscuit.BinaryLessOrEqual,
 			}
 		case "==":
-			constraint.Checker = biscuit.IntegerComparisonChecker{
-				Comparison: datalog.IntegerComparisonEqual,
-				Integer:    biscuit.Integer(*c.Int.Target),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Integer(*c.Int.Target)},
+				biscuit.BinaryEqual,
 			}
 		case ">":
-			constraint.Checker = biscuit.IntegerComparisonChecker{
-				Comparison: datalog.IntegerComparisonGT,
-				Integer:    biscuit.Integer(*c.Int.Target),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Integer(*c.Int.Target)},
+				biscuit.BinaryGreaterThan,
 			}
 		case ">=":
-			constraint.Checker = biscuit.IntegerComparisonChecker{
-				Comparison: datalog.IntegerComparisonGTE,
-				Integer:    biscuit.Integer(*c.Int.Target),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Integer(*c.Int.Target)},
+				biscuit.BinaryGreaterOrEqual,
 			}
 		default:
 			return nil, fmt.Errorf("parser: unsupported int operation: %s", *c.Int.Operation)
 		}
 	case c.String != nil:
-		constraint.Checker = biscuit.StringComparisonChecker{
-			Comparison: datalog.StringComparisonEqual,
-			Str:        biscuit.String(*c.String.Target),
+		expr = biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+			biscuit.Value{Term: biscuit.String(*c.String.Target)},
+			biscuit.BinaryEqual,
 		}
 	case c.Bytes != nil:
 		switch *c.Bytes.Operation {
@@ -313,91 +318,90 @@ func (c *VariableConstraint) ToBiscuit() (*biscuit.Constraint, error) {
 			if err != nil {
 				return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 			}
-			constraint.Checker = biscuit.BytesComparisonChecker{
-				Comparison: datalog.BytesComparisonEqual,
-				Bytes:      biscuit.Bytes(b),
+			expr = biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+				biscuit.Value{Term: biscuit.Bytes(b)},
+				biscuit.BinaryEqual,
 			}
 		default:
 			return nil, fmt.Errorf("parser: unsupported bytes operation: %s", *c.Bytes.Operation)
 		}
 	case c.Set != nil:
+		var set []biscuit.Term
 		switch {
 		case c.Set.Symbols != nil:
-			set := make(map[biscuit.Symbol]struct{}, len(c.Set.Symbols))
-			for _, s := range c.Set.Symbols {
-				set[biscuit.Symbol(s)] = struct{}{}
-			}
-			constraint.Checker = biscuit.SymbolInChecker{
-				Set: set,
-				Not: c.Set.Not,
+			set := make([]biscuit.Term, len(c.Set.Symbols))
+			for i, s := range c.Set.Symbols {
+				set[i] = biscuit.Symbol(s)
 			}
 		case c.Set.Int != nil:
-			set := make(map[biscuit.Integer]struct{}, len(c.Set.Int))
-			for _, i := range c.Set.Int {
-				set[biscuit.Integer(i)] = struct{}{}
-			}
-			constraint.Checker = biscuit.IntegerInChecker{
-				Set: set,
-				Not: c.Set.Not,
+			set := make([]biscuit.Term, len(c.Set.Int))
+			for i, s := range c.Set.Int {
+				set[i] = biscuit.Integer(s)
 			}
 		case c.Set.String != nil:
-			set := make(map[biscuit.String]struct{}, len(c.Set.String))
-			for _, s := range c.Set.String {
-				set[biscuit.String(s)] = struct{}{}
-			}
-			constraint.Checker = biscuit.StringInChecker{
-				Set: set,
-				Not: c.Set.Not,
+			set := make([]biscuit.Term, len(c.Set.String))
+			for i, s := range c.Set.String {
+				set[i] = biscuit.String(s)
 			}
 		case c.Set.Bytes != nil:
-			set := make(map[string]struct{}, len(c.Set.Bytes))
-			for _, s := range c.Set.Bytes {
+			set := make([]biscuit.Term, len(c.Set.Bytes))
+			for i, s := range c.Set.Bytes {
 				b, err := s.Decode()
 				if err != nil {
 					return nil, fmt.Errorf("parser: failed to decode hex string: %v", err)
 				}
-				set[string(b)] = struct{}{}
-			}
-
-			constraint.Checker = biscuit.BytesInChecker{
-				Set: set,
-				Not: c.Set.Not,
+				set[i] = biscuit.Bytes(b)
 			}
 		default:
 			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
 		}
+
+		op := biscuit.BinaryIn
+		if c.Set.Not {
+			op = biscuit.BinaryNotIn
+		}
+
+		expr = biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+			biscuit.Value{Term: biscuit.Set(set)},
+			op,
+		}
 	default:
 		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, bytes, or set")
 	}
-	return constraint, nil
+	return expr, nil
 }
 
-func (c *FunctionConstraint) ToBiscuit() (*biscuit.Constraint, error) {
-	constraint := &biscuit.Constraint{
-		Name: biscuit.Variable(*c.Variable),
-	}
+func (c *FunctionConstraint) ToExpr() (biscuit.Expression, error) {
+	var expr biscuit.Expression
 	switch *c.Function {
 	case "prefix":
-		constraint.Checker = biscuit.StringComparisonChecker{
-			Comparison: datalog.StringComparisonPrefix,
-			Str:        biscuit.String(*c.Argument),
+		expr = biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+			biscuit.Value{Term: biscuit.String(*c.Argument)},
+			biscuit.BinaryPrefix,
 		}
 	case "suffix":
-		constraint.Checker = biscuit.StringComparisonChecker{
-			Comparison: datalog.StringComparisonSuffix,
-			Str:        biscuit.String(*c.Argument),
+		expr = biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+			biscuit.Value{Term: biscuit.String(*c.Argument)},
+			biscuit.BinarySuffix,
 		}
 	case "match":
-		re, err := regexp.Compile(*c.Argument)
-		if err != nil {
+		if _, err := regexp.Compile(*c.Argument); err != nil {
 			return nil, err
 		}
-		constraint.Checker = biscuit.StringRegexpChecker(*re)
+		expr = biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
+			biscuit.Value{Term: biscuit.String(*c.Argument)},
+			biscuit.BinaryRegex,
+		}
 	default:
 		return nil, fmt.Errorf("parser: unsupported function: %s", *c.Function)
 	}
 
-	return constraint, nil
+	return expr, nil
 }
 
 func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
@@ -410,13 +414,13 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 		body[i] = *b
 	}
 
-	constraints := make([]biscuit.Constraint, len(r.Constraints))
+	expressions := make([]biscuit.Expression, len(r.Constraints))
 	for i, c := range r.Constraints {
-		constraint, err := c.ToBiscuit()
+		expr, err := c.ToExpr()
 		if err != nil {
 			return nil, err
 		}
-		constraints[i] = *constraint
+		expressions[i] = expr
 	}
 
 	head, err := r.Head.ToBiscuit()
@@ -427,7 +431,7 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 	return &biscuit.Rule{
 		Head:        *head,
 		Body:        body,
-		Constraints: constraints,
+		Expressions: expressions,
 	}, nil
 }
 

@@ -128,13 +128,13 @@ func TestBiscuitRules(t *testing.T) {
 			Body: []Predicate{
 				{Name: "owner", IDs: []Term{Symbol("ambient"), Variable("0"), Variable("1")}},
 			},
-			Constraints: []Constraint{{
-				Name: Variable("0"),
-				Checker: SymbolInChecker{
-					Set: map[Symbol]struct{}{Symbol("alice"): {}, Symbol("bob"): {}},
-					Not: false,
+			Expressions: []Expression{
+				{
+					Value{Variable("0")},
+					Value{Set{Symbol("alice"), Symbol("bob")}},
+					BinaryIn,
 				},
-			}},
+			},
 		},
 	}})
 

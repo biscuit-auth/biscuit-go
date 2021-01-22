@@ -3,7 +3,6 @@ package biscuit
 import (
 	"encoding/hex"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -163,7 +162,7 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
 type Rule struct {
 	Head        Predicate
 	Body        []Predicate
-	Constraints []Constraint
+	Expressions []Expression
 }
 
 func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
@@ -172,14 +171,123 @@ func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
 		dlBody[i] = p.convert(symbols)
 	}
 
-	dlConstraints := make([]datalog.Constraint, len(r.Constraints))
-	for i, c := range r.Constraints {
-		dlConstraints[i] = c.convert(symbols)
+	dlExpressions := make([]datalog.Expression, len(r.Expressions))
+	for i, e := range r.Expressions {
+		dlExpressions[i] = e.convert(symbols)
 	}
 	return datalog.Rule{
 		Head:        r.Head.convert(symbols),
 		Body:        dlBody,
-		Constraints: dlConstraints,
+		Expressions: dlExpressions,
+	}
+}
+
+type Expression []Op
+
+func (e Expression) convert(symbols *datalog.SymbolTable) datalog.Expression {
+	expr := make(datalog.Expression, len(e))
+	for i, elt := range e {
+		expr[i] = elt.convert(symbols)
+	}
+	return expr
+}
+
+type Op interface {
+	Type() OpType
+	convert(symbols *datalog.SymbolTable) datalog.Op
+}
+
+type OpType byte
+
+const (
+	OpTypeValue OpType = iota
+	OpTypeUnary
+	OpTypeBinary
+)
+
+type Value struct {
+	Term Term
+}
+
+func (v Value) Type() OpType {
+	return OpTypeValue
+}
+func (v Value) convert(symbols *datalog.SymbolTable) datalog.Op {
+	return datalog.Value{ID: v.Term.convert(symbols)}
+}
+
+type unaryOpType byte
+
+type UnaryOp unaryOpType
+
+const (
+	UnaryUndefined UnaryOp = iota
+	UnaryNegate
+)
+
+func (UnaryOp) Type() OpType {
+	return OpTypeUnary
+}
+func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
+	switch op {
+	case UnaryNegate:
+		return datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}}
+	default:
+		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
+	}
+}
+
+type binaryOpType byte
+
+type BinaryOp binaryOpType
+
+const (
+	BinaryUndefined BinaryOp = iota
+	BinaryLessThan
+	BinaryLessOrEqual
+	BinaryGreaterThan
+	BinaryGreaterOrEqual
+	BinaryEqual
+	BinaryIn
+	BinaryNotIn
+	BinaryPrefix
+	BinarySuffix
+	BinaryRegex
+	BinaryAdd
+	BinaryAnd
+)
+
+func (BinaryOp) Type() OpType {
+	return OpTypeBinary
+}
+func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
+	switch op {
+	case BinaryLessThan:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LessThan{}}
+	case BinaryLessOrEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LessOrEqual{}}
+	case BinaryGreaterThan:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.GreaterThan{}}
+	case BinaryGreaterOrEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.GreaterOrEqual{}}
+	case BinaryEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}}
+	case BinaryIn:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.In{}}
+	case BinaryNotIn:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}}
+	case BinaryPrefix:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}}
+	case BinarySuffix:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Suffix{}}
+	case BinaryRegex:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Regex{}}
+	case BinaryAdd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Add{}}
+	case BinaryAnd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.And{}}
+	default:
+		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
 }
 
@@ -196,247 +304,6 @@ func (c Caveat) convert(symbols *datalog.SymbolTable) datalog.Caveat {
 	return datalog.Caveat{
 		Queries: queries,
 	}
-}
-
-type Constraint struct {
-	Name Variable
-	Checker
-}
-
-func (c Constraint) convert(symbols *datalog.SymbolTable) datalog.Constraint {
-	return datalog.Constraint{
-		Name:    c.Name.convert(symbols).(datalog.Variable),
-		Checker: c.Checker.convert(symbols),
-	}
-}
-
-func (c Constraint) String() string {
-	return c.Checker.String(c.Name)
-}
-
-type Checker interface {
-	convert(symbols *datalog.SymbolTable) datalog.Checker
-	String(name Variable) string
-}
-
-type IntegerComparisonChecker struct {
-	Comparison datalog.IntegerComparison
-	Integer    Integer
-}
-
-func (c IntegerComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return datalog.IntegerComparisonChecker{
-		Comparison: c.Comparison,
-		Integer:    c.Integer.convert(symbols).(datalog.Integer),
-	}
-}
-
-func (c IntegerComparisonChecker) String(name Variable) string {
-	op := "??"
-	switch c.Comparison {
-	case datalog.IntegerComparisonEqual:
-		op = "=="
-	case datalog.IntegerComparisonGT:
-		op = ">"
-	case datalog.IntegerComparisonGTE:
-		op = ">="
-	case datalog.IntegerComparisonLT:
-		op = "<"
-	case datalog.IntegerComparisonLTE:
-		op = "<="
-	}
-	return fmt.Sprintf("%s %s %s", name, op, c.Integer)
-}
-
-type IntegerInChecker struct {
-	Set map[Integer]struct{}
-	Not bool
-}
-
-func (c IntegerInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	dlSet := make(map[datalog.Integer]struct{}, len(c.Set))
-	for i := range c.Set {
-		dlSet[i.convert(symbols).(datalog.Integer)] = struct{}{}
-	}
-	return datalog.IntegerInChecker{
-		Set: dlSet,
-		Not: c.Not,
-	}
-}
-
-func (c IntegerInChecker) String(name Variable) string {
-	op := "in"
-	if c.Not {
-		op = "not in"
-	}
-
-	set := make([]string, 0, len(c.Set))
-	for k := range c.Set {
-		set = append(set, k.String())
-	}
-	sort.Strings(set)
-	return fmt.Sprintf("%s %s %s", name, op, strings.Join(set, ", "))
-}
-
-type StringComparison byte
-
-type StringComparisonChecker struct {
-	Comparison datalog.StringComparison
-	Str        String
-}
-
-func (c StringComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return datalog.StringComparisonChecker{
-		Comparison: c.Comparison,
-		Str:        c.Str.convert(symbols).(datalog.String),
-	}
-}
-func (c StringComparisonChecker) String(name Variable) string {
-	out := fmt.Sprintf("%s ?? %s", name, c.Str)
-	switch c.Comparison {
-	case datalog.StringComparisonEqual:
-		out = fmt.Sprintf("%s == %s", name, c.Str)
-	case datalog.StringComparisonPrefix:
-		out = fmt.Sprintf("prefix(%s, %s)", name, c.Str)
-	case datalog.StringComparisonSuffix:
-		out = fmt.Sprintf("suffix(%s, %s)", name, c.Str)
-	}
-	return out
-}
-
-type StringInChecker struct {
-	Set map[String]struct{}
-	Not bool
-}
-
-func (c StringInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	dlSet := make(map[datalog.String]struct{}, len(c.Set))
-	for i := range c.Set {
-		dlSet[i.convert(symbols).(datalog.String)] = struct{}{}
-	}
-	return datalog.StringInChecker{
-		Set: dlSet,
-		Not: c.Not,
-	}
-}
-func (c StringInChecker) String(name Variable) string {
-	op := "in"
-	if c.Not {
-		op = "not in"
-	}
-	set := make([]string, 0, len(c.Set))
-	for v := range c.Set {
-		set = append(set, v.String())
-	}
-	sort.Strings(set)
-	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
-}
-
-type StringRegexpChecker regexp.Regexp
-
-func (c StringRegexpChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	re := datalog.StringRegexpChecker(c)
-	return &re
-}
-func (c StringRegexpChecker) String(name Variable) string {
-	r := regexp.Regexp(c)
-	return fmt.Sprintf("%s match %s", name, r.String())
-}
-
-type DateComparison byte
-
-type DateComparisonChecker struct {
-	Comparison datalog.DateComparison
-	Date       Date
-}
-
-func (c DateComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return datalog.DateComparisonChecker{
-		Comparison: c.Comparison,
-		Date:       c.Date.convert(symbols).(datalog.Date),
-	}
-}
-func (c DateComparisonChecker) String(name Variable) string {
-	op := "??"
-	switch c.Comparison {
-	case datalog.DateComparisonAfter:
-		op = ">"
-	case datalog.DateComparisonBefore:
-		op = "<"
-	}
-	return fmt.Sprintf("%s %s %s", name, op, c.Date)
-}
-
-type SymbolInChecker struct {
-	Set map[Symbol]struct{}
-	Not bool
-}
-
-func (c SymbolInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	dlSet := make(map[datalog.Symbol]struct{}, len(c.Set))
-	for i := range c.Set {
-		dlSet[i.convert(symbols).(datalog.Symbol)] = struct{}{}
-	}
-	return datalog.SymbolInChecker{
-		Set: dlSet,
-		Not: c.Not,
-	}
-}
-func (c SymbolInChecker) String(name Variable) string {
-	op := "in"
-	if c.Not {
-		op = "not in"
-	}
-	set := make([]string, 0, len(c.Set))
-	for v := range c.Set {
-		set = append(set, v.String())
-	}
-	sort.Strings(set)
-	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
-}
-
-type BytesComparisonChecker struct {
-	Comparison datalog.BytesComparison
-	Bytes      Bytes
-}
-
-func (c BytesComparisonChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return datalog.BytesComparisonChecker{
-		Comparison: c.Comparison,
-		Bytes:      c.Bytes.convert(symbols).(datalog.Bytes),
-	}
-}
-func (c BytesComparisonChecker) String(name Variable) string {
-	op := "??"
-	switch c.Comparison {
-	case datalog.BytesComparisonEqual:
-		op = "=="
-	}
-	return fmt.Sprintf("%s %s %s", name, op, c.Bytes)
-}
-
-type BytesInChecker struct {
-	Set map[string]struct{}
-	Not bool
-}
-
-func (c BytesInChecker) convert(symbols *datalog.SymbolTable) datalog.Checker {
-	return datalog.BytesInChecker{
-		Set: c.Set,
-		Not: c.Not,
-	}
-}
-func (c BytesInChecker) String(name Variable) string {
-	op := "in"
-	if c.Not {
-		op = "not in"
-	}
-	set := make([]string, 0, len(c.Set))
-	for v := range c.Set {
-		set = append(set, fmt.Sprintf("hex:%s", v))
-	}
-	sort.Strings(set)
-	return fmt.Sprintf("%s %s [%s]", name, op, strings.Join(set, ", "))
 }
 
 type Predicate struct {

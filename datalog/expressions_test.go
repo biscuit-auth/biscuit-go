@@ -1,6 +1,7 @@
 package datalog
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,14 +14,31 @@ func idptr(v ID) *ID {
 func TestExpressions(t *testing.T) {
 	ops := Expression{
 		Value{Integer(1)},
-		UnaryOp{Negate},
+		UnaryOp{Negate{}},
 		Value{Variable(2)},
-		BinaryOp{LessThan},
+		BinaryOp{LessThan{}},
 	}
 
 	values := map[Variable]*ID{
 		2: idptr(Integer(0)),
 	}
+
+	res, err := ops.Evaluate(values)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+}
+
+func TestWeirdExpressions(t *testing.T) {
+	// add can overflow int64
+	ops := Expression{
+		Value{Integer(math.MaxInt64)},
+		Value{Integer(1)},
+		BinaryOp{Add{}},
+		Value{Integer(0)},
+		BinaryOp{LessThan{}},
+	}
+
+	values := map[Variable]*ID{}
 
 	res, err := ops.Evaluate(values)
 	require.NoError(t, err)
@@ -93,7 +111,7 @@ func TestIn(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := In(tt.left, tt.right)
+			got, err := In{}.Eval(tt.left, tt.right)
 			require.Equal(t, tt.wantErr, (err != nil))
 			require.Equal(t, tt.want, got)
 		})

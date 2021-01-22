@@ -130,7 +130,7 @@ func TestNumbers(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1234)},
 			Value{Integer(1)},
-			BinaryOp{LessThan},
+			BinaryOp{LessThan{}},
 		}},
 	})
 	expected = &FactSet{
@@ -166,7 +166,7 @@ func TestString(t *testing.T) {
 			Expressions: []Expression{{
 				Value{Variable(1234)},
 				Value{String(suffix)},
-				BinaryOp{Suffix},
+				BinaryOp{Suffix{}},
 			}},
 		})
 	}
@@ -212,11 +212,11 @@ func TestDate(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1234)},
 			Value{Date(t2.Unix())},
-			BinaryOp{LessOrEqual},
+			BinaryOp{LessOrEqual{}},
 		}, {
 			Value{Variable(1234)},
 			Value{Date(0)},
-			BinaryOp{GreaterOrEqual},
+			BinaryOp{GreaterOrEqual{}},
 		}},
 	})
 	expected := &FactSet{{Predicate{before, []ID{Date(t1.Unix()), abc}}}}
@@ -230,11 +230,11 @@ func TestDate(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1234)},
 			Value{Date(t2.Unix())},
-			BinaryOp{GreaterOrEqual},
+			BinaryOp{GreaterOrEqual{}},
 		}, {
 			Value{Variable(1234)},
 			Value{Date(0)},
-			BinaryOp{GreaterOrEqual},
+			BinaryOp{GreaterOrEqual{}},
 		}},
 	})
 	expected = &FactSet{{Predicate{after, []ID{Date(t3.Unix()), def}}}}
@@ -283,7 +283,7 @@ func TestBytes(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1)},
 			Value{Bytes(k1)},
-			BinaryOp{Equal},
+			BinaryOp{Equal{}},
 		}},
 	})
 	expected := &FactSet{
@@ -299,7 +299,7 @@ func TestBytes(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1)},
 			Value{Set{Bytes(k1), Bytes(k3)}},
-			BinaryOp{In},
+			BinaryOp{In{}},
 		}},
 	})
 	expected = &FactSet{
@@ -316,7 +316,7 @@ func TestBytes(t *testing.T) {
 		Expressions: []Expression{{
 			Value{Variable(1)},
 			Value{Set{Bytes(k1)}},
-			BinaryOp{NotIn},
+			BinaryOp{NotIn{}},
 		}},
 	})
 	expected = &FactSet{

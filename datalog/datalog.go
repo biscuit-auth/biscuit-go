@@ -647,7 +647,7 @@ func (d SymbolDebugger) Rule(r Rule) string {
 	}
 	expressions := make([]string, len(r.Expressions))
 	for i, e := range r.Expressions {
-		expressions[i] = e.String()
+		expressions[i] = d.Expression(e)
 	}
 
 	var expressionsStart string
@@ -656,6 +656,10 @@ func (d SymbolDebugger) Rule(r Rule) string {
 	}
 
 	return fmt.Sprintf("*%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+}
+
+func (d SymbolDebugger) Expression(e Expression) string {
+	return e.Print(d.SymbolTable)
 }
 
 func (d SymbolDebugger) Caveat(c Caveat) string {

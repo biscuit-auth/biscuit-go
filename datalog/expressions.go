@@ -69,8 +69,53 @@ func (e *Expression) Evaluate(values map[Variable]*ID) (ID, error) {
 	return s.Pop()
 }
 
-func (e *Expression) String() string {
-	return "TODO"
+func (e *Expression) Print(symbols *SymbolTable) string {
+	s := &stack{}
+	for _, op := range *e {
+		switch op.Type() {
+		case OpTypeValue:
+			id := op.(Value).ID
+			switch id.Type() {
+			case IDTypeSymbol:
+				s.Push(String(symbols.Str(id.(Symbol))))
+			default:
+				s.Push(String(id.String()))
+			}
+		case OpTypeUnary:
+			v, err := s.Pop()
+			if err != nil {
+				return "<invalid expression: unary operation failed to pop value>"
+			}
+			res := op.(UnaryOp).Print(v.(String))
+			if err != nil {
+				return "<invalid expression: binary operation failed to pop right value>"
+			}
+			s.Push(String(res))
+		case OpTypeBinary:
+			right, err := s.Pop()
+			if err != nil {
+				return "<invalid expression: binary operation failed to pop right value>"
+			}
+			left, err := s.Pop()
+			if err != nil {
+				return "<invalid expression: binary operation failed to pop left value>"
+			}
+			res := op.(BinaryOp).Print(left.(String), right.(String))
+			s.Push(String(res))
+		default:
+			return fmt.Sprintf("<invalid expression: unsupported op type %v>", op.Type())
+		}
+	}
+
+	if len(*s) == 1 {
+		v, err := s.Pop()
+		if err != nil {
+			return "<invalid expression: failed to pop result value>"
+		}
+		return string(v.(String))
+	}
+
+	return "<invalid expression: invalid resulting stack>"
 }
 
 type OpType byte
@@ -94,17 +139,43 @@ func (v Value) Type() OpType {
 }
 
 type UnaryOp struct {
-	Eval func(value ID) (ID, error)
+	UnaryOpFunc
 }
 
 func (UnaryOp) Type() OpType {
 	return OpTypeUnary
 }
+func (op UnaryOp) Print(value String) string {
+	var out string
+	switch op.UnaryOpFunc.Type() {
+	case UnaryNegate:
+		out = fmt.Sprintf("!%s", string(value))
+	default:
+		out = fmt.Sprintf("unknown(%s)", string(value))
+	}
+	return out
+}
+
+type UnaryOpFunc interface {
+	Type() UnaryOpType
+	Eval(value ID) (ID, error)
+}
+
+type UnaryOpType byte
+
+const (
+	UnaryNegate UnaryOpType = iota
+)
 
 // Negate returns the negation of value
 // for an integer 42, returns -42
 // for a boolean true, return false
-func Negate(value ID) (ID, error) {
+type Negate struct{}
+
+func (Negate) Type() UnaryOpType {
+	return UnaryNegate
+}
+func (Negate) Eval(value ID) (ID, error) {
 	var out ID
 	switch value.Type() {
 	case IDTypeInteger:
@@ -119,17 +190,76 @@ func Negate(value ID) (ID, error) {
 }
 
 type BinaryOp struct {
-	Eval func(left, right ID) (ID, error)
+	BinaryOpFunc
 }
 
 func (BinaryOp) Type() OpType {
 	return OpTypeBinary
 }
+func (op BinaryOp) Print(left, right String) string {
+	var out string
+	switch op.BinaryOpFunc.Type() {
+	case BinaryLessThan:
+		out = fmt.Sprintf("%s < %s", string(left), string(right))
+	case BinaryLessOrEqual:
+		out = fmt.Sprintf("%s <= %s", string(left), string(right))
+	case BinaryGreaterThan:
+		out = fmt.Sprintf("%s > %s", string(left), string(right))
+	case BinaryGreaterOrEqual:
+		out = fmt.Sprintf("%s >= %s", string(left), string(right))
+	case BinaryEqual:
+		out = fmt.Sprintf("%s == %s", string(left), string(right))
+	case BinaryIn:
+		out = fmt.Sprintf("%s in %s", string(left), string(right))
+	case BinaryNotIn:
+		out = fmt.Sprintf("%s not in %s", string(left), string(right))
+	case BinaryPrefix:
+		out = fmt.Sprintf("prefix(%s, %s)", string(left), string(right))
+	case BinarySuffix:
+		out = fmt.Sprintf("suffix(%s, %s)", string(left), string(right))
+	case BinaryRegex:
+		out = fmt.Sprintf("match(%s, %s)", string(left), string(right))
+	case BinaryAdd:
+		out = fmt.Sprintf("%s + %s", string(left), string(right))
+	case BinaryAnd:
+		out = fmt.Sprintf("%s & %s", string(left), string(right))
+	default:
+		out = fmt.Sprintf("unknown(%s, %s)", string(left), string(right))
+	}
+	return out
+}
+
+type BinaryOpFunc interface {
+	Type() BinaryOpType
+	Eval(left, right ID) (ID, error)
+}
+
+type BinaryOpType byte
+
+const (
+	BinaryLessThan BinaryOpType = iota
+	BinaryLessOrEqual
+	BinaryGreaterThan
+	BinaryGreaterOrEqual
+	BinaryEqual
+	BinaryIn
+	BinaryNotIn
+	BinaryPrefix
+	BinarySuffix
+	BinaryRegex
+	BinaryAdd
+	BinaryAnd
+)
 
 // LessThan returns true when left is less than right.
 // It requires left and right to have the same concret type
 // and only accept Integer
-func LessThan(left ID, right ID) (ID, error) {
+type LessThan struct{}
+
+func (LessThan) Type() BinaryOpType {
+	return BinaryLessThan
+}
+func (LessThan) Eval(left ID, right ID) (ID, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: LessThan type mismatch: %d != %d", g, w)
 	}
@@ -148,7 +278,12 @@ func LessThan(left ID, right ID) (ID, error) {
 // LessOrEqual returns true when left is less or equal right.
 // It requires left and right to have the same concret type
 // and only accept Integer and Date
-func LessOrEqual(left ID, right ID) (ID, error) {
+type LessOrEqual struct{}
+
+func (LessOrEqual) Type() BinaryOpType {
+	return BinaryLessOrEqual
+}
+func (LessOrEqual) Eval(left ID, right ID) (ID, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: LessOrEqual type mismatch: %d != %d", g, w)
 	}
@@ -169,7 +304,12 @@ func LessOrEqual(left ID, right ID) (ID, error) {
 // GreaterThan returns true when left is greater than right.
 // It requires left and right to have the same concret type
 // and only accept Integer
-func GreaterThan(left ID, right ID) (ID, error) {
+type GreaterThan struct{}
+
+func (GreaterThan) Type() BinaryOpType {
+	return BinaryGreaterThan
+}
+func (GreaterThan) Eval(left ID, right ID) (ID, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: GreaterThan type mismatch: %d != %d", g, w)
 	}
@@ -188,7 +328,12 @@ func GreaterThan(left ID, right ID) (ID, error) {
 // GreaterOrEqual returns true when left is greater than right.
 // It requires left and right to have the same concret type
 // and only accept Integer and Date
-func GreaterOrEqual(left ID, right ID) (ID, error) {
+type GreaterOrEqual struct{}
+
+func (GreaterOrEqual) Type() BinaryOpType {
+	return BinaryGreaterOrEqual
+}
+func (GreaterOrEqual) Eval(left ID, right ID) (ID, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: GreaterOrEqual type mismatch: %d != %d", g, w)
 	}
@@ -209,7 +354,12 @@ func GreaterOrEqual(left ID, right ID) (ID, error) {
 // Equal returns true when left and right are equal.
 // It requires left and right to have the same concret type
 // and only accept Integer, Bytes or String
-func Equal(left ID, right ID) (ID, error) {
+type Equal struct{}
+
+func (Equal) Type() BinaryOpType {
+	return BinaryEqual
+}
+func (Equal) Eval(left ID, right ID) (ID, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: Equal type mismatch: %d != %d", g, w)
 	}
@@ -228,7 +378,12 @@ func Equal(left ID, right ID) (ID, error) {
 // In returns true when left exists in the right Set.
 // left value must be an Integer, Bytes, String or Symbol
 // right value must be a Set, containing elements of left type.
-func In(left ID, right ID) (ID, error) {
+type In struct{}
+
+func (In) Type() BinaryOpType {
+	return BinaryIn
+}
+func (In) Eval(left ID, right ID) (ID, error) {
 	switch left.Type() {
 	case IDTypeInteger:
 	case IDTypeBytes:
@@ -258,7 +413,12 @@ func In(left ID, right ID) (ID, error) {
 // NotIn returns true when left does not exists in the right Set.
 // left value must be an Integer, Bytes, String or Symbol
 // right value must be a Set, containing elements of left type.
-func NotIn(left ID, right ID) (ID, error) {
+type NotIn struct{}
+
+func (NotIn) Type() BinaryOpType {
+	return BinaryNotIn
+}
+func (NotIn) Eval(left ID, right ID) (ID, error) {
 	switch left.Type() {
 	case IDTypeInteger:
 	case IDTypeBytes:
@@ -287,7 +447,12 @@ func NotIn(left ID, right ID) (ID, error) {
 
 // Prefix returns true when left string starts with right string
 // left and right must be String
-func Prefix(left ID, right ID) (ID, error) {
+type Prefix struct{}
+
+func (Prefix) Type() BinaryOpType {
+	return BinaryPrefix
+}
+func (Prefix) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, errors.New("datalog: Prefix requires left value to be a String")
@@ -302,7 +467,12 @@ func Prefix(left ID, right ID) (ID, error) {
 
 // Suffix returns true when left string ends with right string
 // left and right must be String
-func Suffix(left ID, right ID) (ID, error) {
+type Suffix struct{}
+
+func (Suffix) Type() BinaryOpType {
+	return BinarySuffix
+}
+func (Suffix) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, errors.New("datalog: Suffix requires left value to be a String")
@@ -317,7 +487,12 @@ func Suffix(left ID, right ID) (ID, error) {
 
 // Regex returns true when right string is a regexp and left match against it.
 // left and right must be String
-func Regex(left ID, right ID) (ID, error) {
+type Regex struct{}
+
+func (Regex) Type() BinaryOpType {
+	return BinaryRegex
+}
+func (Regex) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, errors.New("datalog: Regex requires left value to be a String")
@@ -336,7 +511,12 @@ func Regex(left ID, right ID) (ID, error) {
 
 // Add performs the addition of left + right and returns the result
 // It requires left and right to be Integer
-func Add(left ID, right ID) (ID, error) {
+type Add struct{}
+
+func (Add) Type() BinaryOpType {
+	return BinaryAdd
+}
+func (Add) Eval(left ID, right ID) (ID, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, errors.New("datalog: Add requires left value to be an Integer")
@@ -351,7 +531,12 @@ func Add(left ID, right ID) (ID, error) {
 
 // And performs a logical AND between left and right and returns a Bool
 // It requires left and right to be Bool
-func And(left ID, right ID) (ID, error) {
+type And struct{}
+
+func (And) Type() BinaryOpType {
+	return BinaryAnd
+}
+func (And) Eval(left ID, right ID) (ID, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
 		return nil, errors.New("datalog: Add requires left value to be a Bool")
