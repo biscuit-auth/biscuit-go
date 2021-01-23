@@ -1,6 +1,7 @@
 package datalog
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestExpressions(t *testing.T) {
 }
 
 func TestWeirdExpressions(t *testing.T) {
-	// add can overflow int64
+	// add overflow
 	ops := Expression{
 		Value{Integer(math.MaxInt64)},
 		Value{Integer(1)},
@@ -41,6 +42,27 @@ func TestWeirdExpressions(t *testing.T) {
 	values := map[Variable]*ID{}
 
 	res, err := ops.Evaluate(values)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	// div by 0
+	ops = Expression{
+		Value{Integer(42)},
+		Value{Integer(0)},
+		BinaryOp{Div{}},
+	}
+	_, err = ops.Evaluate(values)
+	require.Equal(t, ErrExprDivByZero, errors.Unwrap(err))
+
+	// mul overflow
+	ops = Expression{
+		Value{Integer(math.MaxInt64)},
+		Value{Integer(math.MaxInt64)},
+		BinaryOp{Mul{}},
+		Value{Integer(1)},
+		BinaryOp{Equal{}},
+	}
+	res, err = ops.Evaluate(values)
 	require.NoError(t, err)
 	require.Equal(t, Bool(true), res)
 }

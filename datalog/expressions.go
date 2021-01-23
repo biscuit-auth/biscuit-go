@@ -33,27 +33,27 @@ func (e *Expression) Evaluate(values map[Variable]*ID) (ID, error) {
 		case OpTypeUnary:
 			v, err := s.Pop()
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressions: failed to pop unary value: %v", err)
+				return nil, fmt.Errorf("datalog: expressions: failed to pop unary value: %w", err)
 			}
 
 			res, err := op.(UnaryOp).Eval(v)
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressions: unary eval failed: %v", err)
+				return nil, fmt.Errorf("datalog: expressions: unary eval failed: %w", err)
 			}
 			s.Push(res)
 		case OpTypeBinary:
 			right, err := s.Pop()
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary right value: %v", err)
+				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary right value: %w", err)
 			}
 			left, err := s.Pop()
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary left value: %v", err)
+				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary left value: %w", err)
 			}
 
 			res, err := op.(BinaryOp).Eval(left, right)
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressions: binary eval failed: %v", err)
+				return nil, fmt.Errorf("datalog: expressions: binary eval failed: %w", err)
 			}
 			s.Push(res)
 		default:
@@ -581,6 +581,8 @@ func (Mul) Eval(left ID, right ID) (ID, error) {
 	return Integer(ileft * iright), nil
 }
 
+var ErrExprDivByZero = errors.New("datalog: Div by zero")
+
 // Div performs the division of left / right and returns the result
 // It requires left and right to be Integer
 type Div struct{}
@@ -596,6 +598,10 @@ func (Div) Eval(left ID, right ID) (ID, error) {
 	iright, ok := right.(Integer)
 	if !ok {
 		return nil, errors.New("datalog: Div requires right value to be an Integer")
+	}
+
+	if iright == 0 {
+		return nil, ErrExprDivByZero
 	}
 
 	return Integer(ileft / iright), nil
