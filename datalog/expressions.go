@@ -221,8 +221,16 @@ func (op BinaryOp) Print(left, right String) string {
 		out = fmt.Sprintf("match(%s, %s)", string(left), string(right))
 	case BinaryAdd:
 		out = fmt.Sprintf("%s + %s", string(left), string(right))
+	case BinarySub:
+		out = fmt.Sprintf("%s - %s", string(left), string(right))
+	case BinaryMul:
+		out = fmt.Sprintf("%s * %s", string(left), string(right))
+	case BinaryDiv:
+		out = fmt.Sprintf("%s / %s", string(left), string(right))
 	case BinaryAnd:
-		out = fmt.Sprintf("%s & %s", string(left), string(right))
+		out = fmt.Sprintf("%s && %s", string(left), string(right))
+	case BinaryOr:
+		out = fmt.Sprintf("%s || %s", string(left), string(right))
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", string(left), string(right))
 	}
@@ -248,7 +256,11 @@ const (
 	BinarySuffix
 	BinaryRegex
 	BinaryAdd
+	BinarySub
+	BinaryMul
+	BinaryDiv
 	BinaryAnd
+	BinaryOr
 )
 
 // LessThan returns true when left is less than right.
@@ -529,6 +541,66 @@ func (Add) Eval(left ID, right ID) (ID, error) {
 	return Integer(ileft + iright), nil
 }
 
+// Sub performs the substraction of left - right and returns the result
+// It requires left and right to be Integer
+type Sub struct{}
+
+func (Sub) Type() BinaryOpType {
+	return BinarySub
+}
+func (Sub) Eval(left ID, right ID) (ID, error) {
+	ileft, ok := left.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Sub requires left value to be an Integer")
+	}
+	iright, ok := right.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Sub requires right value to be an Integer")
+	}
+
+	return Integer(ileft - iright), nil
+}
+
+// Mul performs the multiplication of left * right and returns the result
+// It requires left and right to be Integer
+type Mul struct{}
+
+func (Mul) Type() BinaryOpType {
+	return BinaryMul
+}
+func (Mul) Eval(left ID, right ID) (ID, error) {
+	ileft, ok := left.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Mul requires left value to be an Integer")
+	}
+	iright, ok := right.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Mul requires right value to be an Integer")
+	}
+
+	return Integer(ileft * iright), nil
+}
+
+// Div performs the division of left / right and returns the result
+// It requires left and right to be Integer
+type Div struct{}
+
+func (Div) Type() BinaryOpType {
+	return BinaryDiv
+}
+func (Div) Eval(left ID, right ID) (ID, error) {
+	ileft, ok := left.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Div requires left value to be an Integer")
+	}
+	iright, ok := right.(Integer)
+	if !ok {
+		return nil, errors.New("datalog: Div requires right value to be an Integer")
+	}
+
+	return Integer(ileft / iright), nil
+}
+
 // And performs a logical AND between left and right and returns a Bool
 // It requires left and right to be Bool
 type And struct{}
@@ -539,11 +611,31 @@ func (And) Type() BinaryOpType {
 func (And) Eval(left ID, right ID) (ID, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: Add requires left value to be a Bool")
+		return nil, errors.New("datalog: And requires left value to be a Bool")
 	}
 	bright, ok := right.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: Add requires right value to be a Bool")
+		return nil, errors.New("datalog: And requires right value to be a Bool")
+	}
+
+	return Bool(bleft && bright), nil
+}
+
+// Or performs a logical OR between left and right and returns a Bool
+// It requires left and right to be Bool
+type Or struct{}
+
+func (Or) Type() BinaryOpType {
+	return BinaryOr
+}
+func (Or) Eval(left ID, right ID) (ID, error) {
+	bleft, ok := left.(Bool)
+	if !ok {
+		return nil, errors.New("datalog: Or requires left value to be a Bool")
+	}
+	bright, ok := right.(Bool)
+	if !ok {
+		return nil, errors.New("datalog: Or requires right value to be a Bool")
 	}
 
 	return Bool(bleft && bright), nil

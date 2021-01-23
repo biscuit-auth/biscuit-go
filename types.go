@@ -254,7 +254,11 @@ const (
 	BinarySuffix
 	BinaryRegex
 	BinaryAdd
+	BinarySub
+	BinaryMul
+	BinaryDiv
 	BinaryAnd
+	BinaryOr
 )
 
 func (BinaryOp) Type() OpType {
@@ -284,8 +288,16 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Regex{}}
 	case BinaryAdd:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Add{}}
+	case BinarySub:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Sub{}}
+	case BinaryMul:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Mul{}}
+	case BinaryDiv:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Div{}}
 	case BinaryAnd:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.And{}}
+	case BinaryOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Or{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}

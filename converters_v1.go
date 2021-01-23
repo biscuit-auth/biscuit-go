@@ -362,8 +362,16 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_Regex
 	case datalog.BinaryAdd:
 		pbBinaryKind = pb.OpBinary_Add
+	case datalog.BinarySub:
+		pbBinaryKind = pb.OpBinary_Sub
+	case datalog.BinaryMul:
+		pbBinaryKind = pb.OpBinary_Mul
+	case datalog.BinaryDiv:
+		pbBinaryKind = pb.OpBinary_Div
 	case datalog.BinaryAnd:
 		pbBinaryKind = pb.OpBinary_And
+	case datalog.BinaryOr:
+		pbBinaryKind = pb.OpBinary_Or
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -395,8 +403,16 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.Regex{}
 	case pb.OpBinary_Add:
 		binaryOp = datalog.Add{}
+	case pb.OpBinary_Sub:
+		binaryOp = datalog.Sub{}
+	case pb.OpBinary_Mul:
+		binaryOp = datalog.Mul{}
+	case pb.OpBinary_Div:
+		binaryOp = datalog.Div{}
 	case pb.OpBinary_And:
 		binaryOp = datalog.And{}
+	case pb.OpBinary_Or:
+		binaryOp = datalog.Or{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}

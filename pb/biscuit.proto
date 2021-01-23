@@ -226,11 +226,11 @@ message OpBinary {
     Suffix = 8;
     Regex = 9;
     Add = 10;
-    // Sub = 11;
-    // Mul = 12;
-    // Div = 13;
+    Sub = 11;
+    Mul = 12;
+    Div = 13;
     And = 14;
-    // Or = 15;
+    Or = 15;
   }
 
   Kind kind = 1;
