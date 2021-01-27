@@ -685,7 +685,7 @@ func (Or) Eval(left ID, right ID) (ID, error) {
 		return nil, errors.New("datalog: Or requires right value to be a Bool")
 	}
 
-	return Bool(bleft && bright), nil
+	return Bool(bleft || bright), nil
 }
 
 type stack []ID
