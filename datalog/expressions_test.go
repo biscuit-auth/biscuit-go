@@ -12,19 +12,14 @@ func idptr(v ID) *ID {
 	return &v
 }
 
-func TestExpressions(t *testing.T) {
+func TestNegate(t *testing.T) {
 	ops := Expression{
-		Value{Integer(1)},
+		Value{Bool(true)},
 		UnaryOp{Negate{}},
-		Value{Variable(2)},
-		BinaryOp{LessThan{}},
+		UnaryOp{Negate{}},
 	}
 
-	values := map[Variable]*ID{
-		2: idptr(Integer(0)),
-	}
-
-	res, err := ops.Evaluate(values)
+	res, err := ops.Evaluate(nil)
 	require.NoError(t, err)
 	require.Equal(t, Bool(true), res)
 }

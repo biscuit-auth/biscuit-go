@@ -177,8 +177,7 @@ const (
 )
 
 // Negate returns the negation of value
-// for an integer 42, returns -42
-// for a boolean true, return false
+// It only accepts a Bool value.
 type Negate struct{}
 
 func (Negate) Type() UnaryOpType {
@@ -187,8 +186,6 @@ func (Negate) Type() UnaryOpType {
 func (Negate) Eval(value ID) (ID, error) {
 	var out ID
 	switch value.Type() {
-	case IDTypeInteger:
-		out = value.(Integer) * -1
 	case IDTypeBool:
 		out = !value.(Bool)
 	default:
@@ -286,7 +283,7 @@ const (
 
 // LessThan returns true when left is less than right.
 // It requires left and right to have the same concret type
-// and only accept Integer
+// and only accepts Integer
 type LessThan struct{}
 
 func (LessThan) Type() BinaryOpType {
@@ -310,7 +307,7 @@ func (LessThan) Eval(left ID, right ID) (ID, error) {
 
 // LessOrEqual returns true when left is less or equal right.
 // It requires left and right to have the same concret type
-// and only accept Integer and Date
+// and only accepts Integer and Date
 type LessOrEqual struct{}
 
 func (LessOrEqual) Type() BinaryOpType {
@@ -336,7 +333,7 @@ func (LessOrEqual) Eval(left ID, right ID) (ID, error) {
 
 // GreaterThan returns true when left is greater than right.
 // It requires left and right to have the same concret type
-// and only accept Integer
+// and only accepts Integer
 type GreaterThan struct{}
 
 func (GreaterThan) Type() BinaryOpType {
@@ -360,7 +357,7 @@ func (GreaterThan) Eval(left ID, right ID) (ID, error) {
 
 // GreaterOrEqual returns true when left is greater than right.
 // It requires left and right to have the same concret type
-// and only accept Integer and Date
+// and only accepts Integer and Date
 type GreaterOrEqual struct{}
 
 func (GreaterOrEqual) Type() BinaryOpType {
@@ -386,7 +383,7 @@ func (GreaterOrEqual) Eval(left ID, right ID) (ID, error) {
 
 // Equal returns true when left and right are equal.
 // It requires left and right to have the same concret type
-// and only accept Integer, Bytes or String
+// and only accepts Integer, Bytes or String
 type Equal struct{}
 
 func (Equal) Type() BinaryOpType {
