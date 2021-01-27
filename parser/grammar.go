@@ -357,16 +357,16 @@ func (c *VariableConstraint) ToExpr() (biscuit.Expression, error) {
 			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
 		}
 
-		op := biscuit.BinaryIn
-		if c.Set.Not {
-			op = biscuit.BinaryNotIn
-		}
-
 		expr = biscuit.Expression{
 			biscuit.Value{Term: biscuit.Variable(*c.Variable)},
 			biscuit.Value{Term: biscuit.Set(set)},
-			op,
+			biscuit.BinaryContains,
 		}
+
+		if c.Set.Not {
+			expr = append(expr, biscuit.UnaryNegate)
+		}
+
 	default:
 		return nil, errors.New("parser: unsupported variable constraint, must be one of date, int, string, bytes, or set")
 	}

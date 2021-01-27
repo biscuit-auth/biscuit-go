@@ -227,16 +227,14 @@ func (op BinaryOp) Print(left, right String) string {
 		out = fmt.Sprintf("%s >= %s", string(left), string(right))
 	case BinaryEqual:
 		out = fmt.Sprintf("%s == %s", string(left), string(right))
-	case BinaryIn:
-		out = fmt.Sprintf("%s in %s", string(left), string(right))
-	case BinaryNotIn:
-		out = fmt.Sprintf("%s not in %s", string(left), string(right))
+	case BinaryContains:
+		out = fmt.Sprintf("%s.contains(%s)", string(left), string(right))
 	case BinaryPrefix:
-		out = fmt.Sprintf("prefix(%s, %s)", string(left), string(right))
+		out = fmt.Sprintf("%s.starts_with(%s)", string(left), string(right))
 	case BinarySuffix:
-		out = fmt.Sprintf("suffix(%s, %s)", string(left), string(right))
+		out = fmt.Sprintf("%s.ends_with(%s)", string(left), string(right))
 	case BinaryRegex:
-		out = fmt.Sprintf("match(%s, %s)", string(left), string(right))
+		out = fmt.Sprintf("%s.matches(%s)", string(left), string(right))
 	case BinaryAdd:
 		out = fmt.Sprintf("%s + %s", string(left), string(right))
 	case BinarySub:
@@ -268,8 +266,7 @@ const (
 	BinaryGreaterThan
 	BinaryGreaterOrEqual
 	BinaryEqual
-	BinaryIn
-	BinaryNotIn
+	BinaryContains
 	BinaryPrefix
 	BinarySuffix
 	BinaryRegex
@@ -405,74 +402,39 @@ func (Equal) Eval(left ID, right ID) (ID, error) {
 	return Bool(left.Equal(right)), nil
 }
 
-// In returns true when left exists in the right Set.
-// left value must be an Integer, Bytes, String or Symbol
-// right value must be a Set, containing elements of left type.
-type In struct{}
+// Contains returns true when right value exists in the left Set.
+// right value must be an Integer, Bytes, String or Symbol
+// left value must be a Set, containing elements of right type.
+type Contains struct{}
 
-func (In) Type() BinaryOpType {
-	return BinaryIn
+func (Contains) Type() BinaryOpType {
+	return BinaryContains
 }
-func (In) Eval(left ID, right ID) (ID, error) {
-	switch left.Type() {
+func (Contains) Eval(left ID, right ID) (ID, error) {
+	switch right.Type() {
 	case IDTypeInteger:
 	case IDTypeBytes:
 	case IDTypeString:
 	case IDTypeSymbol:
 	default:
-		return nil, fmt.Errorf("datalog: unexpected In left value type: %d", left.Type())
+		return nil, fmt.Errorf("datalog: unexpected Contains right value type: %d", right.Type())
 	}
 
-	set, ok := right.(Set)
+	set, ok := left.(Set)
 	if !ok {
-		return nil, errors.New("datalog: In right value must be a Set")
+		return nil, errors.New("datalog: Contains left value must be a Set")
 	}
 
 	for _, elt := range set {
-		if g, w := elt.Type(), left.Type(); g != w {
-			return nil, fmt.Errorf("datalog: unexpected In set element type: got %d, want %d", g, w)
+		if g, w := elt.Type(), right.Type(); g != w {
+			return nil, fmt.Errorf("datalog: unexpected Contains set element type: got %d, want %d", g, w)
 		}
-		if left.Equal(elt) {
+		if right.Equal(elt) {
 			return Bool(true), nil
 		}
 	}
 
 	return Bool(false), nil
-}
-
-// NotIn returns true when left does not exists in the right Set.
-// left value must be an Integer, Bytes, String or Symbol
-// right value must be a Set, containing elements of left type.
-type NotIn struct{}
-
-func (NotIn) Type() BinaryOpType {
-	return BinaryNotIn
-}
-func (NotIn) Eval(left ID, right ID) (ID, error) {
-	switch left.Type() {
-	case IDTypeInteger:
-	case IDTypeBytes:
-	case IDTypeString:
-	case IDTypeSymbol:
-	default:
-		return nil, fmt.Errorf("datalog: unexpected NotIn left value type: %d", left.Type())
-	}
-
-	set, ok := right.(Set)
-	if !ok {
-		return nil, errors.New("datalog: NotIn right value must be a Set")
-	}
-
-	for _, elt := range set {
-		if g, w := elt.Type(), left.Type(); g != w {
-			return nil, fmt.Errorf("datalog: unexpected NotIn set element type: got %d, want %d", g, w)
-		}
-		if left.Equal(elt) {
-			return Bool(false), nil
-		}
-	}
-
-	return Bool(true), nil
 }
 
 // Prefix returns true when left string starts with right string

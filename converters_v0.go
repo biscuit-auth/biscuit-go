@@ -144,7 +144,7 @@ func protoIntConstraintToTokenExprV0(id uint32, input *pb.IntConstraintV0) (data
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.In{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 		}
 	case pb.IntConstraintV0_NOT_IN:
 		set := make([]datalog.ID, len(input.NotInSet))
@@ -154,7 +154,8 @@ func protoIntConstraintToTokenExprV0(id uint32, input *pb.IntConstraintV0) (data
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			datalog.UnaryOp{datalog.Negate{}},
 		}
 	case pb.IntConstraintV0_LARGER:
 		expr = datalog.Expression{
@@ -203,7 +204,7 @@ func protoStrConstraintToTokenExprV0(id uint32, input *pb.StringConstraintV0) (d
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.In{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 		}
 	case pb.StringConstraintV0_NOT_IN:
 		set := make([]datalog.ID, len(input.NotInSet))
@@ -213,7 +214,8 @@ func protoStrConstraintToTokenExprV0(id uint32, input *pb.StringConstraintV0) (d
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			datalog.UnaryOp{datalog.Negate{}},
 		}
 	case pb.StringConstraintV0_PREFIX:
 		expr = datalog.Expression{
@@ -251,7 +253,7 @@ func protoSymbolConstraintToTokenExprV0(id uint32, input *pb.SymbolConstraintV0)
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.In{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 		}
 	case pb.SymbolConstraintV0_NOT_IN:
 		set := make([]datalog.ID, len(input.NotInSet))
@@ -261,7 +263,8 @@ func protoSymbolConstraintToTokenExprV0(id uint32, input *pb.SymbolConstraintV0)
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			datalog.UnaryOp{datalog.Negate{}},
 		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported symbol constraint kind: %v", input.Kind)
@@ -286,7 +289,7 @@ func protoBytesConstraintToTokenExprV0(id uint32, input *pb.BytesConstraintV0) (
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.In{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 		}
 	case pb.BytesConstraintV0_NOT_IN:
 		set := make([]datalog.ID, len(input.NotInSet))
@@ -296,7 +299,8 @@ func protoBytesConstraintToTokenExprV0(id uint32, input *pb.BytesConstraintV0) (
 		expr = datalog.Expression{
 			datalog.Value{ID: datalog.Variable(id)},
 			datalog.Value{ID: datalog.Set(set)},
-			datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}},
+			datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			datalog.UnaryOp{datalog.Negate{}},
 		}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported bytes constraint kind: %v", input.Kind)

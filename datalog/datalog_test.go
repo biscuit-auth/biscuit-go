@@ -297,9 +297,9 @@ func TestBytes(t *testing.T) {
 		Head: Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
 		Body: []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
-			Value{Variable(1)},
 			Value{Set{Bytes(k1), Bytes(k3)}},
-			BinaryOp{In{}},
+			Value{Variable(1)},
+			BinaryOp{Contains{}},
 		}},
 	})
 	expected = &FactSet{
@@ -314,9 +314,10 @@ func TestBytes(t *testing.T) {
 		Head: Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
 		Body: []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
-			Value{Variable(1)},
 			Value{Set{Bytes(k1)}},
-			BinaryOp{NotIn{}},
+			Value{Variable(1)},
+			BinaryOp{Contains{}},
+			UnaryOp{Negate{}},
 		}},
 	})
 	expected = &FactSet{

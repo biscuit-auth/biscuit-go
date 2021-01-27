@@ -354,10 +354,8 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_GreaterOrEqual
 	case datalog.BinaryEqual:
 		pbBinaryKind = pb.OpBinary_Equal
-	case datalog.BinaryIn:
-		pbBinaryKind = pb.OpBinary_In
-	case datalog.BinaryNotIn:
-		pbBinaryKind = pb.OpBinary_NotIn
+	case datalog.BinaryContains:
+		pbBinaryKind = pb.OpBinary_Contains
 	case datalog.BinaryPrefix:
 		pbBinaryKind = pb.OpBinary_Prefix
 	case datalog.BinarySuffix:
@@ -395,10 +393,8 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.GreaterOrEqual{}
 	case pb.OpBinary_Equal:
 		binaryOp = datalog.Equal{}
-	case pb.OpBinary_In:
-		binaryOp = datalog.In{}
-	case pb.OpBinary_NotIn:
-		binaryOp = datalog.NotIn{}
+	case pb.OpBinary_Contains:
+		binaryOp = datalog.Contains{}
 	case pb.OpBinary_Prefix:
 		binaryOp = datalog.Prefix{}
 	case pb.OpBinary_Suffix:

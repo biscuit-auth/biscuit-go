@@ -251,8 +251,7 @@ const (
 	BinaryGreaterThan
 	BinaryGreaterOrEqual
 	BinaryEqual
-	BinaryIn
-	BinaryNotIn
+	BinaryContains
 	BinaryPrefix
 	BinarySuffix
 	BinaryRegex
@@ -279,10 +278,8 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.GreaterOrEqual{}}
 	case BinaryEqual:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}}
-	case BinaryIn:
-		return datalog.BinaryOp{BinaryOpFunc: datalog.In{}}
-	case BinaryNotIn:
-		return datalog.BinaryOp{BinaryOpFunc: datalog.NotIn{}}
+	case BinaryContains:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}}
 	case BinaryPrefix:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}}
 	case BinarySuffix:

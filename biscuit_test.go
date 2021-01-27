@@ -130,9 +130,9 @@ func TestBiscuitRules(t *testing.T) {
 			},
 			Expressions: []Expression{
 				{
-					Value{Variable("0")},
 					Value{Set{Symbol("alice"), Symbol("bob")}},
-					BinaryIn,
+					Value{Variable("0")},
+					BinaryContains,
 				},
 			},
 		},
