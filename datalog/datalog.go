@@ -532,8 +532,9 @@ func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 						if err != nil {
 							return nil, err
 						}
-						if res.Equal(Bool(false)) {
+						if !res.Equal(Bool(true)) {
 							valid = false
+							break
 						}
 					}
 

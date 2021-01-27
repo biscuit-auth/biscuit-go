@@ -3,6 +3,7 @@ package datalog
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"regexp"
 	"strings"
 )
@@ -10,6 +11,11 @@ import (
 // maxStackSize defines the maximum number of elements that can be  stored on the stack.
 // Trying to store more than maxStackSize elements returns an error
 const maxStackSize = 1000
+
+var (
+	ErrExprDivByZero = errors.New("datalog: Div by zero")
+	ErrInt64Overflow = errors.New("datalog: expression overflowed int64")
+)
 
 type Expression []Op
 
@@ -538,7 +544,15 @@ func (Add) Eval(left ID, right ID) (ID, error) {
 		return nil, errors.New("datalog: Add requires right value to be an Integer")
 	}
 
-	return Integer(ileft + iright), nil
+	bleft := big.NewInt(int64(ileft))
+	bright := big.NewInt(int64(iright))
+	res := big.NewInt(0)
+	res.Add(bleft, bright)
+
+	if !res.IsInt64() {
+		return nil, ErrInt64Overflow
+	}
+	return Integer(res.Int64()), nil
 }
 
 // Sub performs the substraction of left - right and returns the result
@@ -558,7 +572,15 @@ func (Sub) Eval(left ID, right ID) (ID, error) {
 		return nil, errors.New("datalog: Sub requires right value to be an Integer")
 	}
 
-	return Integer(ileft - iright), nil
+	bleft := big.NewInt(int64(ileft))
+	bright := big.NewInt(int64(iright))
+	res := big.NewInt(0)
+	res.Sub(bleft, bright)
+
+	if !res.IsInt64() {
+		return nil, ErrInt64Overflow
+	}
+	return Integer(res.Int64()), nil
 }
 
 // Mul performs the multiplication of left * right and returns the result
@@ -578,10 +600,17 @@ func (Mul) Eval(left ID, right ID) (ID, error) {
 		return nil, errors.New("datalog: Mul requires right value to be an Integer")
 	}
 
-	return Integer(ileft * iright), nil
-}
+	bleft := big.NewInt(int64(ileft))
+	bright := big.NewInt(int64(iright))
+	res := big.NewInt(0)
+	res.Mul(bleft, bright)
 
-var ErrExprDivByZero = errors.New("datalog: Div by zero")
+	if !res.IsInt64() {
+		return nil, ErrInt64Overflow
+	}
+
+	return Integer(res.Int64()), nil
+}
 
 // Div performs the division of left / right and returns the result
 // It requires left and right to be Integer

@@ -29,42 +29,221 @@ func TestExpressions(t *testing.T) {
 	require.Equal(t, Bool(true), res)
 }
 
-func TestWeirdExpressions(t *testing.T) {
-	// add overflow
-	ops := Expression{
-		Value{Integer(math.MaxInt64)},
-		Value{Integer(1)},
-		BinaryOp{Add{}},
-		Value{Integer(0)},
-		BinaryOp{LessThan{}},
+func TestAdd(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		left        int64
+		right       int64
+		res         int64
+		expectedErr error
+	}{
+		{
+			desc:  "normal addition",
+			left:  5,
+			right: 3,
+			res:   8,
+		},
+		{
+			desc:  "addition with negative numbers",
+			left:  10,
+			right: -7,
+			res:   3,
+		},
+		{
+			desc:  "addition with negative numbers 2",
+			left:  -7,
+			right: -3,
+			res:   -10,
+		},
+		{
+			desc:        "handle overflow errors",
+			left:        math.MaxInt64,
+			right:       1,
+			expectedErr: ErrInt64Overflow,
+		},
 	}
 
-	values := map[Variable]*ID{}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ops := Expression{
+				Value{Integer(tc.left)},
+				Value{Integer(tc.right)},
+				BinaryOp{Add{}},
+				Value{Integer(tc.res)},
+				BinaryOp{Equal{}},
+			}
+
+			res, err := ops.Evaluate(nil)
+			require.Equal(t, tc.expectedErr, errors.Unwrap(err))
+			if tc.expectedErr == nil {
+				require.Equal(t, Bool(true), res)
+			}
+		})
+	}
+}
+
+func TestSub(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		left        int64
+		right       int64
+		res         int64
+		expectedErr error
+	}{
+		{
+			desc:  "normal substraction",
+			left:  5,
+			right: 3,
+			res:   2,
+		},
+		{
+			desc:  "substraction with negative numbers",
+			left:  10,
+			right: -7,
+			res:   17,
+		},
+		{
+			desc:  "substraction with negative numbers 2",
+			left:  -7,
+			right: -3,
+			res:   -4,
+		},
+		{
+			desc:        "handle overflow errors",
+			left:        math.MinInt64,
+			right:       1,
+			expectedErr: ErrInt64Overflow,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ops := Expression{
+				Value{Integer(tc.left)},
+				Value{Integer(tc.right)},
+				BinaryOp{Sub{}},
+				Value{Integer(tc.res)},
+				BinaryOp{Equal{}},
+			}
+
+			res, err := ops.Evaluate(nil)
+			require.Equal(t, tc.expectedErr, errors.Unwrap(err))
+			if tc.expectedErr == nil {
+				require.Equal(t, Bool(true), res)
+			}
+		})
+	}
+}
+
+func TestDiv(t *testing.T) {
+	t.Run("regular division", func(t *testing.T) {
+		ops := Expression{
+			Value{Integer(32)},
+			Value{Integer(4)},
+			BinaryOp{Div{}},
+			Value{Integer(8)},
+			BinaryOp{Equal{}},
+		}
+
+		res, err := ops.Evaluate(nil)
+		require.NoError(t, err)
+		require.Equal(t, Bool(true), res)
+	})
+
+	t.Run("div by zero", func(t *testing.T) {
+		ops := Expression{
+			Value{Integer(42)},
+			Value{Integer(0)},
+			BinaryOp{Div{}},
+		}
+		_, err := ops.Evaluate(nil)
+		require.Equal(t, ErrExprDivByZero, errors.Unwrap(err))
+
+	})
+}
+
+func TestMul(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		left        int64
+		right       int64
+		res         int64
+		expectedErr error
+	}{
+		{
+			desc:  "normal multiplication",
+			left:  5,
+			right: 3,
+			res:   15,
+		},
+		{
+			desc:  "multiplication with negative numbers",
+			left:  10,
+			right: -7,
+			res:   -70,
+		},
+		{
+			desc:  "multiplication with negative numbers 2",
+			left:  -7,
+			right: -3,
+			res:   21,
+		},
+		{
+			desc:        "handle overflow errors",
+			left:        math.MaxInt64,
+			right:       math.MaxInt64,
+			expectedErr: ErrInt64Overflow,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ops := Expression{
+				Value{Integer(tc.left)},
+				Value{Integer(tc.right)},
+				BinaryOp{Mul{}},
+				Value{Integer(tc.res)},
+				BinaryOp{Equal{}},
+			}
+
+			res, err := ops.Evaluate(nil)
+			require.Equal(t, tc.expectedErr, errors.Unwrap(err))
+			if tc.expectedErr == nil {
+				require.Equal(t, Bool(true), res)
+			}
+		})
+	}
+}
+
+func TestExpressionParens(t *testing.T) {
+	ops := Expression{
+		Value{Integer(1)},
+		Value{Variable(2)},
+		Value{Integer(3)},
+		BinaryOp{Mul{}},
+		BinaryOp{Add{}},
+	}
+
+	values := map[Variable]*ID{
+		2: idptr(Integer(2)),
+	}
 
 	res, err := ops.Evaluate(values)
 	require.NoError(t, err)
-	require.Equal(t, Bool(true), res)
+	require.Equal(t, Integer(7), res)
 
-	// div by 0
 	ops = Expression{
-		Value{Integer(42)},
-		Value{Integer(0)},
-		BinaryOp{Div{}},
-	}
-	_, err = ops.Evaluate(values)
-	require.Equal(t, ErrExprDivByZero, errors.Unwrap(err))
-
-	// mul overflow
-	ops = Expression{
-		Value{Integer(math.MaxInt64)},
-		Value{Integer(math.MaxInt64)},
-		BinaryOp{Mul{}},
 		Value{Integer(1)},
-		BinaryOp{Equal{}},
+		Value{Variable(2)},
+		BinaryOp{Add{}},
+		UnaryOp{Parens{}},
+		Value{Integer(3)},
+		BinaryOp{Mul{}},
 	}
+
 	res, err = ops.Evaluate(values)
 	require.NoError(t, err)
-	require.Equal(t, Bool(true), res)
+	require.Equal(t, Integer(9), res)
 }
 
 func TestIn(t *testing.T) {
