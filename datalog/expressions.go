@@ -156,6 +156,8 @@ func (op UnaryOp) Print(value String) string {
 	switch op.UnaryOpFunc.Type() {
 	case UnaryNegate:
 		out = fmt.Sprintf("!%s", string(value))
+	case UnaryParens:
+		out = fmt.Sprintf("(%s)", string(value))
 	default:
 		out = fmt.Sprintf("unknown(%s)", string(value))
 	}
@@ -171,6 +173,7 @@ type UnaryOpType byte
 
 const (
 	UnaryNegate UnaryOpType = iota
+	UnaryParens
 )
 
 // Negate returns the negation of value
@@ -193,6 +196,18 @@ func (Negate) Eval(value ID) (ID, error) {
 	}
 
 	return out, nil
+}
+
+// Parens allows expression priority and grouping (like parenthesis in math operations)
+// its a no op, but is used to print back the expressions properly, putting their value
+// inside parenthesis.
+type Parens struct{}
+
+func (Parens) Type() UnaryOpType {
+	return UnaryParens
+}
+func (Parens) Eval(value ID) (ID, error) {
+	return value, nil
 }
 
 type BinaryOp struct {

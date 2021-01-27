@@ -208,7 +208,10 @@ message Op {
 }
 
 message OpUnary {
-  enum Kind { Negate = 0; }
+  enum Kind {
+    Negate = 0;
+    Parens = 1;
+  }
 
   Kind kind = 1;
 }

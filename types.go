@@ -223,6 +223,7 @@ type UnaryOp unaryOpType
 const (
 	UnaryUndefined UnaryOp = iota
 	UnaryNegate
+	UnaryParens
 )
 
 func (UnaryOp) Type() OpType {
@@ -232,6 +233,8 @@ func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 	switch op {
 	case UnaryNegate:
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}}
+	case UnaryParens:
+		return datalog.UnaryOp{UnaryOpFunc: datalog.Parens{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
 	}
