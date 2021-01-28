@@ -447,11 +447,11 @@ func (Prefix) Type() BinaryOpType {
 func (Prefix) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
-		return nil, errors.New("datalog: Prefix requires left value to be a String")
+		return nil, fmt.Errorf("datalog: Prefix requires left value to be a String, got %T", left)
 	}
 	sright, ok := right.(String)
 	if !ok {
-		return nil, errors.New("datalog: Prefix requires right value to be a String")
+		return nil, fmt.Errorf("datalog: Prefix requires right value to be a String, got %T", right)
 	}
 
 	return Bool(strings.HasPrefix(string(sleft), string(sright))), nil
@@ -467,11 +467,11 @@ func (Suffix) Type() BinaryOpType {
 func (Suffix) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
-		return nil, errors.New("datalog: Suffix requires left value to be a String")
+		return nil, fmt.Errorf("datalog: Suffix requires left value to be a String, got %T", left)
 	}
 	sright, ok := right.(String)
 	if !ok {
-		return nil, errors.New("datalog: Suffix requires right value to be a String")
+		return nil, fmt.Errorf("datalog: Suffix requires right value to be a String, got %T", right)
 	}
 
 	return Bool(strings.HasSuffix(string(sleft), string(sright))), nil
@@ -487,11 +487,11 @@ func (Regex) Type() BinaryOpType {
 func (Regex) Eval(left ID, right ID) (ID, error) {
 	sleft, ok := left.(String)
 	if !ok {
-		return nil, errors.New("datalog: Regex requires left value to be a String")
+		return nil, fmt.Errorf("datalog: Regex requires left value to be a String, got %T", left)
 	}
 	sright, ok := right.(String)
 	if !ok {
-		return nil, errors.New("datalog: Regex requires right value to be a String")
+		return nil, fmt.Errorf("datalog: Regex requires right value to be a String, got %T", right)
 	}
 
 	re, err := regexp.Compile(string(sright))
@@ -511,11 +511,11 @@ func (Add) Type() BinaryOpType {
 func (Add) Eval(left ID, right ID) (ID, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Add requires left value to be an Integer")
+		return nil, fmt.Errorf("datalog: Add requires left value to be an Integer, got %T", left)
 	}
 	iright, ok := right.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Add requires right value to be an Integer")
+		return nil, fmt.Errorf("datalog: Add requires right value to be an Integer, got %T", right)
 	}
 
 	bleft := big.NewInt(int64(ileft))
@@ -539,11 +539,11 @@ func (Sub) Type() BinaryOpType {
 func (Sub) Eval(left ID, right ID) (ID, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Sub requires left value to be an Integer")
+		return nil, fmt.Errorf("datalog: Sub requires left value to be an Integer, got %T", left)
 	}
 	iright, ok := right.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Sub requires right value to be an Integer")
+		return nil, fmt.Errorf("datalog: Sub requires right value to be an Integer, got %T", right)
 	}
 
 	bleft := big.NewInt(int64(ileft))
@@ -567,11 +567,11 @@ func (Mul) Type() BinaryOpType {
 func (Mul) Eval(left ID, right ID) (ID, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Mul requires left value to be an Integer")
+		return nil, fmt.Errorf("datalog: Mul requires left value to be an Integer, got %T", left)
 	}
 	iright, ok := right.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Mul requires right value to be an Integer")
+		return nil, fmt.Errorf("datalog: Mul requires right value to be an Integer, got %T", right)
 	}
 
 	bleft := big.NewInt(int64(ileft))
@@ -596,11 +596,11 @@ func (Div) Type() BinaryOpType {
 func (Div) Eval(left ID, right ID) (ID, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Div requires left value to be an Integer")
+		return nil, fmt.Errorf("datalog: Div requires left value to be an Integer, got %T", left)
 	}
 	iright, ok := right.(Integer)
 	if !ok {
-		return nil, errors.New("datalog: Div requires right value to be an Integer")
+		return nil, fmt.Errorf("datalog: Div requires right value to be an Integer, got %T", right)
 	}
 
 	if iright == 0 {
@@ -620,11 +620,11 @@ func (And) Type() BinaryOpType {
 func (And) Eval(left ID, right ID) (ID, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: And requires left value to be a Bool")
+		return nil, fmt.Errorf("datalog: And requires left value to be a Bool, got %T", left)
 	}
 	bright, ok := right.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: And requires right value to be a Bool")
+		return nil, fmt.Errorf("datalog: And requires right value to be a Bool, got %T", right)
 	}
 
 	return Bool(bleft && bright), nil
@@ -640,11 +640,11 @@ func (Or) Type() BinaryOpType {
 func (Or) Eval(left ID, right ID) (ID, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: Or requires left value to be a Bool")
+		return nil, fmt.Errorf("datalog: Or requires left value to be a Bool, got %T", left)
 	}
 	bright, ok := right.(Bool)
 	if !ok {
-		return nil, errors.New("datalog: Or requires right value to be a Bool")
+		return nil, fmt.Errorf("datalog: Or requires right value to be a Bool, got %T", right)
 	}
 
 	return Bool(bleft || bright), nil
