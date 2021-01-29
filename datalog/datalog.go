@@ -493,12 +493,6 @@ func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 					continue
 				}
 				v := currentFact.Predicate.IDs[j]
-				// for _, con := range c.constraints {
-				// 	if !con.Check(k, v) {
-				// 		matchIDs = false
-				// 		break
-				// 	}
-				// }
 				if !vars.Insert(k, v) {
 					matchIDs = false
 				}
