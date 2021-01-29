@@ -1,6 +1,7 @@
 package biscuit
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -9,694 +10,533 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// func TestConstraintConvertDateComparisonV1(t *testing.T) {
-// 	now := time.Now()
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.DateComparisonChecker
-// 		Expected *pb.DateConstraintV1
-// 	}{
-// 		{
-// 			Desc: "date comparison after",
-// 			Input: datalog.DateComparisonChecker{
-// 				Comparison: datalog.DateComparisonAfter,
-// 				Date:       datalog.Date(now.Unix()),
-// 			},
-// 			Expected: &pb.DateConstraintV1{
-// 				Constraint: &pb.DateConstraintV1_After{After: uint64(now.Unix())},
-// 			},
-// 		},
-// 		{
-// 			Desc: "date comparison before",
-// 			Input: datalog.DateComparisonChecker{
-// 				Comparison: datalog.DateComparisonBefore,
-// 				Date:       datalog.Date(123456789),
-// 			},
-// 			Expected: &pb.DateConstraintV1{
-// 				Constraint: &pb.DateConstraintV1_Before{Before: uint64(123456789)},
-// 			},
-// 		},
-// 	}
+func TestExpressionConvertV1(t *testing.T) {
+	now := time.Now()
 
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
+	testCases := []struct {
+		Desc     string
+		Input    datalog.Expression
+		Expected *pb.ExpressionV1
+	}{
+		{
+			Desc: "date comparison after",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(1)},
+				datalog.Value{ID: datalog.Date(now.Unix())},
+				datalog.BinaryOp{BinaryOpFunc: datalog.GreaterOrEqual{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 1}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterOrEqual}}},
+				},
+			},
+		},
+		{
+			Desc: "date comparison before",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(2)},
+				datalog.Value{ID: datalog.Date(123456789)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.LessOrEqual{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 2}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Date{Date: uint64(123456789)}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessOrEqual}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(3)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 3}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison larger",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(4)},
+				datalog.Value{ID: datalog.Integer(-42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.GreaterThan{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 4}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: -42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterThan}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison larger or equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(5)},
+				datalog.Value{ID: datalog.Integer(43)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.GreaterOrEqual{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 5}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 43}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterOrEqual}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison lower",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(6)},
+				datalog.Value{ID: datalog.Integer(0)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.LessThan{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 6}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 0}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessThan}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison lower or equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(7)},
+				datalog.Value{ID: datalog.Integer(math.MaxInt64)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.LessOrEqual{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 7}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: math.MaxInt64}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessOrEqual}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Integer(1), datalog.Integer(2), datalog.Integer(3)}},
+				datalog.Value{ID: datalog.Variable(8)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Integer{Integer: 1}},
+						{Content: &pb.IDV1_Integer{Integer: 2}},
+						{Content: &pb.IDV1_Integer{Integer: 3}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 8}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+				},
+			},
+		},
+		{
+			Desc: "int comparison not in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Integer(1), datalog.Integer(2), datalog.Integer(3)}},
+				datalog.Value{ID: datalog.Variable(9)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Integer{Integer: 1}},
+						{Content: &pb.IDV1_Integer{Integer: 2}},
+						{Content: &pb.IDV1_Integer{Integer: 3}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 9}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate}}},
+				},
+			},
+		},
 
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
+		{
+			Desc: "string comparison equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(10)},
+				datalog.Value{ID: datalog.String("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 10}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Str{Str: "abcd"}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal}}},
+				},
+			},
+		},
+		{
+			Desc: "string comparison prefix",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(11)},
+				datalog.Value{ID: datalog.String("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 11}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Str{Str: "abcd"}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix}}},
+				},
+			},
+		},
+		{
+			Desc: "string comparison suffix",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(12)},
+				datalog.Value{ID: datalog.String("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Suffix{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 12}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Str{Str: "abcd"}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Suffix}}},
+				},
+			},
+		},
+		{
+			Desc: "string comparison in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.String("a"), datalog.String("b"), datalog.String("c")}},
+				datalog.Value{ID: datalog.Variable(13)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Str{Str: "a"}},
+						{Content: &pb.IDV1_Str{Str: "b"}},
+						{Content: &pb.IDV1_Str{Str: "c"}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 13}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+				},
+			},
+		},
+		{
+			Desc: "string comparison not in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.String("a"), datalog.String("b"), datalog.String("c")}},
+				datalog.Value{ID: datalog.Variable(14)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Str{Str: "a"}},
+						{Content: &pb.IDV1_Str{Str: "b"}},
+						{Content: &pb.IDV1_Str{Str: "c"}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 14}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate}}},
+				},
+			},
+		},
+		{
+			Desc: "string regexp",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(15)},
+				datalog.Value{ID: datalog.String("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Regex{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 15}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Str{Str: "abcd"}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Regex}}},
+				},
+			},
+		},
+		{
+			Desc: "bytes equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(16)},
+				datalog.Value{ID: datalog.Bytes("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 16}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Bytes{Bytes: []byte("abcd")}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal}}},
+				},
+			},
+		},
+		{
+			Desc: "bytes in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Bytes("a"), datalog.Bytes("b"), datalog.Bytes("c")}},
+				datalog.Value{ID: datalog.Variable(17)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("a")}},
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("b")}},
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("c")}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 17}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+				},
+			},
+		},
+		{
+			Desc: "bytes not in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Bytes("a"), datalog.Bytes("b"), datalog.Bytes("c")}},
+				datalog.Value{ID: datalog.Variable(18)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("a")}},
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("b")}},
+						{Content: &pb.IDV1_Bytes{Bytes: []byte("c")}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 18}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate}}},
+				},
+			},
+		},
+		{
+			Desc: "symbols in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Symbol(1), datalog.Symbol(2), datalog.Symbol(3)}},
+				datalog.Value{ID: datalog.Variable(19)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Symbol{Symbol: 1}},
+						{Content: &pb.IDV1_Symbol{Symbol: 2}},
+						{Content: &pb.IDV1_Symbol{Symbol: 3}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 19}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+				},
+			},
+		},
+		{
+			Desc: "symbols not in",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Set{datalog.Symbol(1), datalog.Symbol(2), datalog.Symbol(3)}},
+				datalog.Value{ID: datalog.Variable(20)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
+				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Set{Set: &pb.IDSet{Set: []*pb.IDV1{
+						{Content: &pb.IDV1_Symbol{Symbol: 1}},
+						{Content: &pb.IDV1_Symbol{Symbol: 2}},
+						{Content: &pb.IDV1_Symbol{Symbol: 3}},
+					}}}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 20}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains}}},
+					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate}}},
+				},
+			},
+		},
+		{
+			Desc: "add",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(21)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Add{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 21}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Add}}},
+				},
+			},
+		},
+		{
+			Desc: "sub",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(22)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Sub{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 22}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Sub}}},
+				},
+			},
+		},
+		{
+			Desc: "mul",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(23)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Mul{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 23}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Mul}}},
+				},
+			},
+		},
+		{
+			Desc: "div",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(24)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Div{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 24}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Div}}},
+				},
+			},
+		},
+		{
+			Desc: "and",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(25)},
+				datalog.Value{ID: datalog.Bool(true)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.And{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 25}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Bool{Bool: true}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_And}}},
+				},
+			},
+		},
+		{
+			Desc: "or",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(26)},
+				datalog.Value{ID: datalog.Bool(true)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Or{}},
+			},
+			Expected: &pb.ExpressionV1{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 26}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Bool{Bool: true}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Or}}},
+				},
+			},
+		},
+	}
 
-// 			expected := &pb.ConstraintV1{
-// 				Id:         i,
-// 				Constraint: &pb.ConstraintV1_Date{Date: testCase.Expected},
-// 			}
-// 			require.Equal(t, expected, out)
+	for _, testCase := range testCases {
+		t.Run(testCase.Desc, func(t *testing.T) {
+			out, err := tokenExpressionToProtoExpressionV1(testCase.Input)
+			require.NoError(t, err)
 
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
+			require.Equal(t, testCase.Expected, out)
 
-// func TestConstraintConvertIntegerComparisonV1(t *testing.T) {
-// 	n := rand.Int63()
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.IntegerComparisonChecker
-// 		Expected *pb.IntConstraintV1
-// 	}{
-// 		{
-// 			Desc: "int comparison equal",
-// 			Input: datalog.IntegerComparisonChecker{
-// 				Comparison: datalog.IntegerComparisonEqual,
-// 				Integer:    datalog.Integer(n),
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_Equal{Equal: n},
-// 			},
-// 		},
-// 		{
-// 			Desc: "int comparison larger",
-// 			Input: datalog.IntegerComparisonChecker{
-// 				Comparison: datalog.IntegerComparisonGT,
-// 				Integer:    datalog.Integer(n),
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_GreaterThan{GreaterThan: n},
-// 			},
-// 		},
-// 		{
-// 			Desc: "int comparison larger or equal",
-// 			Input: datalog.IntegerComparisonChecker{
-// 				Comparison: datalog.IntegerComparisonGTE,
-// 				Integer:    datalog.Integer(n),
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_GreaterOrEqual{GreaterOrEqual: n},
-// 			},
-// 		},
-// 		{
-// 			Desc: "int comparison lower",
-// 			Input: datalog.IntegerComparisonChecker{
-// 				Comparison: datalog.IntegerComparisonLT,
-// 				Integer:    datalog.Integer(n),
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_LessThan{LessThan: n},
-// 			},
-// 		},
-// 		{
-// 			Desc: "int comparison lower or equal",
-// 			Input: datalog.IntegerComparisonChecker{
-// 				Comparison: datalog.IntegerComparisonLTE,
-// 				Integer:    datalog.Integer(n),
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_LessOrEqual{LessOrEqual: n},
-// 			},
-// 		},
-// 	}
+			dlout, err := protoExpressionToTokenExpressionV1(out)
+			require.NoError(t, err)
+			require.Equal(t, testCase.Input, dlout)
+		})
+	}
+}
 
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
+func TestRuleConvertV1(t *testing.T) {
+	now := time.Now()
 
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id:         i,
-// 				Constraint: &pb.ConstraintV1_Int{Int: testCase.Expected},
-// 			}
-// 			require.Equal(t, expected, out)
+	in := &datalog.Rule{
+		Head: datalog.Predicate{
+			Name: datalog.Symbol(42),
+			IDs:  []datalog.ID{datalog.Integer(1), datalog.String("id_1")},
+		},
+		Body: []datalog.Predicate{
+			{
+				Name: datalog.Symbol(43),
+				IDs:  []datalog.ID{datalog.Symbol(2), datalog.Date(now.Unix())},
+			}, {
+				Name: datalog.Symbol(44),
+				IDs:  []datalog.ID{datalog.Bytes([]byte("abcd"))},
+			},
+		},
+		Expressions: []datalog.Expression{
+			{
+				datalog.Value{ID: datalog.Variable(9)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
+			},
+			{
+				datalog.Value{ID: datalog.Variable(99)},
+				datalog.Value{ID: datalog.String("abcd")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}},
+			},
+		},
+	}
 
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
+	expectedPbRule := &pb.RuleV1{
+		Head: &pb.PredicateV1{Name: 42, Ids: []*pb.IDV1{
+			{Content: &pb.IDV1_Integer{Integer: 1}},
+			{Content: &pb.IDV1_Str{Str: "id_1"}},
+		}},
+		Body: []*pb.PredicateV1{
+			{
+				Name: 43,
+				Ids: []*pb.IDV1{
+					{Content: &pb.IDV1_Symbol{Symbol: 2}},
+					{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}},
+				},
+			},
+			{
+				Name: 44,
+				Ids: []*pb.IDV1{
+					{Content: &pb.IDV1_Bytes{Bytes: []byte("abcd")}},
+				},
+			},
+		},
+		Expressions: []*pb.ExpressionV1{
+			{Ops: []*pb.Op{
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 9}}}},
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 42}}}},
+				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal}}},
+			}},
+			{Ops: []*pb.Op{
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 99}}}},
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Str{Str: "abcd"}}}},
+				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix}}},
+			}},
+		},
+	}
 
-// func TestConstraintConvertIntegerInV1(t *testing.T) {
-// 	n1 := rand.Int63()
-// 	n2 := rand.Int63()
-// 	n3 := rand.Int63()
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.IntegerInChecker
-// 		Expected *pb.IntConstraintV1
-// 	}{
-// 		{
-// 			Desc: "int comparison in",
-// 			Input: datalog.IntegerInChecker{
-// 				Set: map[datalog.Integer]struct{}{
-// 					datalog.Integer(n1): {},
-// 					datalog.Integer(n2): {},
-// 					datalog.Integer(n3): {},
-// 				},
-// 				Not: false,
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_InSet{
-// 					InSet: &pb.IntSet{Set: []int64{n1, n2, n3}},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "int comparison not in",
-// 			Input: datalog.IntegerInChecker{
-// 				Set: map[datalog.Integer]struct{}{
-// 					datalog.Integer(n1): {},
-// 					datalog.Integer(n2): {},
-// 					datalog.Integer(n3): {},
-// 				},
-// 				Not: true,
-// 			},
-// 			Expected: &pb.IntConstraintV1{
-// 				Constraint: &pb.IntConstraintV1_NotInSet{
-// 					NotInSet: &pb.IntSet{Set: []int64{n1, n2, n3}},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id:         i,
-// 				Constraint: &pb.ConstraintV1_Int{Int: testCase.Expected},
-// 			}
-
-// 			sortIt := func(s []int64) {
-// 				sort.Slice(s, func(i, j int) bool {
-// 					return s[i] < s[j]
-// 				})
-// 			}
-
-// 			if s := out.GetInt().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetInt().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := out.GetInt().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetInt().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertStringComparisonV1(t *testing.T) {
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.StringComparisonChecker
-// 		Expected *pb.StringConstraintV1
-// 	}{
-// 		{
-// 			Desc: "string comparison equal",
-// 			Input: datalog.StringComparisonChecker{
-// 				Comparison: datalog.StringComparisonEqual,
-// 				Str:        "abcd",
-// 			},
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_Equal{
-// 					Equal: "abcd",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "string comparison prefix",
-// 			Input: datalog.StringComparisonChecker{
-// 				Comparison: datalog.StringComparisonPrefix,
-// 				Str:        "abcd",
-// 			},
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_Prefix{
-// 					Prefix: "abcd",
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "string comparison suffix",
-// 			Input: datalog.StringComparisonChecker{
-// 				Comparison: datalog.StringComparisonSuffix,
-// 				Str:        "abcd",
-// 			},
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_Suffix{
-// 					Suffix: "abcd",
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id: i,
-// 				Constraint: &pb.ConstraintV1_Str{
-// 					Str: testCase.Expected,
-// 				},
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertStringInV1(t *testing.T) {
-// 	s1 := "abcd"
-// 	s2 := "efgh"
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.StringInChecker
-// 		Expected *pb.StringConstraintV1
-// 	}{
-// 		{
-// 			Desc: "string comparison in",
-// 			Input: datalog.StringInChecker{
-// 				Set: map[datalog.String]struct{}{datalog.String(s1): {}, datalog.String(s2): {}},
-// 				Not: false,
-// 			},
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_InSet{
-// 					InSet: &pb.StringSet{Set: []string{s1, s2}},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "string comparison not in",
-// 			Input: datalog.StringInChecker{
-// 				Set: map[datalog.String]struct{}{datalog.String(s1): {}, datalog.String(s2): {}},
-// 				Not: true,
-// 			},
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_NotInSet{
-// 					NotInSet: &pb.StringSet{Set: []string{s1, s2}},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id: i,
-// 				Constraint: &pb.ConstraintV1_Str{
-// 					Str: testCase.Expected,
-// 				},
-// 			}
-
-// 			if s := out.GetStr().GetInSet(); s != nil {
-// 				sort.Strings(s.Set)
-// 			}
-// 			if s := expected.GetStr().GetInSet(); s != nil {
-// 				sort.Strings(s.Set)
-// 			}
-// 			if s := out.GetStr().GetNotInSet(); s != nil {
-// 				sort.Strings(s.Set)
-// 			}
-// 			if s := expected.GetStr().GetNotInSet(); s != nil {
-// 				sort.Strings(s.Set)
-// 			}
-
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertStringRegexpV1(t *testing.T) {
-// 	re := regexp.MustCompile(`[a-z0-9_]+`)
-// 	dlre := datalog.StringRegexpChecker(*re)
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    *datalog.StringRegexpChecker
-// 		Expected *pb.StringConstraintV1
-// 	}{
-// 		{
-// 			Desc:  "string regexp",
-// 			Input: &dlre,
-// 			Expected: &pb.StringConstraintV1{
-// 				Constraint: &pb.StringConstraintV1_Regex{
-// 					Regex: re.String(),
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id: i,
-// 				Constraint: &pb.ConstraintV1_Str{
-// 					Str: testCase.Expected,
-// 				},
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertBytesComparisonV1(t *testing.T) {
-// 	b := make([]byte, 64)
-// 	_, err := rand.Read(b)
-// 	require.NoError(t, err)
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.BytesComparisonChecker
-// 		Expected *pb.BytesConstraintV1
-// 	}{
-// 		{
-// 			Desc: "bytes comparison equal",
-// 			Input: datalog.BytesComparisonChecker{
-// 				Comparison: datalog.BytesComparisonEqual,
-// 				Bytes:      b,
-// 			},
-// 			Expected: &pb.BytesConstraintV1{
-// 				Constraint: &pb.BytesConstraintV1_Equal{
-// 					Equal: b,
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id: i,
-// 				Constraint: &pb.ConstraintV1_Bytes{
-// 					Bytes: testCase.Expected,
-// 				},
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertBytesInV1(t *testing.T) {
-// 	b1 := make([]byte, 64)
-// 	_, err := rand.Read(b1)
-// 	require.NoError(t, err)
-
-// 	b2 := make([]byte, 128)
-// 	_, err = rand.Read(b2)
-// 	require.NoError(t, err)
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.BytesInChecker
-// 		Expected *pb.BytesConstraintV1
-// 	}{
-// 		{
-// 			Desc: "bytes in",
-// 			Input: datalog.BytesInChecker{
-// 				Set: map[string]struct{}{hex.EncodeToString(b1): {}, hex.EncodeToString(b2): {}},
-// 				Not: false,
-// 			},
-// 			Expected: &pb.BytesConstraintV1{
-// 				Constraint: &pb.BytesConstraintV1_InSet{
-// 					InSet: &pb.BytesSet{Set: [][]byte{b1, b2}},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "bytes not in",
-// 			Input: datalog.BytesInChecker{
-// 				Set: map[string]struct{}{hex.EncodeToString(b1): {}, hex.EncodeToString(b2): {}},
-// 				Not: true,
-// 			},
-// 			Expected: &pb.BytesConstraintV1{
-// 				Constraint: &pb.BytesConstraintV1_NotInSet{
-// 					NotInSet: &pb.BytesSet{Set: [][]byte{b1, b2}},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id:         i,
-// 				Constraint: &pb.ConstraintV1_Bytes{Bytes: testCase.Expected},
-// 			}
-
-// 			sortIt := func(s [][]byte) {
-// 				sort.Slice(s, func(i, j int) bool {
-// 					return strings.Compare(hex.EncodeToString(s[i]), hex.EncodeToString(s[j])) < 0
-// 				})
-// 			}
-
-// 			if s := out.GetBytes().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetBytes().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := out.GetBytes().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetBytes().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestConstraintConvertSymbolInV1(t *testing.T) {
-// 	s1 := rand.Uint64()
-// 	s2 := rand.Uint64()
-// 	s3 := rand.Uint64()
-
-// 	testCases := []struct {
-// 		Desc     string
-// 		Input    datalog.SymbolInChecker
-// 		Expected *pb.SymbolConstraintV1
-// 	}{
-// 		{
-// 			Desc: "symbol in",
-// 			Input: datalog.SymbolInChecker{
-// 				Set: map[datalog.Symbol]struct{}{
-// 					datalog.Symbol(s1): {},
-// 					datalog.Symbol(s2): {},
-// 					datalog.Symbol(s3): {},
-// 				},
-// 				Not: false,
-// 			},
-// 			Expected: &pb.SymbolConstraintV1{
-// 				Constraint: &pb.SymbolConstraintV1_InSet{
-// 					InSet: &pb.SymbolSet{Set: []uint64{s1, s2, s3}},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Desc: "symbol not in",
-// 			Input: datalog.SymbolInChecker{
-// 				Set: map[datalog.Symbol]struct{}{
-// 					datalog.Symbol(s1): {},
-// 					datalog.Symbol(s2): {},
-// 					datalog.Symbol(s3): {},
-// 				},
-// 				Not: true,
-// 			},
-// 			Expected: &pb.SymbolConstraintV1{
-// 				Constraint: &pb.SymbolConstraintV1_NotInSet{
-// 					NotInSet: &pb.SymbolSet{Set: []uint64{s1, s2, s3}},
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	for _, testCase := range testCases {
-// 		t.Run(testCase.Desc, func(t *testing.T) {
-// 			i := rand.Uint32()
-// 			in := &datalog.Constraint{
-// 				Name:    datalog.Variable(i),
-// 				Checker: testCase.Input,
-// 			}
-// 			out, err := tokenConstraintToProtoConstraintV1(*in)
-// 			require.NoError(t, err)
-// 			expected := &pb.ConstraintV1{
-// 				Id: i,
-// 				Constraint: &pb.ConstraintV1_Symbol{
-// 					Symbol: testCase.Expected,
-// 				},
-// 			}
-
-// 			sortIt := func(s []uint64) {
-// 				sort.Slice(s, func(i, j int) bool {
-// 					return s[i] < s[j]
-// 				})
-// 			}
-
-// 			if s := out.GetSymbol().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetSymbol().GetInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := out.GetSymbol().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			if s := expected.GetSymbol().GetNotInSet(); s != nil {
-// 				sortIt(s.Set)
-// 			}
-// 			require.Equal(t, expected, out)
-
-// 			dlout, err := protoConstraintToTokenConstraintV1(out)
-// 			require.NoError(t, err)
-// 			require.Equal(t, in, dlout)
-// 		})
-// 	}
-// }
-
-// func TestRuleConvertV1(t *testing.T) {
-// 	now := time.Now()
-
-// 	in := &datalog.Rule{
-// 		Head: datalog.Predicate{
-// 			Name: datalog.Symbol(42),
-// 			IDs:  []datalog.ID{datalog.Integer(1), datalog.String("id_1")},
-// 		},
-// 		Body: []datalog.Predicate{
-// 			{
-// 				Name: datalog.Symbol(43),
-// 				IDs:  []datalog.ID{datalog.Symbol(2), datalog.Date(now.Unix())},
-// 			}, {
-// 				Name: datalog.Symbol(44),
-// 				IDs:  []datalog.ID{datalog.Bytes([]byte("abcd"))},
-// 			},
-// 		},
-// 		Constraints: []datalog.Constraint{
-// 			{
-// 				Name: datalog.Variable(9),
-// 				Checker: datalog.IntegerComparisonChecker{
-// 					Comparison: datalog.IntegerComparisonEqual,
-// 					Integer:    42,
-// 				},
-// 			}, {
-// 				Name: datalog.Variable(99),
-// 				Checker: datalog.StringComparisonChecker{
-// 					Comparison: datalog.StringComparisonPrefix,
-// 					Str:        "abcd",
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	expectedPbRule := &pb.RuleV1{
-// 		Head: &pb.PredicateV1{Name: 42, Ids: []*pb.IDV1{
-// 			{Content: &pb.IDV1_Integer{Integer: 1}},
-// 			{Content: &pb.IDV1_Str{Str: "id_1"}},
-// 		}},
-// 		Body: []*pb.PredicateV1{
-// 			{
-// 				Name: 43,
-// 				Ids: []*pb.IDV1{
-// 					{Content: &pb.IDV1_Symbol{Symbol: 2}},
-// 					{Content: &pb.IDV1_Date{Date: uint64(now.Unix())}},
-// 				},
-// 			},
-// 			{
-// 				Name: 44,
-// 				Ids: []*pb.IDV1{
-// 					{Content: &pb.IDV1_Bytes{Bytes: []byte("abcd")}},
-// 				},
-// 			},
-// 		},
-// 		Constraints: []*pb.ConstraintV1{
-// 			{Id: 9, Constraint: &pb.ConstraintV1_Int{Int: &pb.IntConstraintV1{Constraint: &pb.IntConstraintV1_Equal{Equal: 42}}}},
-// 			{Id: 99, Constraint: &pb.ConstraintV1_Str{Str: &pb.StringConstraintV1{Constraint: &pb.StringConstraintV1_Prefix{Prefix: "abcd"}}}},
-// 		},
-// 	}
-
-// 	pbRule, err := tokenRuleToProtoRuleV1(*in)
-// 	require.NoError(t, err)
-// 	require.Equal(t, expectedPbRule, pbRule)
-// 	out, err := protoRuleToTokenRuleV1(pbRule)
-// 	require.NoError(t, err)
-// 	require.Equal(t, in, out)
-// }
+	pbRule, err := tokenRuleToProtoRuleV1(*in)
+	require.NoError(t, err)
+	require.Equal(t, expectedPbRule, pbRule)
+	out, err := protoRuleToTokenRuleV1(pbRule)
+	require.NoError(t, err)
+	require.Equal(t, in, out)
+}
 
 func TestFactConvertV1(t *testing.T) {
 	now := time.Now()
@@ -831,145 +671,72 @@ func TestConvertInvalidSets(t *testing.T) {
 	}
 }
 
-// func TestBlockConvertV1(t *testing.T) {
-// 	predicate := datalog.Predicate{
-// 		Name: datalog.Symbol(12),
-// 		IDs:  []datalog.ID{datalog.String("abcd")},
-// 	}
+func TestBlockConvertV1(t *testing.T) {
+	predicate := datalog.Predicate{
+		Name: datalog.Symbol(12),
+		IDs:  []datalog.ID{datalog.String("abcd")},
+	}
 
-// 	pbPredicate := &pb.PredicateV1{
-// 		Name: 12,
-// 		Ids:  []*pb.IDV1{{Content: &pb.IDV1_Str{Str: "abcd"}}},
-// 	}
+	pbPredicate := &pb.PredicateV1{
+		Name: 12,
+		Ids:  []*pb.IDV1{{Content: &pb.IDV1_Str{Str: "abcd"}}},
+	}
 
-// 	rule := &datalog.Rule{
-// 		Head: predicate,
-// 		Body: []datalog.Predicate{predicate},
-// 		Constraints: []datalog.Constraint{
-// 			{
-// 				Name: datalog.Variable(13),
-// 				Checker: datalog.IntegerComparisonChecker{
-// 					Comparison: datalog.IntegerComparisonEqual,
-// 					Integer:    1234,
-// 				},
-// 			},
-// 		},
-// 	}
+	rule := &datalog.Rule{
+		Head: predicate,
+		Body: []datalog.Predicate{predicate},
+		Expressions: []datalog.Expression{
+			{
+				datalog.Value{ID: datalog.Variable(13)},
+				datalog.Value{ID: datalog.Integer(1234)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
+			},
+		},
+	}
 
-// 	pbRule := &pb.RuleV1{
-// 		Head: pbPredicate,
-// 		Body: []*pb.PredicateV1{pbPredicate},
-// 		Constraints: []*pb.ConstraintV1{
-// 			{
-// 				Id: 13,
-// 				Constraint: &pb.ConstraintV1_Int{Int: &pb.IntConstraintV1{
-// 					Constraint: &pb.IntConstraintV1_Equal{Equal: 1234},
-// 				}},
-// 			},
-// 		},
-// 	}
+	pbRule := &pb.RuleV1{
+		Head: pbPredicate,
+		Body: []*pb.PredicateV1{pbPredicate},
+		Expressions: []*pb.ExpressionV1{
+			{Ops: []*pb.Op{
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Variable{Variable: 13}}}},
+				{Content: &pb.Op_Value{Value: &pb.IDV1{Content: &pb.IDV1_Integer{Integer: 1234}}}},
+				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal}}},
+			}},
+		},
+	}
 
-// 	in := &Block{
-// 		index:   42,
-// 		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
-// 		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
-// 		rules:   []datalog.Rule{*rule},
-// 		caveats: []datalog.Caveat{{Queries: []datalog.Rule{*rule}}},
-// 		context: "context",
-// 		version: 1,
-// 	}
+	in := &Block{
+		index:   42,
+		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
+		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
+		rules:   []datalog.Rule{*rule},
+		caveats: []datalog.Caveat{{Queries: []datalog.Rule{*rule}}},
+		context: "context",
+		version: 1,
+	}
 
-// 	expectedPbBlock := &pb.Block{
-// 		Index:   42,
-// 		Symbols: []string{"a", "b", "c", "d"},
-// 		FactsV1: []*pb.FactV1{
-// 			{Predicate: pbPredicate},
-// 		},
-// 		RulesV1:   []*pb.RuleV1{pbRule},
-// 		CaveatsV1: []*pb.CaveatV1{{Queries: []*pb.RuleV1{pbRule}}},
-// 		Context:   "context",
-// 		Version:   1,
-// 	}
+	expectedPbBlock := &pb.Block{
+		Index:   42,
+		Symbols: []string{"a", "b", "c", "d"},
+		FactsV1: []*pb.FactV1{
+			{Predicate: pbPredicate},
+		},
+		RulesV1:   []*pb.RuleV1{pbRule},
+		CaveatsV1: []*pb.CaveatV1{{Queries: []*pb.RuleV1{pbRule}}},
+		Context:   "context",
+		Version:   1,
+	}
 
-// 	pbBlock, err := tokenBlockToProtoBlock(in)
-// 	require.NoError(t, err)
-// 	require.Equal(t, expectedPbBlock, pbBlock)
+	pbBlock, err := tokenBlockToProtoBlock(in)
+	require.NoError(t, err)
+	require.Equal(t, expectedPbBlock, pbBlock)
 
-// 	out, err := protoBlockToTokenBlock(pbBlock)
-// 	require.NoError(t, err)
-// 	require.Equal(t, in, out)
+	out, err := protoBlockToTokenBlock(pbBlock)
+	require.NoError(t, err)
+	require.Equal(t, in, out)
 
-// 	pbBlock.Version = MaxSchemaVersion + 1
-// 	_, err = protoBlockToTokenBlock(pbBlock)
-// 	require.Error(t, err)
-// }
-
-// func TestBlockConvertV1_BackwardCompat(t *testing.T) {
-// 	predicate := datalog.Predicate{
-// 		Name: datalog.Symbol(12),
-// 		IDs:  []datalog.ID{datalog.String("abcd")},
-// 	}
-// 	pbPredicate := &pb.PredicateV0{
-// 		Name: 12,
-// 		Ids:  []*pb.IDV0{{Kind: pb.IDV0_STR, Str: "abcd"}},
-// 	}
-
-// 	rule := &datalog.Rule{
-// 		Head: predicate,
-// 		Body: []datalog.Predicate{predicate},
-// 		Constraints: []datalog.Constraint{
-// 			{
-// 				Name: datalog.Variable(13),
-// 				Checker: datalog.IntegerComparisonChecker{
-// 					Comparison: datalog.IntegerComparisonEqual,
-// 					Integer:    1234,
-// 				},
-// 			},
-// 		},
-// 	}
-// 	pbRule := &pb.RuleV0{
-// 		Head: pbPredicate,
-// 		Body: []*pb.PredicateV0{pbPredicate},
-// 		Constraints: []*pb.ConstraintV0{
-// 			{
-// 				Id:   13,
-// 				Kind: pb.ConstraintV0_INT,
-// 				Int:  &pb.IntConstraintV0{Kind: pb.IntConstraintV0_EQUAL, Equal: 1234},
-// 			},
-// 		},
-// 	}
-
-// 	in := &Block{
-// 		index:   42,
-// 		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
-// 		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
-// 		rules:   []datalog.Rule{*rule},
-// 		caveats: []datalog.Caveat{{Queries: []datalog.Rule{*rule}}},
-// 		context: "context",
-// 		version: 0,
-// 	}
-
-// 	expectedPbBlock := &pb.Block{
-// 		Index:   42,
-// 		Symbols: []string{"a", "b", "c", "d"},
-// 		FactsV0: []*pb.FactV0{
-// 			{Predicate: pbPredicate},
-// 		},
-// 		RulesV0:   []*pb.RuleV0{pbRule},
-// 		CaveatsV0: []*pb.CaveatV0{{Queries: []*pb.RuleV0{pbRule}}},
-// 		Context:   "context",
-// 		Version:   0,
-// 	}
-
-// 	pbBlock, err := tokenBlockToProtoBlock(in)
-// 	require.NoError(t, err)
-// 	require.Equal(t, expectedPbBlock, pbBlock)
-
-// 	out, err := protoBlockToTokenBlock(pbBlock)
-// 	require.NoError(t, err)
-// 	require.Equal(t, in, out)
-
-// 	pbBlock.Version = 1
-// 	_, err = protoBlockToTokenBlock(pbBlock)
-// 	require.NoError(t, err)
-// }
+	pbBlock.Version = MaxSchemaVersion + 1
+	_, err = protoBlockToTokenBlock(pbBlock)
+	require.Error(t, err)
+}
