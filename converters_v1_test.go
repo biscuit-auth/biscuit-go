@@ -711,7 +711,7 @@ func TestBlockConvertV1(t *testing.T) {
 		symbols: &datalog.SymbolTable{"a", "b", "c", "d"},
 		facts:   &datalog.FactSet{datalog.Fact{Predicate: predicate}},
 		rules:   []datalog.Rule{*rule},
-		caveats: []datalog.Caveat{{Queries: []datalog.Rule{*rule}}},
+		checks:  []datalog.Check{{Queries: []datalog.Rule{*rule}}},
 		context: "context",
 		version: 1,
 	}
@@ -722,10 +722,10 @@ func TestBlockConvertV1(t *testing.T) {
 		FactsV1: []*pb.FactV1{
 			{Predicate: pbPredicate},
 		},
-		RulesV1:   []*pb.RuleV1{pbRule},
-		CaveatsV1: []*pb.CaveatV1{{Queries: []*pb.RuleV1{pbRule}}},
-		Context:   "context",
-		Version:   1,
+		RulesV1:  []*pb.RuleV1{pbRule},
+		ChecksV1: []*pb.CheckV1{{Queries: []*pb.RuleV1{pbRule}}},
+		Context:  "context",
+		Version:  1,
 	}
 
 	pbBlock, err := tokenBlockToProtoBlock(in)

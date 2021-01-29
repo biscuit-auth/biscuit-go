@@ -269,7 +269,7 @@ func TestSample10_AuthorityRules(t *testing.T) {
 	}
 }
 
-func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
+func TestSample11_VerifierAuthorityChecks(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
 			token := loadSampleToken(t, v, "test11_verifier_authority_caveats.bc")
@@ -280,7 +280,7 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 			v, err := b.Verify(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
-			verifierCaveat := biscuit.Caveat{
+			verifierCheck := biscuit.Check{
 				Queries: []biscuit.Rule{
 					{
 						Head: biscuit.Predicate{
@@ -300,25 +300,25 @@ func TestSample11_VerifierAuthorityCaveats(t *testing.T) {
 
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
-			verifier.AddCaveat(verifierCaveat)
+			verifier.AddCheck(verifierCheck)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("write")
 			verifier.AddResource("file1")
-			verifier.AddCaveat(verifierCaveat)
+			verifier.AddCheck(verifierCheck)
 			require.Error(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("read")
 			verifier.AddResource("/another/file1")
-			verifier.AddCaveat(verifierCaveat)
+			verifier.AddCheck(verifierCheck)
 			require.Error(t, verifier.Verify())
 		})
 	}
 }
 
-func TestSample12_AuthorityCaveats(t *testing.T) {
+func TestSample12_AuthorityChecks(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
 			token := loadSampleToken(t, v, "test12_authority_caveats.bc")
@@ -434,7 +434,7 @@ func TestSample14_RegexConstraint(t *testing.T) {
 	}
 }
 
-func TestSample15_MultiQueriesCaveats(t *testing.T) {
+func TestSample15_MultiQueriesChecks(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
 			token := loadSampleToken(t, v, "test15_multi_queries_caveats.bc")
@@ -465,21 +465,21 @@ func TestSample15_MultiQueriesCaveats(t *testing.T) {
 				},
 			}
 
-			v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule1, rule2}})
+			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule1, rule2}})
 			require.NoError(t, v.Verify())
 
 			v.Reset()
-			v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule1}})
+			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule1}})
 			require.NoError(t, v.Verify())
 
 			v.Reset()
-			v.AddCaveat(biscuit.Caveat{Queries: []biscuit.Rule{rule2}})
+			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule2}})
 			require.Error(t, v.Verify())
 		})
 	}
 }
 
-func TestSample16_CaveatHeadName(t *testing.T) {
+func TestSample16_CheckHeadName(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
 			token := loadSampleToken(t, v, "test16_caveat_head_name.bc")

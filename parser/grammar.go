@@ -79,7 +79,7 @@ type Predicate struct {
 	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
 }
 
-type Caveat struct {
+type Check struct {
 	Queries []*Rule `"[" @@ ( "||" @@ )* "]"`
 }
 
@@ -435,7 +435,7 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 	}, nil
 }
 
-func (c *Caveat) ToBiscuit() (*biscuit.Caveat, error) {
+func (c *Check) ToBiscuit() (*biscuit.Check, error) {
 	queries := make([]biscuit.Rule, 0, len(c.Queries))
 	for _, q := range c.Queries {
 		r, err := q.ToBiscuit()
@@ -446,7 +446,7 @@ func (c *Caveat) ToBiscuit() (*biscuit.Caveat, error) {
 		queries = append(queries, *r)
 	}
 
-	return &biscuit.Caveat{
+	return &biscuit.Check{
 		Queries: queries,
 	}, nil
 }

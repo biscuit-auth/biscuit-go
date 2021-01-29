@@ -76,6 +76,6 @@ It has the format: `Head <- Body @ Constraints`.
 
 e.g. `right(#authority, $file, #read) <- resource(#ambient, $file), owner(#ambient, $user, $file) @ $user == "username", prefix($file, "/home/username")`
 
-# Caveat
+# Check
 
-A caveat is a list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`
+A check is a list of rules with the format: `[ rule0 || rule1 || ... || ruleN ]`

@@ -350,19 +350,19 @@ func TestResource(t *testing.T) {
 	w.AddFact(Fact{Predicate{right, []ID{authority, file2, read}}})
 	w.AddFact(Fact{Predicate{right, []ID{authority, file1, write}}})
 
-	caveat1 := syms.Insert("caveat1")
+	check1 := syms.Insert("check1")
 	res := w.QueryRule(Rule{
-		Head: Predicate{caveat1, []ID{file1}},
+		Head: Predicate{check1, []ID{file1}},
 		Body: []Predicate{{resource, []ID{ambient, file1}}},
 	})
 	if len(*res) > 0 {
 		t.Errorf("unexpected facts: %s", dbg.FactSet(res))
 	}
 
-	caveat2 := syms.Insert("caveat2")
+	check2 := syms.Insert("check2")
 	var0 := Variable(0)
 	r2 := Rule{
-		Head: Predicate{caveat2, []ID{var0}},
+		Head: Predicate{check2, []ID{var0}},
 		Body: []Predicate{
 			{resource, []ID{ambient, var0}},
 			{operation, []ID{ambient, read}},
