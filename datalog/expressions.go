@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// maxStackSize defines the maximum number of elements that can be  stored on the stack.
-// Trying to store more than maxStackSize elements returns an error
+// maxStackSize defines the maximum number of elements that can be stored on the stack.
+// Trying to store more than maxStackSize elements returns an error.
 const maxStackSize = 1000
 
 var (
@@ -50,11 +50,11 @@ func (e *Expression) Evaluate(values map[Variable]*ID) (ID, error) {
 		case OpTypeBinary:
 			right, err := s.Pop()
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary right value: %w", err)
+				return nil, fmt.Errorf("datalog: expressions: failed to pop binary right value: %w", err)
 			}
 			left, err := s.Pop()
 			if err != nil {
-				return nil, fmt.Errorf("datalog: expressiosn: failed to pop binary left value: %w", err)
+				return nil, fmt.Errorf("datalog: expressions: failed to pop binary left value: %w", err)
 			}
 
 			res, err := op.(BinaryOp).Eval(left, right)
@@ -176,7 +176,7 @@ const (
 	UnaryParens
 )
 
-// Negate returns the negation of value
+// Negate returns the negation of a value.
 // It only accepts a Bool value.
 type Negate struct{}
 
@@ -196,7 +196,7 @@ func (Negate) Eval(value ID) (ID, error) {
 }
 
 // Parens allows expression priority and grouping (like parenthesis in math operations)
-// its a no op, but is used to print back the expressions properly, putting their value
+// it is a no-op, but is used to print back the expressions properly, putting their value
 // inside parenthesis.
 type Parens struct{}
 
@@ -279,8 +279,8 @@ const (
 )
 
 // LessThan returns true when left is less than right.
-// It requires left and right to have the same concret type
-// and only accepts Integer
+// It requires left and right to have the same concrete type
+// and only accepts Integer.
 type LessThan struct{}
 
 func (LessThan) Type() BinaryOpType {
@@ -302,9 +302,9 @@ func (LessThan) Eval(left ID, right ID) (ID, error) {
 	return out, nil
 }
 
-// LessOrEqual returns true when left is less or equal right.
-// It requires left and right to have the same concret type
-// and only accepts Integer and Date
+// LessOrEqual returns true when left is less or equal than right.
+// It requires left and right to have the same concrete type
+// and only accepts Integer and Date.
 type LessOrEqual struct{}
 
 func (LessOrEqual) Type() BinaryOpType {
@@ -329,8 +329,8 @@ func (LessOrEqual) Eval(left ID, right ID) (ID, error) {
 }
 
 // GreaterThan returns true when left is greater than right.
-// It requires left and right to have the same concret type
-// and only accepts Integer
+// It requires left and right to have the same concrete type
+// and only accepts Integer.
 type GreaterThan struct{}
 
 func (GreaterThan) Type() BinaryOpType {
@@ -353,8 +353,8 @@ func (GreaterThan) Eval(left ID, right ID) (ID, error) {
 }
 
 // GreaterOrEqual returns true when left is greater than right.
-// It requires left and right to have the same concret type
-// and only accepts Integer and Date
+// It requires left and right to have the same concrete type
+// and only accepts Integer and Date.
 type GreaterOrEqual struct{}
 
 func (GreaterOrEqual) Type() BinaryOpType {
@@ -379,8 +379,8 @@ func (GreaterOrEqual) Eval(left ID, right ID) (ID, error) {
 }
 
 // Equal returns true when left and right are equal.
-// It requires left and right to have the same concret type
-// and only accepts Integer, Bytes or String
+// It requires left and right to have the same concrete type
+// and only accepts Integer, Bytes or String.
 type Equal struct{}
 
 func (Equal) Type() BinaryOpType {
@@ -402,9 +402,9 @@ func (Equal) Eval(left ID, right ID) (ID, error) {
 	return Bool(left.Equal(right)), nil
 }
 
-// Contains returns true when right value exists in the left Set.
-// right value must be an Integer, Bytes, String or Symbol
-// left value must be a Set, containing elements of right type.
+// Contains returns true when the right value exists in the left Set.
+// The right value must be an Integer, Bytes, String or Symbol.
+// The left value must be a Set, containing elements of right type.
 type Contains struct{}
 
 func (Contains) Type() BinaryOpType {
@@ -437,8 +437,8 @@ func (Contains) Eval(left ID, right ID) (ID, error) {
 	return Bool(false), nil
 }
 
-// Prefix returns true when left string starts with right string
-// left and right must be String
+// Prefix returns true when the left string starts with the right string.
+// left and right must be String.
 type Prefix struct{}
 
 func (Prefix) Type() BinaryOpType {
@@ -457,8 +457,8 @@ func (Prefix) Eval(left ID, right ID) (ID, error) {
 	return Bool(strings.HasPrefix(string(sleft), string(sright))), nil
 }
 
-// Suffix returns true when left string ends with right string
-// left and right must be String
+// Suffix returns true when the left string ends with the right string.
+// left and right must be String.
 type Suffix struct{}
 
 func (Suffix) Type() BinaryOpType {
@@ -477,8 +477,8 @@ func (Suffix) Eval(left ID, right ID) (ID, error) {
 	return Bool(strings.HasSuffix(string(sleft), string(sright))), nil
 }
 
-// Regex returns true when right string is a regexp and left match against it.
-// left and right must be String
+// Regex returns true when the right string is a regexp and left matches against it.
+// left and right must be String.
 type Regex struct{}
 
 func (Regex) Type() BinaryOpType {
@@ -501,8 +501,8 @@ func (Regex) Eval(left ID, right ID) (ID, error) {
 	return Bool(re.Match([]byte(sleft))), nil
 }
 
-// Add performs the addition of left + right and returns the result
-// It requires left and right to be Integer
+// Add performs the addition of left + right and returns the result.
+// It requires left and right to be Integer.
 type Add struct{}
 
 func (Add) Type() BinaryOpType {
@@ -529,8 +529,8 @@ func (Add) Eval(left ID, right ID) (ID, error) {
 	return Integer(res.Int64()), nil
 }
 
-// Sub performs the substraction of left - right and returns the result
-// It requires left and right to be Integer
+// Sub performs the substraction of left - right and returns the result.
+// It requires left and right to be Integer.
 type Sub struct{}
 
 func (Sub) Type() BinaryOpType {
@@ -557,8 +557,8 @@ func (Sub) Eval(left ID, right ID) (ID, error) {
 	return Integer(res.Int64()), nil
 }
 
-// Mul performs the multiplication of left * right and returns the result
-// It requires left and right to be Integer
+// Mul performs the multiplication of left * right and returns the result.
+// It requires left and right to be Integer.
 type Mul struct{}
 
 func (Mul) Type() BinaryOpType {
@@ -586,8 +586,8 @@ func (Mul) Eval(left ID, right ID) (ID, error) {
 	return Integer(res.Int64()), nil
 }
 
-// Div performs the division of left / right and returns the result
-// It requires left and right to be Integer
+// Div performs the division of left / right and returns the result.
+// It requires left and right to be Integer.
 type Div struct{}
 
 func (Div) Type() BinaryOpType {
@@ -610,8 +610,8 @@ func (Div) Eval(left ID, right ID) (ID, error) {
 	return Integer(ileft / iright), nil
 }
 
-// And performs a logical AND between left and right and returns a Bool
-// It requires left and right to be Bool
+// And performs a logical AND between left and right and returns a Bool.
+// It requires left and right to be Bool.
 type And struct{}
 
 func (And) Type() BinaryOpType {
@@ -630,8 +630,8 @@ func (And) Eval(left ID, right ID) (ID, error) {
 	return Bool(bleft && bright), nil
 }
 
-// Or performs a logical OR between left and right and returns a Bool
-// It requires left and right to be Bool
+// Or performs a logical OR between left and right and returns a Bool.
+// It requires left and right to be Bool.
 type Or struct{}
 
 func (Or) Type() BinaryOpType {
