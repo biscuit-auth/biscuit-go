@@ -36,6 +36,36 @@ type ID interface {
 	String() string
 }
 
+type Set []ID
+
+func (Set) Type() IDType { return IDTypeSet }
+func (s Set) Equal(t ID) bool {
+	c, ok := t.(Set)
+	if !ok || len(c) != len(s) {
+		return false
+	}
+
+	cmap := make(map[ID]struct{}, len(c))
+	for _, v := range c {
+		cmap[v] = struct{}{}
+	}
+
+	for _, id := range s {
+		if _, ok := cmap[id]; !ok {
+			return false
+		}
+	}
+	return true
+}
+func (s Set) String() string {
+	eltStr := make([]string, 0, len(s))
+	for _, e := range s {
+		eltStr = append(eltStr, e.String())
+	}
+	sort.Strings(eltStr)
+	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
+}
+
 type Symbol uint64
 
 func (Symbol) Type() IDType      { return IDTypeSymbol }
