@@ -258,24 +258,24 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `$0 < "2006-01-02T15:04:05Z07:00"`,
+			Input: `$0 <= "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: varptr("0"),
 					Date: &DateComparison{
-						Operation: sptr("<"),
+						Operation: sptr("<="),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
 					},
 				},
 			},
 		},
 		{
-			Input: `$0 > "2006-01-02T15:04:05Z07:00"`,
+			Input: `$0 >= "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: varptr("0"),
 					Date: &DateComparison{
-						Operation: sptr(">"),
+						Operation: sptr(">="),
 						Target:    sptr("2006-01-02T15:04:05Z07:00"),
 					},
 				},
