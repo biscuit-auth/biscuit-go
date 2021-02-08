@@ -77,16 +77,6 @@ func TestGrammarPredicate(t *testing.T) {
 				},
 			},
 		},
-		{
-			Input: `right($1, ["hex:41414141", #sym])`,
-			Expected: &Predicate{
-				Name: sptr("right"),
-				IDs: []*Term{
-					{Variable: varptr("1")},
-					{Set: []*Term{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
-				},
-			},
-		},
 	}
 
 	for _, testCase := range testCases {

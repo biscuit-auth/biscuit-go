@@ -26,43 +26,12 @@ const (
 	IDTypeString
 	IDTypeDate
 	IDTypeBytes
-	IDTypeSet
 )
 
 type ID interface {
 	Type() IDType
 	Equal(ID) bool
 	String() string
-}
-
-type Set []ID
-
-func (Set) Type() IDType { return IDTypeSet }
-func (s Set) Equal(t ID) bool {
-	c, ok := t.(Set)
-	if !ok || len(c) != len(s) {
-		return false
-	}
-
-	cmap := make(map[ID]struct{}, len(c))
-	for _, v := range c {
-		cmap[v] = struct{}{}
-	}
-
-	for _, id := range s {
-		if _, ok := cmap[id]; !ok {
-			return false
-		}
-	}
-	return true
-}
-func (s Set) String() string {
-	eltStr := make([]string, 0, len(s))
-	for _, e := range s {
-		eltStr = append(eltStr, e.String())
-	}
-	sort.Strings(eltStr)
-	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
 }
 
 type Symbol uint64
@@ -171,15 +140,6 @@ type IntegerInChecker struct {
 }
 
 func (m IntegerInChecker) Check(id ID) bool {
-	if set, ok := id.(Set); ok {
-		for _, subID := range set {
-			if !m.Check(subID) {
-				return false
-			}
-		}
-		return true
-	}
-
 	i, ok := id.(Integer)
 	if !ok {
 		return false
@@ -250,15 +210,6 @@ type StringInChecker struct {
 }
 
 func (m StringInChecker) Check(id ID) bool {
-	if set, ok := id.(Set); ok {
-		for _, subID := range set {
-			if !m.Check(subID) {
-				return false
-			}
-		}
-		return true
-	}
-
 	s, ok := id.(String)
 	if !ok {
 		return false
@@ -373,15 +324,6 @@ type BytesInChecker struct {
 }
 
 func (m BytesInChecker) Check(id ID) bool {
-	if set, ok := id.(Set); ok {
-		for _, subID := range set {
-			if !m.Check(subID) {
-				return false
-			}
-		}
-		return true
-	}
-
 	b, ok := id.(Bytes)
 	if !ok {
 		return false
@@ -410,15 +352,6 @@ type SymbolInChecker struct {
 }
 
 func (m SymbolInChecker) Check(id ID) bool {
-	if set, ok := id.(Set); ok {
-		for _, subID := range set {
-			if !m.Check(subID) {
-				return false
-			}
-		}
-		return true
-	}
-
 	sym, ok := id.(Symbol)
 	if !ok {
 		return false

@@ -53,7 +53,6 @@ message ID {
     STR = 3;
     DATE = 4;
     BYTES = 5;
-    SET = 6;
   }
 
   Kind kind = 1;
@@ -63,7 +62,6 @@ message ID {
   string str = 5;
   uint64 date = 6;
   bytes bytes = 7;
-  repeated ID set = 8;
 }
 
 message Constraint {
@@ -75,7 +73,6 @@ message Constraint {
     DATE = 2;
     SYMBOL = 3;
     BYTES = 4;
-    SET = 5;
   }
 
   Kind kind = 2;
