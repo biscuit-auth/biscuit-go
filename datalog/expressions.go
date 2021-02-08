@@ -28,7 +28,6 @@ func (e *Expression) Evaluate(values map[Variable]*ID) (ID, error) {
 			id := op.(Value).ID
 			switch id.Type() {
 			case IDTypeVariable:
-				var ok bool
 				idptr, ok := values[id.(Variable)]
 				if !ok {
 					return nil, fmt.Errorf("datalog: expressions: unknown variable %d", id.(Variable))
