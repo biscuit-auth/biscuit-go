@@ -1,7 +1,7 @@
 
 # biscuit-go
 
-biscuit-go is an implementation of [Biscuit](https://github.com/clevercloud/biscuit) in Go. It aims to be fully compatible with other existing implementations, so that tokens issued by, for example, the rust version, could be validated by this library and vice versa.
+biscuit-go is an implementation of [Biscuit](https://github.com/clevercloud/biscuit) in Go. It aims to be fully compatible with other existing implementations, so that tokens issued by, for example, the Rust version, could be validated by this library and vice versa.
 
 ## Documentation and specifications
 
