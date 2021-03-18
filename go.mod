@@ -4,8 +4,9 @@ go 1.15
 
 require (
 	github.com/alecthomas/participle/v2 v2.0.0-alpha3.0.20201208114601-14bec2482095
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.1
 	github.com/gtank/ristretto255 v0.1.2
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	google.golang.org/protobuf v1.26.0
 )
