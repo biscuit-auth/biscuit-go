@@ -35,32 +35,17 @@ message Block {
 
 message FactV0 { PredicateV0 predicate = 1; }
 
-message FactV1 { PredicateV1 predicate = 1; }
-
 message RuleV0 {
   PredicateV0 head = 1;
   repeated PredicateV0 body = 2;
   repeated ConstraintV0 constraints = 3;
 }
 
-message RuleV1 {
-  PredicateV1 head = 1;
-  repeated PredicateV1 body = 2;
-  repeated ExpressionV1 expressions = 3;
-}
-
 message CaveatV0 { repeated RuleV0 queries = 1; }
-
-message CheckV1 { repeated RuleV1 queries = 1; }
 
 message PredicateV0 {
   uint64 name = 1;
   repeated IDV0 ids = 2;
-}
-
-message PredicateV1 {
-  uint64 name = 1;
-  repeated IDV1 ids = 2;
 }
 
 message IDV0 {
@@ -81,21 +66,6 @@ message IDV0 {
   uint64 date = 6;
   bytes bytes = 7;
 }
-
-message IDV1 {
-  oneof Content {
-    uint64 symbol = 1;
-    uint32 variable = 2;
-    int64 integer = 3;
-    string str = 4;
-    uint64 date = 5;
-    bytes bytes = 6;
-    bool bool = 7;
-    IDSet set = 8;
-  }
-}
-
-message IDSet { repeated IDV1 set = 1; }
 
 message ConstraintV0 {
   uint32 id = 1;
@@ -197,6 +167,36 @@ message BytesConstraintV0 {
   repeated bytes not_in_set = 4;
 }
 
+message FactV1 { PredicateV1 predicate = 1; }
+
+message RuleV1 {
+  PredicateV1 head = 1;
+  repeated PredicateV1 body = 2;
+  repeated ExpressionV1 expressions = 3;
+}
+
+message CheckV1 { repeated RuleV1 queries = 1; }
+
+message PredicateV1 {
+  uint64 name = 1;
+  repeated IDV1 ids = 2;
+}
+
+message IDV1 {
+  oneof Content {
+    uint64 symbol = 1;
+    uint32 variable = 2;
+    int64 integer = 3;
+    string str = 4;
+    uint64 date = 5;
+    bytes bytes = 6;
+    bool bool = 7;
+    IDSet set = 8;
+  }
+}
+
+message IDSet { repeated IDV1 set = 1; }
+
 message ExpressionV1 { repeated Op ops = 1; }
 
 message Op {
@@ -211,6 +211,7 @@ message OpUnary {
   enum Kind {
     Negate = 0;
     Parens = 1;
+    Length = 2;
   }
 
   Kind kind = 1;
@@ -233,7 +234,28 @@ message OpBinary {
     Div = 12;
     And = 13;
     Or = 14;
+    Intersection = 15;
+    Union = 16;
   }
 
   Kind kind = 1;
+}
+
+message Policy {
+  enum Kind {
+    Allow = 0;
+    Deny = 1;
+  }
+
+  repeated RuleV1 queries = 1;
+  Kind kind = 2;
+}
+
+message VerifierPolicies {
+  repeated string symbols = 1;
+  uint32 version = 2;
+  repeated FactV1 facts = 3;
+  repeated RuleV1 rules = 4;
+  repeated CheckV1 checks = 5;
+  repeated Policy policies = 6;
 }
