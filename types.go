@@ -438,3 +438,20 @@ func (a Set) String() string {
 	sort.Strings(elts)
 	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
 }
+
+type PolicyKind byte
+
+const (
+	PolicyKindAllow = iota
+	PolicyKindDeny
+)
+
+var (
+	DefaultAllowPolicy = Policy{Kind: PolicyKindAllow, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+	DefaultDenyPolicy  = Policy{Kind: PolicyKindDeny, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+)
+
+type Policy struct {
+	Queries []Rule
+	Kind    PolicyKind
+}

@@ -18,21 +18,21 @@ type sampleVerifier struct {
 func (s *sampleVerifier) AddOperation(op string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "operation",
-		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol(op)}}},
+		IDs:  []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol(op)}}},
 	)
 }
 
 func (s *sampleVerifier) AddResource(res string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "resource",
-		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.String(res)}}},
+		IDs:  []biscuit.Term{biscuit.SymbolAmbient, biscuit.String(res)}}},
 	)
 }
 
 func (s *sampleVerifier) SetTime(t time.Time) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "time",
-		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Date(t)}}},
+		IDs:  []biscuit.Term{biscuit.SymbolAmbient, biscuit.Date(t)}}},
 	)
 }
 
@@ -55,16 +55,19 @@ func TestSample1_Basic(t *testing.T) {
 
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("read")
 			verifier.AddResource("file2")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("write")
 			verifier.AddResource("file1")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
 			s, err := b.Serialize()
@@ -179,6 +182,7 @@ func TestSample9_ExpiredToken(t *testing.T) {
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
 			verifier.SetTime(time.Now())
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
 			verifier.Reset()
@@ -188,6 +192,7 @@ func TestSample9_ExpiredToken(t *testing.T) {
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
 			verifier.SetTime(expireTime)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 		})
 	}
@@ -212,12 +217,13 @@ func TestSample10_AuthorityRules(t *testing.T) {
 				Predicate: biscuit.Predicate{
 					Name: "owner",
 					IDs: []biscuit.Term{
-						biscuit.Symbol("ambient"),
+						biscuit.SymbolAmbient,
 						biscuit.Symbol("alice"),
 						biscuit.String("file1"),
 					},
 				},
 			})
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
@@ -227,12 +233,13 @@ func TestSample10_AuthorityRules(t *testing.T) {
 				Predicate: biscuit.Predicate{
 					Name: "owner",
 					IDs: []biscuit.Term{
-						biscuit.Symbol("ambient"),
+						biscuit.SymbolAmbient,
 						biscuit.Symbol("alice"),
 						biscuit.String("file1"),
 					},
 				},
 			})
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
@@ -243,12 +250,13 @@ func TestSample10_AuthorityRules(t *testing.T) {
 				Predicate: biscuit.Predicate{
 					Name: "owner",
 					IDs: []biscuit.Term{
-						biscuit.Symbol("ambient"),
+						biscuit.SymbolAmbient,
 						biscuit.Symbol("alice"),
 						biscuit.String("file1"),
 					},
 				},
 			})
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
@@ -258,12 +266,13 @@ func TestSample10_AuthorityRules(t *testing.T) {
 				Predicate: biscuit.Predicate{
 					Name: "owner",
 					IDs: []biscuit.Term{
-						biscuit.Symbol("ambient"),
+						biscuit.SymbolAmbient,
 						biscuit.Symbol("alice"),
 						biscuit.String("file1"),
 					},
 				},
 			})
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 		})
 	}
@@ -289,8 +298,8 @@ func TestSample11_VerifierAuthorityChecks(t *testing.T) {
 						},
 						Body: []biscuit.Predicate{
 							{Name: "right", IDs: []biscuit.Term{biscuit.Symbol("authority"), biscuit.Variable("0"), biscuit.Variable("1")}},
-							{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("0")}},
-							{Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("1")}},
+							{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("0")}},
+							{Name: "operation", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("1")}},
 						},
 					},
 				},
@@ -301,18 +310,21 @@ func TestSample11_VerifierAuthorityChecks(t *testing.T) {
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
 			verifier.AddCheck(verifierCheck)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("write")
 			verifier.AddResource("file1")
 			verifier.AddCheck(verifierCheck)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddOperation("read")
 			verifier.AddResource("/another/file1")
 			verifier.AddCheck(verifierCheck)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 		})
 	}
@@ -332,14 +344,17 @@ func TestSample12_AuthorityChecks(t *testing.T) {
 			verifier := &sampleVerifier{v}
 
 			verifier.AddResource("file1")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.AddResource("file1")
 			verifier.AddOperation("anything")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddResource("file2")
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 		})
 	}
@@ -360,6 +375,7 @@ func TestSample13_BlockRules(t *testing.T) {
 
 			verifier.AddResource("file1")
 			verifier.SetTime(time.Now())
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			file1ValidTime, err := time.Parse(time.RFC3339, "2030-12-31T12:59:59+00:00")
@@ -368,16 +384,19 @@ func TestSample13_BlockRules(t *testing.T) {
 			verifier.Reset()
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime.Add(1 * time.Second))
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
 			verifier.Reset()
 			verifier.AddResource("file2")
 			verifier.SetTime(time.Now())
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
 			otherFileValidTime, err := time.Parse(time.RFC3339, "1999-12-31T12:59:59+00:00")
@@ -386,6 +405,7 @@ func TestSample13_BlockRules(t *testing.T) {
 			verifier.Reset()
 			verifier.AddResource("file2")
 			verifier.SetTime(otherFileValidTime)
+			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 		})
 	}
@@ -415,6 +435,7 @@ func TestSample14_RegexConstraint(t *testing.T) {
 			for _, validFile := range validFiles {
 				verifier.Reset()
 				verifier.AddResource(validFile)
+				verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 				require.NoError(t, verifier.Verify())
 			}
 
@@ -428,6 +449,7 @@ func TestSample14_RegexConstraint(t *testing.T) {
 			for _, invalidFile := range invalidFiles {
 				verifier.Reset()
 				verifier.AddResource(invalidFile)
+				verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 				require.Error(t, verifier.Verify())
 			}
 		})
@@ -466,14 +488,17 @@ func TestSample15_MultiQueriesChecks(t *testing.T) {
 			}
 
 			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule1, rule2}})
+			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, v.Verify())
 
 			v.Reset()
 			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule1}})
+			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, v.Verify())
 
 			v.Reset()
 			v.AddCheck(biscuit.Check{Queries: []biscuit.Rule{rule2}})
+			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, v.Verify())
 		})
 	}
@@ -490,15 +515,31 @@ func TestSample16_CheckHeadName(t *testing.T) {
 			v, err := b.Verify(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
+			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, v.Verify())
 
 			v.Reset()
 			v.AddFact(biscuit.Fact{
-				Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("hello")}},
+				Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol("hello")}},
 			})
+			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, v.Verify())
 		})
 	}
+}
+func TestSample17_Expressions(t *testing.T) {
+	t.Run("v1", func(t *testing.T) {
+		token := loadSampleToken(t, "v1", "test17_expressions.bc")
+
+		b, err := biscuit.Unmarshal(token)
+		require.NoError(t, err)
+
+		v, err := b.Verify(loadRootPublicKey(t, "v1"))
+		require.NoError(t, err)
+
+		v.AddPolicy(biscuit.DefaultAllowPolicy)
+		require.NoError(t, v.Verify())
+	})
 }
 
 func TestSample18_UnboundVariables(t *testing.T) {
@@ -513,7 +554,7 @@ func TestSample18_UnboundVariables(t *testing.T) {
 			require.NoError(t, err)
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 				Name: "operation",
-				IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("write")},
+				IDs:  []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol("write")},
 			}})
 			require.Error(t, v.Verify())
 		})
@@ -535,7 +576,7 @@ func TestSample19_GeneratingAmbientFromVariables(t *testing.T) {
 
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 				Name: "operation",
-				IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("write")},
+				IDs:  []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol("write")},
 			}})
 			require.Error(t, v.Verify())
 		})

@@ -9,13 +9,16 @@ import (
 )
 
 var (
-	ErrMissingSymbols = errors.New("biscuit: missing symbols")
+	ErrMissingSymbols   = errors.New("biscuit: missing symbols")
+	ErrPolicyDenied     = errors.New("biscuit: denied by policy")
+	ErrNoMatchingPolicy = errors.New("biscuit: denied by no matching policies")
 )
 
 type Verifier interface {
 	AddFact(fact Fact)
 	AddRule(rule Rule)
 	AddCheck(check Check)
+	AddPolicy(policy Policy)
 	Verify() error
 	Query(rule Rule) (FactSet, error)
 	Biscuit() *Biscuit
@@ -30,6 +33,7 @@ type verifier struct {
 	world       *datalog.World
 	symbols     *datalog.SymbolTable
 	checks      []Check
+	policies    []Policy
 }
 
 var _ Verifier = (*verifier)(nil)
@@ -60,6 +64,10 @@ func (v *verifier) AddRule(rule Rule) {
 
 func (v *verifier) AddCheck(check Check) {
 	v.checks = append(v.checks, check)
+}
+
+func (v *verifier) AddPolicy(policy Policy) {
+	v.policies = append(v.policies, policy)
 }
 
 func (v *verifier) Verify() error {
@@ -116,7 +124,21 @@ func (v *verifier) Verify() error {
 		return fmt.Errorf("biscuit: verification failed: %s", strings.Join(errMsg, ", "))
 	}
 
-	return nil
+	for _, policy := range v.policies {
+		for _, query := range policy.Queries {
+			res := v.world.QueryRule(query.convert(v.symbols))
+			if len(*res) != 0 {
+				switch policy.Kind {
+				case PolicyKindAllow:
+					return nil
+				case PolicyKindDeny:
+					return ErrPolicyDenied
+				}
+			}
+		}
+	}
+
+	return ErrNoMatchingPolicy
 }
 
 func (v *verifier) Query(rule Rule) (FactSet, error) {

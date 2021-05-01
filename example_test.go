@@ -118,7 +118,7 @@ func ExampleBiscuit() {
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.String("/a/file1.txt")}}})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("read")}}})
-
+	v1.AddPolicy(biscuit.DefaultAllowPolicy)
 	if err := v1.Verify(); err != nil {
 		fmt.Printf("failed to verify token: %v\n", err)
 	} else {

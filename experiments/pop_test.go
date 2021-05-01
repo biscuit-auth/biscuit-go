@@ -304,6 +304,7 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 		Name: "valid_signature",
 		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), dataID, alg, pubkey},
 	}})
+	verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 
 	t.Logf("verifySignature world after:\n%s", verifier.PrintWorld())
 	require.NoError(t, verifier.Verify())
