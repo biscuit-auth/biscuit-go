@@ -309,7 +309,7 @@ func protoBytesConstraintToTokenExprV0(id uint32, input *pb.BytesConstraintV0) (
 	return expr, nil
 }
 
-func protoCaveatToTokenCaveatV0(input *pb.CaveatV0) (*datalog.Caveat, error) {
+func protoCaveatToTokenCheckV0(input *pb.CaveatV0) (*datalog.Check, error) {
 	queries := make([]datalog.Rule, len(input.Queries))
 	for i, query := range input.Queries {
 		q, err := protoRuleToTokenRuleV0(query)
@@ -319,7 +319,7 @@ func protoCaveatToTokenCaveatV0(input *pb.CaveatV0) (*datalog.Caveat, error) {
 		queries[i] = *q
 	}
 
-	return &datalog.Caveat{
+	return &datalog.Check{
 		Queries: queries,
 	}, nil
 }

@@ -34,13 +34,13 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 		out.RulesV1[i] = r
 	}
 
-	out.CaveatsV1 = make([]*pb.CaveatV1, len(input.caveats))
-	for i, caveat := range input.caveats {
-		c, err := tokenCaveatToProtoCaveatV1(caveat)
+	out.ChecksV1 = make([]*pb.CheckV1, len(input.checks))
+	for i, check := range input.checks {
+		c, err := tokenCaveatToProtoCheckV1(check)
 		if err != nil {
 			return nil, err
 		}
-		out.CaveatsV1[i] = c
+		out.ChecksV1[i] = c
 	}
 
 	return out, nil
@@ -51,7 +51,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 
 	var facts datalog.FactSet
 	var rules []datalog.Rule
-	var caveats []datalog.Caveat
+	var checks []datalog.Check
 
 	if input.Version > MaxSchemaVersion {
 		return nil, fmt.Errorf(
@@ -65,7 +65,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	case 0:
 		facts = make(datalog.FactSet, len(input.FactsV0))
 		rules = make([]datalog.Rule, len(input.RulesV0))
-		caveats = make([]datalog.Caveat, len(input.CaveatsV0))
+		checks = make([]datalog.Check, len(input.CaveatsV0))
 
 		for i, pbFact := range input.FactsV0 {
 			f, err := protoFactToTokenFactV0(pbFact)
@@ -84,16 +84,16 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		}
 
 		for i, pbCaveat := range input.CaveatsV0 {
-			c, err := protoCaveatToTokenCaveatV0(pbCaveat)
+			c, err := protoCaveatToTokenCheckV0(pbCaveat)
 			if err != nil {
 				return nil, err
 			}
-			caveats[i] = *c
+			checks[i] = *c
 		}
 	case 1:
 		facts = make(datalog.FactSet, len(input.FactsV1))
 		rules = make([]datalog.Rule, len(input.RulesV1))
-		caveats = make([]datalog.Caveat, len(input.CaveatsV1))
+		checks = make([]datalog.Check, len(input.ChecksV1))
 
 		for i, pbFact := range input.FactsV1 {
 			f, err := protoFactToTokenFactV1(pbFact)
@@ -111,12 +111,12 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 			rules[i] = *r
 		}
 
-		for i, pbCaveat := range input.CaveatsV1 {
-			c, err := protoCaveatToTokenCaveatV1(pbCaveat)
+		for i, pbCheck := range input.ChecksV1 {
+			c, err := protoCheckToTokenCheckV1(pbCheck)
 			if err != nil {
 				return nil, err
 			}
-			caveats[i] = *c
+			checks[i] = *c
 		}
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.Version)
@@ -127,7 +127,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		symbols: &symbols,
 		facts:   &facts,
 		rules:   rules,
-		caveats: caveats,
+		checks:  checks,
 		context: input.Context,
 		version: input.Version,
 	}, nil

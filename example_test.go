@@ -77,11 +77,11 @@ func ExampleBiscuit() {
 	}
 
 	blockBuilder := deser.CreateBlock()
-	blockBuilder.AddCaveat(biscuit.Caveat{
+	blockBuilder.AddCheck(biscuit.Check{
 		Queries: []biscuit.Rule{
 			{
 				Head: biscuit.Predicate{
-					Name: "caveat",
+					Name: "check",
 					IDs:  []biscuit.Term{biscuit.String("/a/file1.txt")},
 				},
 				Body: []biscuit.Predicate{
@@ -126,6 +126,6 @@ func ExampleBiscuit() {
 	}
 
 	// Output: Token1 length: 242
-	// Token2 length: 384
+	// Token2 length: 383
 	// verified token
 }

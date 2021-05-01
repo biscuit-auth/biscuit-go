@@ -353,17 +353,17 @@ func TestGrammarConstraint(t *testing.T) {
 
 }
 
-func TestGrammarCaveat(t *testing.T) {
-	parser, err := participle.Build(&Caveat{}, DefaultParserOptions...)
+func TestGrammarCheck(t *testing.T) {
+	parser, err := participle.Build(&Check{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
 		Input    string
-		Expected *Caveat
+		Expected *Check
 	}{
 		{
 			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)]`,
-			Expected: &Caveat{[]*Rule{
+			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
@@ -393,7 +393,7 @@ func TestGrammarCaveat(t *testing.T) {
 		},
 		{
 			Input: `[empty() <- parent(#a, #b), parent(#b, #c)]`,
-			Expected: &Caveat{[]*Rule{
+			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
 						Name: sptr("empty"),
@@ -420,7 +420,7 @@ func TestGrammarCaveat(t *testing.T) {
 		},
 		{
 			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) || grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")]`,
-			Expected: &Caveat{[]*Rule{
+			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
@@ -495,7 +495,7 @@ func TestGrammarCaveat(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Caveat{}
+			parsed := &Check{}
 			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)

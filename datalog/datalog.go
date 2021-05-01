@@ -212,7 +212,7 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
 	return nil
 }
 
-type Caveat struct {
+type Check struct {
 	Queries []Rule
 }
 
@@ -657,7 +657,7 @@ func (d SymbolDebugger) Expression(e Expression) string {
 	return e.Print(d.SymbolTable)
 }
 
-func (d SymbolDebugger) Caveat(c Caveat) string {
+func (d SymbolDebugger) Check(c Check) string {
 	queries := make([]string, len(c.Queries))
 	for i, q := range c.Queries {
 		queries[i] = d.Rule(q)

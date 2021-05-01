@@ -31,7 +31,7 @@ type Block struct {
 	symbols *datalog.SymbolTable
 	facts   *datalog.FactSet
 	rules   []datalog.Rule
-	caveats []datalog.Caveat
+	checks  []datalog.Check
 	context string
 	version uint32
 }
@@ -45,9 +45,9 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		rules[i] = debug.Rule(r)
 	}
 
-	caveats := make([]string, len(b.caveats))
-	for i, c := range b.caveats {
-		caveats[i] = debug.Caveat(c)
+	checks := make([]string, len(b.checks))
+	for i, c := range b.checks {
+		checks[i] = debug.Check(c)
 	}
 
 	return fmt.Sprintf(`Block[%d] {
@@ -55,7 +55,7 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		context: %q
 		facts: %v
 		rules: %v
-		caveats: %v
+		checks: %v
 		version: %d
 	}`,
 		b.index,
@@ -63,7 +63,7 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		b.context,
 		debug.FactSet(b.facts),
 		rules,
-		caveats,
+		checks,
 		b.version,
 	)
 }
@@ -303,17 +303,17 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 	}
 }
 
-type Caveat struct {
+type Check struct {
 	Queries []Rule
 }
 
-func (c Caveat) convert(symbols *datalog.SymbolTable) datalog.Caveat {
+func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
 	queries := make([]datalog.Rule, len(c.Queries))
 	for i, q := range c.Queries {
 		queries[i] = q.convert(symbols)
 	}
 
-	return datalog.Caveat{
+	return datalog.Check{
 		Queries: queries,
 	}
 }

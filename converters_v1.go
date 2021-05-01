@@ -103,9 +103,9 @@ func tokenIDToProtoIDV1(input datalog.ID) (*pb.IDV1, error) {
 		expectedEltType := datalogSet[0].Type()
 		switch expectedEltType {
 		case datalog.IDTypeVariable:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain variable")
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
 		case datalog.IDTypeSet:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contain other sets")
+			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
 		}
 
 		protoSet := make([]*pb.IDV1, 0, len(datalogSet))
@@ -164,9 +164,9 @@ func protoIDToTokenIDV1(input *pb.IDV1) (*datalog.ID, error) {
 		expectedEltType := reflect.TypeOf(elts[0].GetContent())
 		switch expectedEltType {
 		case reflect.TypeOf(&pb.IDV1_Variable{}):
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain variable")
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
 		case reflect.TypeOf(&pb.IDV1_Set{}):
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contain other sets")
+			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
 		}
 
 		datalogSet := make(datalog.Set, 0, len(elts))
@@ -419,7 +419,7 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 	return binaryOp, nil
 }
 
-func tokenCaveatToProtoCaveatV1(input datalog.Caveat) (*pb.CaveatV1, error) {
+func tokenCaveatToProtoCheckV1(input datalog.Check) (*pb.CheckV1, error) {
 	pbQueries := make([]*pb.RuleV1, len(input.Queries))
 	for i, query := range input.Queries {
 		q, err := tokenRuleToProtoRuleV1(query)
@@ -429,12 +429,12 @@ func tokenCaveatToProtoCaveatV1(input datalog.Caveat) (*pb.CaveatV1, error) {
 		pbQueries[i] = q
 	}
 
-	return &pb.CaveatV1{
+	return &pb.CheckV1{
 		Queries: pbQueries,
 	}, nil
 }
 
-func protoCaveatToTokenCaveatV1(input *pb.CaveatV1) (*datalog.Caveat, error) {
+func protoCheckToTokenCheckV1(input *pb.CheckV1) (*datalog.Check, error) {
 	queries := make([]datalog.Rule, len(input.Queries))
 	for i, query := range input.Queries {
 		q, err := protoRuleToTokenRuleV1(query)
@@ -444,7 +444,7 @@ func protoCaveatToTokenCaveatV1(input *pb.CaveatV1) (*datalog.Caveat, error) {
 		queries[i] = *q
 	}
 
-	return &datalog.Caveat{
+	return &datalog.Check{
 		Queries: queries,
 	}, nil
 }
