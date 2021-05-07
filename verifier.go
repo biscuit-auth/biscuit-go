@@ -177,4 +177,5 @@ func (v *verifier) Reset() {
 	v.checks = []Check{}
 	v.world = v.baseWorld.Clone()
 	v.symbols = v.baseSymbols.Clone()
+	v.policies = []Policy{}
 }
