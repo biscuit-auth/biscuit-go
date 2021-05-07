@@ -97,6 +97,8 @@ verifier.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 
 // ... add more ambient facts, rules, caveats...
 
+verifier.AddPolicy(biscuit.DefaultAllowPolicy)
+
 if err := verifier.Verify(); err != nil {
     fmt.Printf("failed to verify token: %v\n", err)
 } else {
