@@ -24,7 +24,7 @@ import (
 // - facts:
 //     - should_sign(#authority, $dataID, $alg, $pubkey)
 //     - data(#authority, $dataID, $data)
-// - caveat:
+// - check:
 //     - *valid($dataID)<- should_sign(#authority, $dataID, $alg, $pubkey, valid_signature(#ambient, $dataID, $alg, $pubkey)
 //
 // ---- server sends the token to the client ----
@@ -79,7 +79,7 @@ func TestProofOfPossession(t *testing.T) {
 	// The verifier will extract "signature" fact added by the client
 	// verify it against the authority "should_sign" fact from the server
 	// and add the "valid_signature" fact when matching
-	// thus satisfying the authority caveat.
+	// thus satisfying the authority check.
 	verifySignature(t, rootPubKey, token)
 }
 
@@ -115,10 +115,10 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 		},
 	}})
 
-	// This caveat requires every "should_sign" fact to have a matching "valid_signature" fact,
+	// This check requires every "should_sign" fact to have a matching "valid_signature" fact,
 	// that can only provided by the verifier (due to the ambient tag)
 	// *valid($dataID)<- should_sign(#authority, $dataID, $alg, $pubkey), valid_signature(#ambient, $dataID, $alg, $pubkey)
-	builder.AddAuthorityCaveat(biscuit.Caveat{Queries: []biscuit.Rule{
+	builder.AddAuthorityCheck(biscuit.Check{Queries: []biscuit.Rule{
 		{
 			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Term{biscuit.Variable("dataID")}},
 			Body: []biscuit.Predicate{

@@ -30,7 +30,7 @@ message Block {
   uint32 version = 7;
   repeated FactV1 facts_v1 = 8;
   repeated RuleV1 rules_v1 = 9;
-  repeated CaveatV1 caveats_v1 = 10;
+  repeated CheckV1 checks_v1 = 10;
 }
 
 message FactV0 { PredicateV0 predicate = 1; }
@@ -46,12 +46,12 @@ message RuleV0 {
 message RuleV1 {
   PredicateV1 head = 1;
   repeated PredicateV1 body = 2;
-  repeated ConstraintV1 constraints = 3;
+  repeated ExpressionV1 expressions = 3;
 }
 
 message CaveatV0 { repeated RuleV0 queries = 1; }
 
-message CaveatV1 { repeated RuleV1 queries = 1; }
+message CheckV1 { repeated RuleV1 queries = 1; }
 
 message PredicateV0 {
   uint64 name = 1;
@@ -117,18 +117,6 @@ message ConstraintV0 {
   BytesConstraintV0 bytes = 7;
 }
 
-message ConstraintV1 {
-  uint32 id = 1;
-
-  oneof Constraint {
-    IntConstraintV1 int = 2;
-    StringConstraintV1 str = 3;
-    DateConstraintV1 date = 4;
-    SymbolConstraintV1 symbol = 5;
-    BytesConstraintV1 bytes = 6;
-  }
-}
-
 message IntConstraintV0 {
   enum Kind {
     LOWER = 0;
@@ -151,20 +139,6 @@ message IntConstraintV0 {
   repeated int64 not_in_set = 8 [ packed = true ];
 }
 
-message IntConstraintV1 {
-  oneof Constraint {
-    int64 less_than = 1;
-    int64 greater_than = 2;
-    int64 less_or_equal = 3;
-    int64 greater_or_equal = 4;
-    int64 equal = 5;
-    IntSet in_set = 6;
-    IntSet not_in_set = 7;
-  }
-}
-
-message IntSet { repeated int64 set = 7 [ packed = true ]; }
-
 message StringConstraintV0 {
   enum Kind {
     PREFIX = 0;
@@ -185,20 +159,6 @@ message StringConstraintV0 {
   string regex = 7;
 }
 
-message StringConstraintV1 {
-
-  oneof Constraint {
-    string prefix = 1;
-    string suffix = 2;
-    string equal = 3;
-    StringSet in_set = 4;
-    StringSet not_in_set = 5;
-    string regex = 6;
-  }
-}
-
-message StringSet { repeated string set = 1; }
-
 message DateConstraintV0 {
   enum Kind {
     BEFORE = 0;
@@ -209,13 +169,6 @@ message DateConstraintV0 {
 
   uint64 before = 2;
   uint64 after = 3;
-}
-
-message DateConstraintV1 {
-  oneof Constraint {
-    uint64 before = 1;
-    uint64 after = 2;
-  }
 }
 
 message SymbolConstraintV0 {
@@ -229,15 +182,6 @@ message SymbolConstraintV0 {
   repeated uint64 in_set = 2;
   repeated uint64 not_in_set = 3;
 }
-
-message SymbolConstraintV1 {
-  oneof Constraint {
-    SymbolSet in_set = 1;
-    SymbolSet not_in_set = 2;
-  }
-}
-
-message SymbolSet { repeated uint64 set = 1 [ packed = true ]; }
 
 message BytesConstraintV0 {
   enum Kind {
@@ -253,12 +197,43 @@ message BytesConstraintV0 {
   repeated bytes not_in_set = 4;
 }
 
-message BytesConstraintV1 {
-  oneof Constraint {
-    bytes equal = 1;
-    BytesSet in_set = 2;
-    BytesSet not_in_set = 3;
+message ExpressionV1 { repeated Op ops = 1; }
+
+message Op {
+  oneof Content {
+    IDV1 value = 1;
+    OpUnary unary = 2;
+    OpBinary binary = 3;
   }
 }
 
-message BytesSet { repeated bytes set = 1; }
+message OpUnary {
+  enum Kind {
+    Negate = 0;
+    Parens = 1;
+  }
+
+  Kind kind = 1;
+}
+
+message OpBinary {
+  enum Kind {
+    LessThan = 0;
+    GreaterThan = 1;
+    LessOrEqual = 2;
+    GreaterOrEqual = 3;
+    Equal = 4;
+    Contains = 5;
+    Prefix = 6;
+    Suffix = 7;
+    Regex = 8;
+    Add = 9;
+    Sub = 10;
+    Mul = 11;
+    Div = 12;
+    And = 13;
+    Or = 14;
+  }
+
+  Kind kind = 1;
+}
