@@ -37,7 +37,7 @@ func TestBiscuit(t *testing.T) {
 	require.NoError(t, err)
 
 	block2 := b1deser.CreateBlock()
-	block2.AddCaveat(Caveat{
+	block2.AddCheck(Check{
 		Queries: []Rule{
 			{
 				Head: Predicate{Name: "caveat", IDs: []Term{Variable("0")}},
@@ -62,7 +62,7 @@ func TestBiscuit(t *testing.T) {
 	require.NoError(t, err)
 
 	block3 := b2deser.CreateBlock()
-	block3.AddCaveat(Caveat{
+	block3.AddCheck(Check{
 		Queries: []Rule{
 			{
 				Head: Predicate{Name: "caveat2", IDs: []Term{String("/a/file1")}},
@@ -122,19 +122,19 @@ func TestBiscuitRules(t *testing.T) {
 			{Name: "owner", IDs: []Term{Symbol("ambient"), Variable("0"), Variable("1")}},
 		},
 	})
-	builder.AddAuthorityCaveat(Caveat{Queries: []Rule{
+	builder.AddAuthorityCheck(Check{Queries: []Rule{
 		{
 			Head: Predicate{Name: "allowed_users", IDs: []Term{Variable("0")}},
 			Body: []Predicate{
 				{Name: "owner", IDs: []Term{Symbol("ambient"), Variable("0"), Variable("1")}},
 			},
-			Constraints: []Constraint{{
-				Name: Variable("0"),
-				Checker: SymbolInChecker{
-					Set: map[Symbol]struct{}{Symbol("alice"): {}, Symbol("bob"): {}},
-					Not: false,
+			Expressions: []Expression{
+				{
+					Value{Set{Symbol("alice"), Symbol("bob")}},
+					Value{Variable("0")},
+					BinaryContains,
 				},
-			}},
+			},
 		},
 	}})
 
@@ -147,7 +147,7 @@ func TestBiscuitRules(t *testing.T) {
 	verifyOwner(t, v, map[string]bool{"alice": true, "bob": true, "eve": false})
 
 	block := b1.CreateBlock()
-	block.AddCaveat(Caveat{
+	block.AddCheck(Check{
 		Queries: []Rule{
 			{
 				Head: Predicate{Name: "caveat1", IDs: []Term{Variable("0"), Variable("1")}},
@@ -159,7 +159,7 @@ func TestBiscuitRules(t *testing.T) {
 			},
 		},
 	})
-	block.AddCaveat(Caveat{
+	block.AddCheck(Check{
 		Queries: []Rule{
 			{
 				Head: Predicate{Name: "caveat2", IDs: []Term{Variable("0")}},
