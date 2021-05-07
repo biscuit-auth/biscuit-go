@@ -15,7 +15,7 @@ var (
 type Verifier interface {
 	AddFact(fact Fact)
 	AddRule(rule Rule)
-	AddCaveat(caveat Caveat)
+	AddCheck(check Check)
 	Verify() error
 	Query(rule Rule) (FactSet, error)
 	Biscuit() *Biscuit
@@ -29,7 +29,7 @@ type verifier struct {
 	baseSymbols *datalog.SymbolTable
 	world       *datalog.World
 	symbols     *datalog.SymbolTable
-	caveats     []Caveat
+	checks      []Check
 }
 
 var _ Verifier = (*verifier)(nil)
@@ -46,7 +46,7 @@ func NewVerifier(b *Biscuit) (Verifier, error) {
 		baseSymbols: b.symbols.Clone(),
 		world:       baseWorld.Clone(),
 		symbols:     b.symbols.Clone(),
-		caveats:     []Caveat{},
+		checks:      []Check{},
 	}, nil
 }
 
@@ -58,8 +58,8 @@ func (v *verifier) AddRule(rule Rule) {
 	v.world.AddRule(rule.convert(v.symbols))
 }
 
-func (v *verifier) AddCaveat(caveat Caveat) {
-	v.caveats = append(v.caveats, caveat)
+func (v *verifier) AddCheck(check Check) {
+	v.checks = append(v.checks, check)
 }
 
 func (v *verifier) Verify() error {
@@ -77,8 +77,8 @@ func (v *verifier) Verify() error {
 
 	var errs []error
 
-	for i, caveat := range v.caveats {
-		c := caveat.convert(v.symbols)
+	for i, check := range v.checks {
+		c := check.convert(v.symbols)
 		successful := false
 		for _, query := range c.Queries {
 			res := v.world.QueryRule(query)
@@ -88,14 +88,14 @@ func (v *verifier) Verify() error {
 			}
 		}
 		if !successful {
-			errs = append(errs, fmt.Errorf("failed to verify caveat #%d: %s", i, debug.Caveat(c)))
+			errs = append(errs, fmt.Errorf("failed to verify check #%d: %s", i, debug.Check(c)))
 		}
 	}
 
-	for bi, blockCaveats := range v.biscuit.Caveats() {
-		for ci, caveat := range blockCaveats {
+	for bi, blockChecks := range v.biscuit.Checks() {
+		for ci, check := range blockChecks {
 			successful := false
-			for _, query := range caveat.Queries {
+			for _, query := range check.Queries {
 				res := v.world.QueryRule(query)
 				if len(*res) != 0 {
 					successful = true
@@ -103,7 +103,7 @@ func (v *verifier) Verify() error {
 				}
 			}
 			if !successful {
-				errs = append(errs, fmt.Errorf("failed to verify block #%d caveat #%d: %s", bi, ci, debug.Caveat(caveat)))
+				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", bi, ci, debug.Check(check)))
 			}
 		}
 	}
@@ -152,7 +152,7 @@ func (v *verifier) PrintWorld() string {
 }
 
 func (v *verifier) Reset() {
-	v.caveats = []Caveat{}
+	v.checks = []Check{}
 	v.world = v.baseWorld.Clone()
 	v.symbols = v.baseSymbols.Clone()
 }
