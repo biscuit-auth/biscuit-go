@@ -5,10 +5,3 @@ updates:
   schedule:
     interval: daily
   open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: github.com/alecthomas/participle
-    versions:
-    - ">= 0.7.a, < 0.8"
-  - dependency-name: github.com/golang/protobuf
-    versions:
-    - 1.5.1
