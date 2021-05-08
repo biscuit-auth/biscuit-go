@@ -10,15 +10,18 @@ import (
 	"github.com/flynn/biscuit-go/datalog"
 )
 
-const SymbolAuthority = Symbol("authority")
+const (
+	SymbolAuthority = Symbol("authority")
+	SymbolAmbient   = Symbol("ambient")
+)
 
 const MaxSchemaVersion uint32 = 1
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
 var defaultSymbolTable = &datalog.SymbolTable{
-	"authority",
-	"ambient",
+	string(SymbolAuthority),
+	string(SymbolAmbient),
 	"resource",
 	"operation",
 	"right",
