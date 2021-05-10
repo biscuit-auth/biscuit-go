@@ -90,7 +90,7 @@ if err != nil {
 verifier.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
     Name: "resource", 
     IDs: []biscuit.Term{
-        biscuit.Symbol("ambient"), 
+        biscuit.SymbolAmbient, 
         biscuit.String("/a/file1.txt")
     }
 }})
