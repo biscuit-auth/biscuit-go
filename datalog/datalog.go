@@ -165,6 +165,8 @@ type Rule struct {
 	Head        Predicate
 	Body        []Predicate
 	Expressions []Expression
+
+	forbiddenIDs []ID
 }
 
 type InvalidRuleError struct {
@@ -193,6 +195,7 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
 	if err != nil {
 		return err
 	}
+outer:
 	for _, h := range combined {
 		p := r.Head.Clone()
 		for i, id := range p.IDs {
@@ -204,6 +207,14 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
 			if !ok {
 				return InvalidRuleError{r, k}
 			}
+
+			// prevent the rule from generating facts with forbidden IDs
+			for _, f := range r.forbiddenIDs {
+				if f.Equal(*v) {
+					continue outer
+				}
+			}
+
 			p.IDs[i] = *v
 		}
 		newFacts.Insert(Fact{p})
@@ -317,6 +328,13 @@ func (w *World) AddFact(f Fact) {
 
 func (w *World) AddRule(r Rule) {
 	w.rules = append(w.rules, r)
+}
+
+// AddRuleWithForbiddenIDs adds a rule which cannot generate facts
+// containing any of the forbiddenIDs
+func (w *World) AddRuleWithForbiddenIDs(r Rule, forbiddenIDs ...ID) {
+	r.forbiddenIDs = forbiddenIDs
+	w.AddRule(r)
 }
 
 func (w *World) Run() error {
