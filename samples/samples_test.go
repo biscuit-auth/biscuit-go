@@ -501,6 +501,47 @@ func TestSample16_CheckHeadName(t *testing.T) {
 	}
 }
 
+func TestSample18_UnboundVariables(t *testing.T) {
+	for _, v := range versions {
+		t.Run(v, func(t *testing.T) {
+			token := loadSampleToken(t, v, "test18_unbound_variables_in_rule.bc")
+
+			b, err := biscuit.Unmarshal(token)
+			require.NoError(t, err)
+
+			v, err := b.Verify(loadRootPublicKey(t, v))
+			require.NoError(t, err)
+			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+				Name: "operation",
+				IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("write")},
+			}})
+			require.Error(t, v.Verify())
+		})
+	}
+}
+
+func TestSample19_GeneratingAmbientFromVariables(t *testing.T) {
+	for _, v := range versions {
+		t.Run(v, func(t *testing.T) {
+			token := loadSampleToken(t, v, "test19_generating_ambient_from_variables.bc")
+
+			b, err := biscuit.Unmarshal(token)
+			require.NoError(t, err)
+
+			t.Log(b.String())
+
+			v, err := b.Verify(loadRootPublicKey(t, v))
+			require.NoError(t, err)
+
+			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
+				Name: "operation",
+				IDs:  []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Symbol("write")},
+			}})
+			require.Error(t, v.Verify())
+		})
+	}
+}
+
 func loadSampleToken(t *testing.T, version string, path string) []byte {
 	token, err := ioutil.ReadFile(fmt.Sprintf("data/%s/%s", version, path))
 	require.NoError(t, err)
