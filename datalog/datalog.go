@@ -208,7 +208,7 @@ outer:
 				return InvalidRuleError{r, k}
 			}
 
-			// prevent the rule to generate facts with forbidden IDs
+			// prevent the rule from generating facts with forbidden IDs
 			for _, f := range r.forbiddenIDs {
 				if f.Equal(*v) {
 					continue outer
@@ -330,7 +330,7 @@ func (w *World) AddRule(r Rule) {
 	w.rules = append(w.rules, r)
 }
 
-// AddRuleWithForbiddenIDs add a rule which cannot generate facts
+// AddRuleWithForbiddenIDs adds a rule which cannot generate facts
 // containing any of the forbiddenIDs
 func (w *World) AddRuleWithForbiddenIDs(r Rule, forbiddenIDs ...ID) {
 	r.forbiddenIDs = forbiddenIDs
