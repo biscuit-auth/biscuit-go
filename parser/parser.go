@@ -5,7 +5,7 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer/stateful"
-	"github.com/flynn/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go"
 )
 
 var (

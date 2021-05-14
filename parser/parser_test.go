@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flynn/biscuit-go"
-	"github.com/flynn/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/stretchr/testify/require"
 )
 

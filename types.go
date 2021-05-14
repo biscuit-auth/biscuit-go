@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flynn/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/datalog"
 )
 
 const SymbolAuthority = Symbol("authority")

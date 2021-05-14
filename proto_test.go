@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flynn/biscuit-go/datalog"
-	"github.com/flynn/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/pb"
 	"github.com/stretchr/testify/require"
 )
 

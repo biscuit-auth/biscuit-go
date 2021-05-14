@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/flynn/biscuit-go"
-	"github.com/flynn/biscuit-go/sig"
+	"github.com/biscuit-auth/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go/sig"
 )
 
 func ExampleBiscuit() {

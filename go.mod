@@ -1,4 +1,4 @@
-module github.com/flynn/biscuit-go
+module github.com/biscuit-auth/biscuit-go
 
 go 1.16
 
