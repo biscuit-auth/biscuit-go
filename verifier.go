@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/flynn/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/datalog"
 )
 
 var (

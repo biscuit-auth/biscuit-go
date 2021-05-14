@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/flynn/biscuit-go/datalog"
-	"github.com/flynn/biscuit-go/pb"
-	"github.com/flynn/biscuit-go/sig"
+	"github.com/biscuit-auth/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
 

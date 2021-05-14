@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flynn/biscuit-go"
-	"github.com/flynn/biscuit-go/sig"
+	"github.com/biscuit-auth/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
 

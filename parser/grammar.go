@@ -10,8 +10,8 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	"github.com/flynn/biscuit-go"
-	"github.com/flynn/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go/datalog"
 )
 
 type Comment string
