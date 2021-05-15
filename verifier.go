@@ -233,7 +233,7 @@ func (v *verifier) loadPoliciesV1(pbPolicies *pb.VerifierPolicies) error {
 		}
 		check, err := fromDatalogCheck(v.symbols, *dlCheck)
 		if err != nil {
-			return fmt.Errorf("verifier: load polices v1: failed to convert check: %w", err)
+			return fmt.Errorf("verifier: load policies v1: failed to convert check: %w", err)
 		}
 		v.checks[i] = *check
 	}
@@ -247,7 +247,7 @@ func (v *verifier) loadPoliciesV1(pbPolicies *pb.VerifierPolicies) error {
 		case pb.Policy_Deny:
 			policy.Kind = PolicyKindDeny
 		default:
-			return fmt.Errorf("verifier: load polices v1: unsupported proto policy kind %v", pbPolicy.Kind)
+			return fmt.Errorf("verifier: load policies v1: unsupported proto policy kind %v", pbPolicy.Kind)
 		}
 
 		policy.Queries = make([]Rule, len(pbPolicy.Queries))
@@ -271,7 +271,7 @@ func (v *verifier) loadPoliciesV1(pbPolicies *pb.VerifierPolicies) error {
 
 func (v *verifier) SerializePolicies() ([]byte, error) {
 	if v.dirty {
-		return nil, errors.New("verifier: can't serialize after world have been ran")
+		return nil, errors.New("verifier: can't serialize after world has been run")
 	}
 
 	protoFacts := make([]*pb.FactV1, len(*v.world.Facts()))

@@ -85,7 +85,6 @@ func ExampleBiscuit() {
 					IDs:  []biscuit.Term{biscuit.Variable("file"), biscuit.Variable("permission")},
 				},
 				Body: []biscuit.Predicate{
-					// {Name: "rigth", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("file"), biscuit.Variable("operation")}},
 					{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("file")}},
 					{Name: "operation", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("permission")}},
 				},
@@ -163,7 +162,7 @@ func ExampleBiscuit() {
 	}})
 
 	if err := v1.Verify(); err != nil {
-		fmt.Println("forbiden to write /a/file1.txt")
+		fmt.Println("forbidden to write /a/file1.txt")
 	} else {
 		fmt.Println("allowed to write /a/file1.txt")
 	}
@@ -171,5 +170,5 @@ func ExampleBiscuit() {
 	// Output: Token1 length: 242
 	// Token2 length: 415
 	// allowed to read /a/file1.txt
-	// forbiden to write /a/file1.txt
+	// forbidden to write /a/file1.txt
 }
