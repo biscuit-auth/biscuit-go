@@ -419,7 +419,7 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 	return binaryOp, nil
 }
 
-func tokenCaveatToProtoCheckV1(input datalog.Check) (*pb.CheckV1, error) {
+func tokenCheckToProtoCheckV1(input datalog.Check) (*pb.CheckV1, error) {
 	pbQueries := make([]*pb.RuleV1, len(input.Queries))
 	for i, query := range input.Queries {
 		q, err := tokenRuleToProtoRuleV1(query)

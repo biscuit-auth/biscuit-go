@@ -123,7 +123,7 @@ func getServerToken(t *testing.T, pubkey ed25519.PublicKey) ([]byte, sig.PublicK
 			Head: biscuit.Predicate{Name: "valid", IDs: []biscuit.Term{biscuit.Variable("dataID")}},
 			Body: []biscuit.Predicate{
 				{Name: "should_sign", IDs: []biscuit.Term{biscuit.SymbolAuthority, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
-				{Name: "valid_signature", IDs: []biscuit.Term{biscuit.Symbol("ambient"), biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
+				{Name: "valid_signature", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("dataID"), biscuit.Variable("alg"), biscuit.Variable("pubkey")}},
 			},
 		},
 	}})
@@ -302,8 +302,9 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 
 	verifier.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "valid_signature",
-		IDs:  []biscuit.Term{biscuit.Symbol("ambient"), dataID, alg, pubkey},
+		IDs:  []biscuit.Term{biscuit.SymbolAmbient, dataID, alg, pubkey},
 	}})
+	verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 
 	t.Logf("verifySignature world after:\n%s", verifier.PrintWorld())
 	require.NoError(t, verifier.Verify())

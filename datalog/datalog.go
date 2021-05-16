@@ -326,6 +326,10 @@ func (w *World) AddFact(f Fact) {
 	w.facts.Insert(f)
 }
 
+func (w *World) Facts() *FactSet {
+	return w.facts
+}
+
 func (w *World) AddRule(r Rule) {
 	w.rules = append(w.rules, r)
 }
@@ -335,6 +339,10 @@ func (w *World) AddRule(r Rule) {
 func (w *World) AddRuleWithForbiddenIDs(r Rule, forbiddenIDs ...ID) {
 	r.forbiddenIDs = forbiddenIDs
 	w.AddRule(r)
+}
+
+func (w *World) Rules() []Rule {
+	return w.rules
 }
 
 func (w *World) Run() error {
@@ -630,8 +638,12 @@ func (t *SymbolTable) IsDisjoint(other *SymbolTable) bool {
 	return true
 }
 
+// Extend insert symbols from the given SymbolTable in the receiving one
+// excluding any Symbols already existing
 func (t *SymbolTable) Extend(other *SymbolTable) {
-	*t = append(*t, *other...)
+	for _, s := range *other {
+		t.Insert(s)
+	}
 }
 
 type SymbolDebugger struct {

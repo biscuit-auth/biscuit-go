@@ -41,6 +41,8 @@ verifier world:
 World {
   facts: [
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:596a24631a8eeec5cbc0d84fc6c22fec1a524c7367bc8926827201ddd218f4bb)",
+    "revocation_id(1, hex:dec4e0a7f817fe6c5964a18e9f0eae5564c12531b05dc4525f553570519baa87)",
     "right(#authority, \"file1\", #read)",
     "right(#authority, \"file1\", #write)",
     "right(#authority, \"file2\", #read)",
@@ -341,6 +343,8 @@ World {
   facts: [
     "operation(#ambient, #read)",
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:deaf1b539fda04436be70357d4dca8435581661e47d5a6b690054a9e7b63ed09)",
+    "revocation_id(1, hex:e1ad30e387ff5b866bf631ac3c572256730cba0612d88054a863aa8c0702dbd6)",
     "time(#ambient, 2020-12-21T09:23:12+00:00)",
 ]
   rules: []
@@ -394,6 +398,8 @@ World {
     "operation(#ambient, #read)",
     "owner(#ambient, #alice, \"file1\")",
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:20262f14cd4d28aa7e95ec93e94c28faf9aac1e7b720fb47f177aea577b18691)",
+    "revocation_id(1, hex:9065c0f8a4abad0c01877a2a9427e948688fbe296069eeef021179d5b936e260)",
 ]
   rules: [
     "right(#authority, $1, #read) <- resource(#ambient, $1), owner(#ambient, $0, $1)",
@@ -437,6 +443,7 @@ World {
   facts: [
     "operation(#ambient, #read)",
     "resource(#ambient, \"file2\")",
+    "revocation_id(0, hex:ea25b30574845105fb8def0856560d07182bf5ab14fd4d32040431a69d788534)",
     "right(#authority, \"file1\", #read)",
 ]
   rules: []
@@ -477,6 +484,7 @@ World {
   facts: [
     "operation(#ambient, #read)",
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:a5b6e79d15461ee3c304802c00dfa4237c3702f6dd8a1dd148a7b4dfba18ef40)",
 ]
   rules: []
   checks: [
@@ -492,6 +500,7 @@ World {
   facts: [
     "operation(#ambient, #read)",
     "resource(#ambient, \"file2\")",
+    "revocation_id(0, hex:a5b6e79d15461ee3c304802c00dfa4237c3702f6dd8a1dd148a7b4dfba18ef40)",
 ]
   rules: []
   checks: [
@@ -543,6 +552,8 @@ verifier world:
 World {
   facts: [
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:d6c50661f8f35fbfdc3daa70f6ca41608d628b245c91ba6d6281805aa9f47774)",
+    "revocation_id(1, hex:c17a3b24a64978db6039d093f1109c63417b2dffc63b972abc69eb61ee28885e)",
     "right(#authority, \"file1\", #read)",
     "right(#authority, \"file2\", #read)",
     "time(#ambient, 2020-12-21T09:23:12+00:00)",
@@ -563,6 +574,8 @@ verifier world:
 World {
   facts: [
     "resource(#ambient, \"file2\")",
+    "revocation_id(0, hex:d6c50661f8f35fbfdc3daa70f6ca41608d628b245c91ba6d6281805aa9f47774)",
+    "revocation_id(1, hex:c17a3b24a64978db6039d093f1109c63417b2dffc63b972abc69eb61ee28885e)",
     "right(#authority, \"file1\", #read)",
     "right(#authority, \"file2\", #read)",
     "time(#ambient, 2020-12-21T09:23:12+00:00)",
@@ -607,6 +620,7 @@ verifier world:
 World {
   facts: [
     "resource(#ambient, \"file1\")",
+    "revocation_id(0, hex:a3a87a95f62fe215a0a83d462b8bb0e8b030d7d4d933706d19c3461a85bd3e83)",
 ]
   rules: []
   checks: [
@@ -621,6 +635,7 @@ verifier world:
 World {
   facts: [
     "resource(#ambient, \"file123.txt\")",
+    "revocation_id(0, hex:a3a87a95f62fe215a0a83d462b8bb0e8b030d7d4d933706d19c3461a85bd3e83)",
 ]
   rules: []
   checks: [
@@ -659,6 +674,7 @@ verifier world:
 World {
   facts: [
     "must_be_present(#authority, \"hello\")",
+    "revocation_id(0, hex:1ded979c6661e34b09cedf85c778ab0f0304e7c0ca44382348e76147cb1fa3f3)",
 ]
   rules: []
   checks: [
@@ -702,6 +718,8 @@ verifier world:
 World {
   facts: [
     "check1(#test)",
+    "revocation_id(0, hex:8f03890eeaa997cd03da71115168e41425b2be82731026225b0c5b87163e4d8e)",
+    "revocation_id(1, hex:94fff36a9fa4d4149ab1488bf4aa84ed0bab0075cc7d051270367fb9c9688795)",
 ]
   rules: []
   checks: [
@@ -712,3 +730,95 @@ World {
 ]
 }
 validation: `Err(FailedLogic(FailedChecks([Block(FailedBlockCheck { block_id: 0, check_id: 0, rule: "check if resource(#ambient, #hello)" })])))`
+
+------------------------------
+
+## test expression syntax and all available operations: test17_expressions.bc
+biscuit: Biscuit {
+    symbols: ["authority", "ambient", "resource", "operation", "right", "current_time", "revocation_id", "query", "abc", "hello", "world"]
+    authority: Block[0] {
+            symbols: ["query", "abc", "hello", "world"]
+            version: 1
+            context: ""
+            facts: []
+            rules: []
+            checks: [
+                check if true,
+                check if !false,
+                check if !false,
+                check if false or true,
+                check if 1 < 2,
+                check if 2 > 1,
+                check if 1 <= 2,
+                check if 1 <= 1,
+                check if 2 >= 1,
+                check if 2 >= 2,
+                check if 3 == 3,
+                check if 1 + 2 * 3 - 4 / 2 == 5,
+                check if "hello world".starts_with("hello") && "hello world".ends_with("world"),
+                check if "aaabde".matches("a*c?.e"),
+                check if "abcD12" == "abcD12",
+                check if 2019-12-04T09:46:41+00:00 < 2020-12-04T09:46:41+00:00,
+                check if 2020-12-04T09:46:41+00:00 > 2019-12-04T09:46:41+00:00,
+                check if 2019-12-04T09:46:41+00:00 <= 2020-12-04T09:46:41+00:00,
+                check if 2020-12-04T09:46:41+00:00 >= 2020-12-04T09:46:41+00:00,
+                check if 2020-12-04T09:46:41+00:00 >= 2019-12-04T09:46:41+00:00,
+                check if 2020-12-04T09:46:41+00:00 >= 2020-12-04T09:46:41+00:00,
+                check if 2020-12-04T09:46:41+00:00 == 2020-12-04T09:46:41+00:00,
+                check if #abc == #abc,
+                check if hex:12ab == hex:12ab,
+                check if [1, 2].contains(2),
+                check if [2019-12-04T09:46:41+00:00, 2020-12-04T09:46:41+00:00].contains(2020-12-04T09:46:41+00:00),
+                check if [false, true].contains(true),
+                check if ["abc", "def"].contains("abc"),
+                check if [hex:12ab, hex:34de].contains(hex:34de),
+                check if [#hello, #world].contains(#hello)
+            ]
+        }
+    blocks: [
+        
+    ]
+}
+verifier world:
+World {
+  facts: [
+    "revocation_id(0, hex:d3258e24583d1482da74b2a4864074428659ebd7f5c35d42d97ce33b3f32f59d)",
+]
+  rules: []
+  checks: [
+    "Block[0][0]: check if true",
+    "Block[0][1]: check if !false",
+    "Block[0][2]: check if !false",
+    "Block[0][3]: check if false or true",
+    "Block[0][4]: check if 1 < 2",
+    "Block[0][5]: check if 2 > 1",
+    "Block[0][6]: check if 1 <= 2",
+    "Block[0][7]: check if 1 <= 1",
+    "Block[0][8]: check if 2 >= 1",
+    "Block[0][9]: check if 2 >= 2",
+    "Block[0][10]: check if 3 == 3",
+    "Block[0][11]: check if 1 + 2 * 3 - 4 / 2 == 5",
+    "Block[0][12]: check if \"hello world\".starts_with(\"hello\") && \"hello world\".ends_with(\"world\")",
+    "Block[0][13]: check if \"aaabde\".matches(\"a*c?.e\")",
+    "Block[0][14]: check if \"abcD12\" == \"abcD12\"",
+    "Block[0][15]: check if 2019-12-04T09:46:41+00:00 < 2020-12-04T09:46:41+00:00",
+    "Block[0][16]: check if 2020-12-04T09:46:41+00:00 > 2019-12-04T09:46:41+00:00",
+    "Block[0][17]: check if 2019-12-04T09:46:41+00:00 <= 2020-12-04T09:46:41+00:00",
+    "Block[0][18]: check if 2020-12-04T09:46:41+00:00 >= 2020-12-04T09:46:41+00:00",
+    "Block[0][19]: check if 2020-12-04T09:46:41+00:00 >= 2019-12-04T09:46:41+00:00",
+    "Block[0][20]: check if 2020-12-04T09:46:41+00:00 >= 2020-12-04T09:46:41+00:00",
+    "Block[0][21]: check if 2020-12-04T09:46:41+00:00 == 2020-12-04T09:46:41+00:00",
+    "Block[0][22]: check if #abc == #abc",
+    "Block[0][23]: check if hex:12ab == hex:12ab",
+    "Block[0][24]: check if [1, 2].contains(2)",
+    "Block[0][25]: check if [2019-12-04T09:46:41+00:00, 2020-12-04T09:46:41+00:00].contains(2020-12-04T09:46:41+00:00)",
+    "Block[0][26]: check if [false, true].contains(true)",
+    "Block[0][27]: check if [\"abc\", \"def\"].contains(\"abc\")",
+    "Block[0][28]: check if [hex:12ab, hex:34de].contains(hex:34de)",
+    "Block[0][29]: check if [#hello, #world].contains(#hello)",
+]
+  policies: [
+    "allow if true",
+]
+}
+validation: `Ok(())`
