@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/flynn/biscuit-go"
+	"github.com/biscuit-auth/biscuit-go"
 	"github.com/stretchr/testify/require"
 )
 

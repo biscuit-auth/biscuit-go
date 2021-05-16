@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/flynn/biscuit-go/datalog"
-	"github.com/flynn/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/pb"
 )
 
 func tokenFactToProtoFactV1(input datalog.Fact) (*pb.FactV1, error) {

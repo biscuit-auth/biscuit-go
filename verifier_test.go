@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"github.com/flynn/biscuit-go/sig"
+	"github.com/biscuit-auth/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
 
