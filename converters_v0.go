@@ -3,8 +3,8 @@ package biscuit
 import (
 	"fmt"
 
-	"github.com/flynn/biscuit-go/datalog"
-	"github.com/flynn/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/datalog"
+	"github.com/biscuit-auth/biscuit-go/pb"
 )
 
 func protoFactToTokenFactV0(input *pb.FactV0) (*datalog.Fact, error) {
