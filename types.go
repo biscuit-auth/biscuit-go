@@ -185,6 +185,37 @@ func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
 	}
 }
 
+func fromDatalogRule(symbols *datalog.SymbolTable, dlRule datalog.Rule) (*Rule, error) {
+	head, err := fromDatalogPredicate(symbols, dlRule.Head)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert datalog rule head: %v", err)
+	}
+
+	body := make([]Predicate, len(dlRule.Body))
+	for i, dlPred := range dlRule.Body {
+		pred, err := fromDatalogPredicate(symbols, dlPred)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert datalog rule body: %v", err)
+		}
+		body[i] = *pred
+	}
+
+	expressions := make([]Expression, len(dlRule.Expressions))
+	for i, dlExpr := range dlRule.Expressions {
+		expr, err := fromDatalogExpression(symbols, dlExpr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert datalog rule expression: %v", err)
+		}
+		expressions[i] = expr
+	}
+
+	return &Rule{
+		Head:        *head,
+		Body:        body,
+		Expressions: expressions,
+	}, nil
+}
+
 type Expression []Op
 
 func (e Expression) convert(symbols *datalog.SymbolTable) datalog.Expression {
@@ -193,6 +224,35 @@ func (e Expression) convert(symbols *datalog.SymbolTable) datalog.Expression {
 		expr[i] = elt.convert(symbols)
 	}
 	return expr
+}
+
+func fromDatalogExpression(symbols *datalog.SymbolTable, dlExpr datalog.Expression) (Expression, error) {
+	expr := make(Expression, len(dlExpr))
+	for i, dlOP := range dlExpr {
+		switch dlOP.Type() {
+		case datalog.OpTypeValue:
+			v, err := fromDatalogValueOp(symbols, dlOP.(datalog.Value))
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert datalog expression value: %w", err)
+			}
+			expr[i] = v
+		case datalog.OpTypeUnary:
+			u, err := fromDatalogUnaryOp(symbols, dlOP.(datalog.UnaryOp))
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert datalog unary expression: %w", err)
+			}
+			expr[i] = u
+		case datalog.OpTypeBinary:
+			b, err := fromDatalogBinaryOp(symbols, dlOP.(datalog.BinaryOp))
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert datalog binary expression: %w", err)
+			}
+			expr[i] = b
+		default:
+			return nil, fmt.Errorf("unsupported datalog expression type: %v", dlOP.Type())
+		}
+	}
+	return expr, nil
 }
 
 type Op interface {
@@ -218,6 +278,13 @@ func (v Value) Type() OpType {
 func (v Value) convert(symbols *datalog.SymbolTable) datalog.Op {
 	return datalog.Value{ID: v.Term.convert(symbols)}
 }
+func fromDatalogValueOp(symbols *datalog.SymbolTable, dlValue datalog.Value) (Op, error) {
+	term, err := fromDatalogID(symbols, dlValue.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert datalog expression value: %v", err)
+	}
+	return Value{Term: term}, nil
+}
 
 type unaryOpType byte
 
@@ -240,6 +307,17 @@ func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Parens{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
+	}
+}
+
+func fromDatalogUnaryOp(symbols *datalog.SymbolTable, dlUnary datalog.UnaryOp) (Op, error) {
+	switch dlUnary.UnaryOpFunc.Type() {
+	case datalog.UnaryNegate:
+		return UnaryNegate, nil
+	case datalog.UnaryParens:
+		return UnaryParens, nil
+	default:
+		return UnaryUndefined, fmt.Errorf("unsupported datalog unary op: %v", dlUnary.UnaryOpFunc.Type())
 	}
 }
 
@@ -306,6 +384,43 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 	}
 }
 
+func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp) (Op, error) {
+	switch dbBinary.BinaryOpFunc.Type() {
+	case datalog.BinaryLessThan:
+		return BinaryLessThan, nil
+	case datalog.BinaryLessOrEqual:
+		return BinaryLessOrEqual, nil
+	case datalog.BinaryGreaterThan:
+		return BinaryGreaterThan, nil
+	case datalog.BinaryGreaterOrEqual:
+		return BinaryGreaterOrEqual, nil
+	case datalog.BinaryEqual:
+		return BinaryEqual, nil
+	case datalog.BinaryContains:
+		return BinaryContains, nil
+	case datalog.BinaryPrefix:
+		return BinaryPrefix, nil
+	case datalog.BinarySuffix:
+		return BinarySuffix, nil
+	case datalog.BinaryRegex:
+		return BinaryRegex, nil
+	case datalog.BinaryAdd:
+		return BinaryAdd, nil
+	case datalog.BinarySub:
+		return BinarySub, nil
+	case datalog.BinaryMul:
+		return BinaryMul, nil
+	case datalog.BinaryDiv:
+		return BinaryDiv, nil
+	case datalog.BinaryAnd:
+		return BinaryAnd, nil
+	case datalog.BinaryOr:
+		return BinaryOr, nil
+	default:
+		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
+	}
+}
+
 type Check struct {
 	Queries []Rule
 }
@@ -319,6 +434,21 @@ func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
 	return datalog.Check{
 		Queries: queries,
 	}
+}
+
+func fromDatalogCheck(symbols *datalog.SymbolTable, dlCheck datalog.Check) (*Check, error) {
+	queries := make([]Rule, len(dlCheck.Queries))
+	for i, q := range dlCheck.Queries {
+		query, err := fromDatalogRule(symbols, q)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert datalog check query: %w", err)
+		}
+		queries[i] = *query
+	}
+
+	return &Check{
+		Queries: queries,
+	}, nil
 }
 
 type Predicate struct {
@@ -437,4 +567,23 @@ func (a Set) String() string {
 	}
 	sort.Strings(elts)
 	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+}
+
+type PolicyKind byte
+
+const (
+	PolicyKindAllow = iota
+	PolicyKindDeny
+)
+
+var (
+	// DefaultAllowPolicy allows the biscuit to verify sucessfully as long as all its rules generate some facts.
+	DefaultAllowPolicy = Policy{Kind: PolicyKindAllow, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+	// DefaultDenyPolicy makes the biscuit verification fail in all cases.
+	DefaultDenyPolicy = Policy{Kind: PolicyKindDeny, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+)
+
+type Policy struct {
+	Queries []Rule
+	Kind    PolicyKind
 }

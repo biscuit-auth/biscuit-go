@@ -89,16 +89,19 @@ func TestBiscuit(t *testing.T) {
 
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{SymbolAmbient, String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{SymbolAmbient, Symbol("read")}}})
+	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Verify())
 
 	v3.Reset()
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{SymbolAmbient, Symbol("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{SymbolAmbient, Symbol("read")}}})
+	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Verify())
 
 	v3.Reset()
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{SymbolAmbient, Symbol("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{SymbolAmbient, Symbol("write")}}})
+	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Verify())
 }
 
@@ -195,6 +198,7 @@ func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
 					},
 				},
 			})
+			v.AddPolicy(DefaultAllowPolicy)
 
 			if valid {
 				require.NoError(t, v.Verify())

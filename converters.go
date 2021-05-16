@@ -36,7 +36,7 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 
 	out.ChecksV1 = make([]*pb.CheckV1, len(input.checks))
 	for i, check := range input.checks {
-		c, err := tokenCaveatToProtoCheckV1(check)
+		c, err := tokenCheckToProtoCheckV1(check)
 		if err != nil {
 			return nil, err
 		}
