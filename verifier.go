@@ -143,10 +143,17 @@ func (v *verifier) Biscuit() *Biscuit {
 	return v.biscuit
 }
 
+// SHA256Sum proxy to the SHA256Sum of the underlying verified biscuit
+func (v *verifier) SHA256Sum(count int) ([]byte, error) {
+	return v.biscuit.SHA256Sum(count)
+}
+
 func (v *verifier) PrintWorld() string {
 	debug := datalog.SymbolDebugger{
 		SymbolTable: v.symbols,
 	}
+
+	v.world.Run() // ensure rules have generated their facts
 
 	return debug.World(v.world)
 }
