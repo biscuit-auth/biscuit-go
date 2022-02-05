@@ -6,13 +6,14 @@ import (
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
 	//"github.com/biscuit-auth/biscuit-go/sig"
+	"google.golang.org/protobuf/proto"
 )
 
 func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 	out := &pb.Block{
 		Symbols: *input.symbols,
 		Context: &input.context,
-		Version: &input.version,
+		Version: proto.Uint32(input.version),
 	}
 
 	out.FactsV2 = make([]*pb.FactV2, len(*input.facts))
@@ -52,15 +53,15 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	var rules []datalog.Rule
 	var checks []datalog.Check
 
-	if *input.Version > MaxSchemaVersion {
+	if input.GetVersion() > MaxSchemaVersion {
 		return nil, fmt.Errorf(
 			"biscuit: failed to convert proto block to token block: block version: %d > library version %d",
-			input.Version,
+			input.GetVersion(),
 			MaxSchemaVersion,
 		)
 	}
 
-	switch *input.Version {
+	switch input.GetVersion() {
 	case 2:
 		facts = make(datalog.FactSet, len(input.FactsV2))
 		rules = make([]datalog.Rule, len(input.RulesV2))
@@ -99,7 +100,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		rules:   rules,
 		checks:  checks,
 		context: *input.Context,
-		version: *input.Version,
+		version: input.GetVersion(),
 	}, nil
 }
 

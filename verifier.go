@@ -196,7 +196,7 @@ func (v *verifier) LoadPolicies(verifierPolicies []byte) error {
 		return fmt.Errorf("verifier: failed to load policies: %w", err)
 	}
 
-	switch pbPolicies.Version {
+	switch *pbPolicies.Version {
 	case 1:
 		return v.loadPoliciesV1(pbPolicies)
 	default:
@@ -241,7 +241,7 @@ func (v *verifier) loadPoliciesV1(pbPolicies *pb.VerifierPolicies) error {
 	v.policies = make([]Policy, len(pbPolicies.Policies))
 	for i, pbPolicy := range pbPolicies.Policies {
 		policy := Policy{}
-		switch pbPolicy.Kind {
+		switch *pbPolicy.Kind {
 		case pb.Policy_Allow:
 			policy.Kind = PolicyKindAllow
 		case pb.Policy_Deny:
@@ -306,9 +306,11 @@ func (v *verifier) SerializePolicies() ([]byte, error) {
 		protoPolicy := &pb.Policy{}
 		switch policy.Kind {
 		case PolicyKindAllow:
-			protoPolicy.Kind = pb.Policy_Allow
+			kind := pb.Policy_Allow
+			protoPolicy.Kind = &kind
 		case PolicyKindDeny:
-			protoPolicy.Kind = pb.Policy_Deny
+			kind := pb.Policy_Deny
+		    protoPolicy.Kind = &kind
 		default:
 			return nil, fmt.Errorf("verifier: unsupported policy kind %v", policy.Kind)
 		}
@@ -325,9 +327,10 @@ func (v *verifier) SerializePolicies() ([]byte, error) {
 		protoPolicies[i] = protoPolicy
 	}
 
+	version:= MaxSchemaVersion
 	return proto.Marshal(&pb.VerifierPolicies{
 		Symbols:  *v.symbols.Clone(),
-		Version:  MaxSchemaVersion,
+		Version:  &version,
 		Facts:    protoFacts,
 		Rules:    protoRules,
 		Checks:   protoChecks,
