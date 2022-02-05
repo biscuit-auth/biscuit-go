@@ -674,10 +674,28 @@ func (d SymbolDebugger) Rule(r Rule) string {
 
 	var expressionsStart string
 	if len(expressions) > 0 {
-		expressionsStart = " @ "
+		expressionsStart = ", "
 	}
 
-	return fmt.Sprintf("*%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+	return fmt.Sprintf("%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+}
+
+func (d SymbolDebugger) CheckQuery(r Rule) string {
+	preds := make([]string, len(r.Body))
+	for i, p := range r.Body {
+		preds[i] = d.Predicate(p)
+	}
+	expressions := make([]string, len(r.Expressions))
+	for i, e := range r.Expressions {
+		expressions[i] = d.Expression(e)
+	}
+
+	var expressionsStart string
+	if len(expressions) > 0 {
+		expressionsStart = ", "
+	}
+
+	return fmt.Sprintf("%s%s%s", strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
 }
 
 func (d SymbolDebugger) Expression(e Expression) string {
@@ -687,9 +705,9 @@ func (d SymbolDebugger) Expression(e Expression) string {
 func (d SymbolDebugger) Check(c Check) string {
 	queries := make([]string, len(c.Queries))
 	for i, q := range c.Queries {
-		queries[i] = d.Rule(q)
+		queries[i] = d.CheckQuery(q)
 	}
-	return strings.Join(queries, " || ")
+	return  fmt.Sprintf("check if %s", strings.Join(queries, " or "))
 }
 
 func (d SymbolDebugger) World(w *World) string {

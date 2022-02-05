@@ -188,7 +188,7 @@ func TestSample8_ScopedChecks(t *testing.T) {
 
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			res:= verifier.Verify()
-			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: *check if resource($0), operation(#read), right($0, #read)"), res)
+			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: check if resource($0), operation(#read), right($0, #read)"), res)
 		})
 	}
 }
