@@ -214,7 +214,7 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 	}
 
 	publicKey := ed25519.NewKeyFromSeed(privateKey).Public()
-	if bytes.Compare(currentKey, publicKey.(ed25519.PublicKey)) != 0 {
+	if !bytes.Equal(currentKey, publicKey.(ed25519.PublicKey)) {
 		return nil, errors.New("biscuit: invalid last signature")
 	}
 	//if b.p
