@@ -91,7 +91,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 			checks[i] = *c
 		}
 	default:
-		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.Version)
+		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.GetVersion())
 	}
 
 	return &Block{

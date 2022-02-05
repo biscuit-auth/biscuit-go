@@ -196,15 +196,15 @@ func (v *verifier) LoadPolicies(verifierPolicies []byte) error {
 		return fmt.Errorf("verifier: failed to load policies: %w", err)
 	}
 
-	switch *pbPolicies.Version {
-	case 1:
-		return v.loadPoliciesV1(pbPolicies)
+	switch pbPolicies.GetVersion() {
+	case 2:
+		return v.loadPoliciesV2(pbPolicies)
 	default:
-		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.Version)
+		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())
 	}
 }
 
-func (v *verifier) loadPoliciesV1(pbPolicies *pb.VerifierPolicies) error {
+func (v *verifier) loadPoliciesV2(pbPolicies *pb.VerifierPolicies) error {
 	policySymbolTable := datalog.SymbolTable(pbPolicies.Symbols)
 	v.symbols = v.baseSymbols.Clone()
 	v.symbols.Extend(&policySymbolTable)
@@ -330,7 +330,7 @@ func (v *verifier) SerializePolicies() ([]byte, error) {
 	version:= MaxSchemaVersion
 	return proto.Marshal(&pb.VerifierPolicies{
 		Symbols:  *v.symbols.Clone(),
-		Version:  &version,
+		Version:  proto.Uint32(version),
 		Facts:    protoFacts,
 		Rules:    protoRules,
 		Checks:   protoChecks,
