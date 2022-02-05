@@ -593,6 +593,13 @@ func (t *SymbolTable) Str(sym Symbol) string {
 	return (*t)[int(sym)]
 }
 
+func (t *SymbolTable) Var(v Variable) string {
+	if int(v) > len(*t)-1 {
+		return fmt.Sprintf("<invalid variable %d>", v)
+	}
+	return (*t)[int(v)]
+}
+
 func (t *SymbolTable) Clone() *SymbolTable {
 	newTable := *t
 	return &newTable
@@ -653,6 +660,8 @@ func (d SymbolDebugger) Predicate(p Predicate) string {
 		var s string
 		if sym, ok := id.(Symbol); ok {
 			s = "#" + d.Str(sym)
+		} else if variable, ok := id.(Variable); ok {
+			s = "$" + d.Var(variable)
 		} else {
 			s = fmt.Sprintf("%v", id)
 		}

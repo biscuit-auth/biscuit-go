@@ -49,23 +49,27 @@ func TestSample1_Basic(t *testing.T) {
 
 			pubkey := loadRootPublicKey(t, v)
 
-			v, err := b.Verify(pubkey)
+			ve, err := b.Verify(pubkey)
 			require.NoError(t, err)
 
-			verifier := &sampleVerifier{v}
+			verifier := &sampleVerifier{ve}
 
 			verifier.AddOperation("read")
 			verifier.AddResource("file1")
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
-			verifier.Reset()
+			ve, err = b.Verify(loadRootPublicKey(t, v))
+			require.NoError(t, err)
+			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("read")
 			verifier.AddResource("file2")
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
-			verifier.Reset()
+			ve, err = b.Verify(loadRootPublicKey(t, v))
+			require.NoError(t, err)
+			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("write")
 			verifier.AddResource("file1")
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)

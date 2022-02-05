@@ -118,6 +118,9 @@ func (v *verifier) Verify() error {
 			}
 		}
 		if !successful {
+			debug = datalog.SymbolDebugger{
+				SymbolTable: v.symbols,
+			}
 			errs = append(errs, fmt.Errorf("failed to verify check #%d: %s", i, debug.Check(c)))
 		}
 	}
@@ -138,6 +141,9 @@ func (v *verifier) Verify() error {
 			}
 		}
 		if !successful {
+			debug = datalog.SymbolDebugger{
+				SymbolTable: v.symbols,
+			}
 			errs = append(errs, fmt.Errorf("failed to verify block 0 check #%d: %s", i, debug.Check(c)))
 		}
 	}
@@ -206,6 +212,9 @@ func (v *verifier) Verify() error {
 				}
 			}
 			if !successful {
+				debug = datalog.SymbolDebugger{
+					SymbolTable: v.symbols,
+				}
 				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", i+1, j, debug.Check(c)))
 			}
 		}
@@ -218,6 +227,7 @@ func (v *verifier) Verify() error {
 		for i, e := range errs {
 			errMsg[i] = e.Error()
 		}
+
 		return fmt.Errorf("biscuit: verification failed: %s", strings.Join(errMsg, ", "))
 	}
 
