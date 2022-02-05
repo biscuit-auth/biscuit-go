@@ -84,8 +84,8 @@ func ExampleBiscuit() {
 					IDs:  []biscuit.Term{biscuit.Variable("file"), biscuit.Variable("permission")},
 				},
 				Body: []biscuit.Predicate{
-					{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("file")}},
-					{Name: "operation", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Variable("permission")}},
+					{Name: "resource", IDs: []biscuit.Term{ biscuit.Variable("file")}},
+					{Name: "operation", IDs: []biscuit.Term{biscuit.Variable("permission")}},
 				},
 				Expressions: []biscuit.Expression{
 					{
@@ -122,16 +122,16 @@ func ExampleBiscuit() {
 	}
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.String("/a/file1.txt")}},
+		Name: "resource", IDs: []biscuit.Term{ biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "operation", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol("read")}},
+		Name: "operation", IDs: []biscuit.Term{ biscuit.Symbol("read")}},
 	})
 	v1.AddPolicy(biscuit.Policy{Kind: biscuit.PolicyKindAllow, Queries: []biscuit.Rule{
 		{
 			Head: biscuit.Predicate{Name: "allow_file_1"},
 			Body: []biscuit.Predicate{
-				{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.String("/a/file1.txt")}},
+				{Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 			},
 		},
 	}})
@@ -145,16 +145,16 @@ func ExampleBiscuit() {
 	v1.Reset()
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.String("/a/file1.txt")}},
+		Name: "resource", IDs: []biscuit.Term{ biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "operation", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.Symbol("write")}},
+		Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("write")}},
 	})
 	v1.AddPolicy(biscuit.Policy{Kind: biscuit.PolicyKindAllow, Queries: []biscuit.Rule{
 		{
 			Head: biscuit.Predicate{Name: "allow_file_1"},
 			Body: []biscuit.Predicate{
-				{Name: "resource", IDs: []biscuit.Term{biscuit.SymbolAmbient, biscuit.String("/a/file1.txt")}},
+				{Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 			},
 		},
 	}})

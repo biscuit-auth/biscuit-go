@@ -44,7 +44,7 @@ func TestVerifierPolicies(t *testing.T) {
 
 	builder := NewBuilder(privateRoot)
 	err := builder.AddAuthorityRule(Rule{
-		Head: Predicate{Name: "right", IDs: []Term{SymbolAuthority, Variable("file"), Variable("operation")}},
+		Head: Predicate{Name: "right", IDs: []Term{Variable("file"), Variable("operation")}},
 		Body: []Predicate{
 			{Name: "resource", IDs: []Term{Symbol("ambient"), Variable("file")}},
 			{Name: "operation", IDs: []Term{Symbol("ambient"), Variable("operation")}},
@@ -62,7 +62,7 @@ func TestVerifierPolicies(t *testing.T) {
 		{
 			Head: Predicate{Name: "allow_read"},
 			Body: []Predicate{
-				{Name: "right", IDs: []Term{SymbolAuthority, Variable("file"), Variable("operation")}},
+				{Name: "right", IDs: []Term{Variable("file"), Variable("operation")}},
 			},
 			Expressions: []Expression{
 				{
@@ -114,7 +114,7 @@ func TestVerifierSerializeLoad(t *testing.T) {
 		{
 			Head: Predicate{Name: "allow_read", IDs: []Term{Variable("file"), Variable("operation")}},
 			Body: []Predicate{
-				{Name: "right", IDs: []Term{SymbolAuthority, Variable("file"), Variable("operation")}},
+				{Name: "right", IDs: []Term{Variable("file"), Variable("operation")}},
 			},
 			Expressions: []Expression{
 				{
