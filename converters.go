@@ -16,31 +16,40 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 		Version: proto.Uint32(input.version),
 	}
 
-	out.FactsV2 = make([]*pb.FactV2, len(*input.facts))
-	var err error
-	for i, fact := range *input.facts {
-		out.FactsV2[i], err = tokenFactToProtoFactV2(fact)
-		if err != nil {
-			return nil, err
+	facts:= input.facts
+	if facts != nil {
+		out.FactsV2 = make([]*pb.FactV2, len(*facts))
+		var err error
+		for i, fact := range *facts {
+			out.FactsV2[i], err = tokenFactToProtoFactV2(fact)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	out.RulesV2 = make([]*pb.RuleV2, len(input.rules))
-	for i, rule := range input.rules {
-		r, err := tokenRuleToProtoRuleV2(rule)
-		if err != nil {
-			return nil, err
+	rules := input.rules
+	if rules != nil {
+		out.RulesV2 = make([]*pb.RuleV2, len(rules))
+		for i, rule := range rules {
+			r, err := tokenRuleToProtoRuleV2(rule)
+			if err != nil {
+				return nil, err
+			}
+			out.RulesV2[i] = r
 		}
-		out.RulesV2[i] = r
 	}
 
-	out.ChecksV2 = make([]*pb.CheckV2, len(input.checks))
-	for i, check := range input.checks {
-		c, err := tokenCheckToProtoCheckV2(check)
-		if err != nil {
-			return nil, err
+	checks := input.checks
+	if checks != nil {
+		out.ChecksV2 = make([]*pb.CheckV2, len(checks))
+		for i, check := range checks {
+			c, err := tokenCheckToProtoCheckV2(check)
+			if err != nil {
+				return nil, err
+			}
+			out.ChecksV2[i] = c
 		}
-		out.ChecksV2[i] = c
 	}
 
 	return out, nil
