@@ -68,14 +68,6 @@ func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
 }
 
 func (b *builder) AddAuthorityFact(fact Fact) error {
-	if len(fact.Predicate.IDs) == 0 {
-		fact.Predicate.IDs = []Term{SymbolAuthority}
-	} else if fact.Predicate.IDs[0] != SymbolAuthority {
-		terms := make([]Term, 1, len(fact.Predicate.IDs)+1)
-		terms[0] = SymbolAuthority
-		fact.Predicate.IDs = append(terms, fact.Predicate.IDs...)
-	}
-
 	dlFact := fact.convert(b.symbols)
 	if !b.facts.Insert(dlFact) {
 		return ErrDuplicateFact
@@ -85,14 +77,6 @@ func (b *builder) AddAuthorityFact(fact Fact) error {
 }
 
 func (b *builder) AddAuthorityRule(rule Rule) error {
-	if len(rule.Head.IDs) == 0 {
-		rule.Head.IDs = []Term{SymbolAuthority}
-	} else if rule.Head.IDs[0] != SymbolAuthority {
-		terms := make([]Term, 1, len(rule.Head.IDs)+1)
-		terms[0] = SymbolAuthority
-		rule.Head.IDs = append(terms, rule.Head.IDs...)
-	}
-
 	dlRule := rule.convert(b.symbols)
 	b.rules = append(b.rules, dlRule)
 	return nil

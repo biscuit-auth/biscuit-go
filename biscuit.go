@@ -340,20 +340,7 @@ func (b *Biscuit) checkRootKey(root ed25519.PublicKey) error {
 func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
 	world := datalog.NewWorld()
 
-	idAuthority := symbols.Sym(string(SymbolAuthority))
-	if idAuthority == nil {
-		return nil, fmt.Errorf("biscuit: failed to generate world, missing %q symbol in symbol table", string(SymbolAuthority))
-	}
-	idAmbient := symbols.Sym(string(SymbolAmbient))
-	if idAmbient == nil {
-		return nil, fmt.Errorf("biscuit: failed to generate world, missing %q symbol in symbol table", string(SymbolAmbient))
-	}
-
 	for _, fact := range *b.authority.facts {
-		if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] == idAmbient {
-			return nil, ErrInvalidAuthorityFact
-		}
-
 		world.AddFact(fact)
 	}
 
@@ -363,19 +350,11 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 
 	for _, block := range b.blocks {
 		for _, fact := range *block.facts {
-			if len(fact.Predicate.IDs) == 0 || fact.Predicate.IDs[0] == idAuthority || fact.Predicate.IDs[0] == idAmbient {
-				return nil, ErrInvalidBlockFact
-			}
 			world.AddFact(fact)
 		}
 
 		for _, rule := range block.rules {
-			// rule head cannot contains authority or ambient symbols
-			if len(rule.Head.IDs) == 0 || rule.Head.IDs[0] == idAuthority || rule.Head.IDs[0] == idAmbient {
-				return nil, ErrInvalidBlockRule
-			}
-			// and also ensure variables won't be replaced by authority and ambient Symbols at generation
-			world.AddRuleWithForbiddenIDs(rule, idAuthority, idAmbient)
+			world.AddRule(rule)
 		}
 	}
 

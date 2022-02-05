@@ -33,8 +33,8 @@ type Verifier interface {
 type verifier struct {
 	biscuit     *Biscuit
 	baseWorld   *datalog.World
-	baseSymbols *datalog.SymbolTable
 	world       *datalog.World
+	baseSymbols *datalog.SymbolTable
 	symbols     *datalog.SymbolTable
 
 	checks   []Check
@@ -46,17 +46,14 @@ type verifier struct {
 var _ Verifier = (*verifier)(nil)
 
 func NewVerifier(b *Biscuit) (Verifier, error) {
-	baseWorld, err := b.generateWorld(b.symbols)
-	if err != nil {
-		return nil, err
-	}
+	baseWorld := datalog.NewWorld()
 
 	return &verifier{
 		biscuit:     b,
 		baseWorld:   baseWorld,
-		baseSymbols: b.symbols.Clone(),
 		world:       baseWorld.Clone(),
-		symbols:     b.symbols.Clone(),
+		symbols:     defaultSymbolTable.Clone(),
+		baseSymbols: defaultSymbolTable.Clone(),
 		checks:      []Check{},
 	}, nil
 }
@@ -82,8 +79,25 @@ func (v *verifier) Verify() error {
 		SymbolTable: v.symbols,
 	}
 
-	if v.symbols.Sym("authority") == nil || v.symbols.Sym("ambient") == nil {
-		return ErrMissingSymbols
+	// if we load facts from the verifier before
+	// the token's fact and rules, we might get inconsistent symbols
+	// token ements should first be converted to builder elements
+	// with the token's symbol table, then converted back
+	// with the verifier's symbol table
+	for _, fact := range *v.biscuit.authority.facts {
+		f, err := fromDatalogFact(v.biscuit.symbols, fact)
+		if err != nil {
+			return fmt.Errorf("biscuit: verification failed: %s", err)
+		}
+		v.world.AddFact(f.convert(v.symbols))
+	}
+
+	for _, rule := range v.biscuit.authority.rules {
+		r, err:= fromDatalogRule(v.biscuit.symbols, rule)
+		if err != nil {
+			return fmt.Errorf("biscuit: verification failed: %s", err)
+		}
+		v.world.AddRule(r.convert(v.symbols))
 	}
 
 	if err := v.world.Run(); err != nil {
@@ -108,10 +122,83 @@ func (v *verifier) Verify() error {
 		}
 	}
 
-	for bi, blockChecks := range v.biscuit.Checks() {
-		for ci, check := range blockChecks {
+	for i, check := range v.biscuit.authority.checks {
+		ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+		if err != nil {
+			return fmt.Errorf("biscuit: verification failed: %s", err)
+		}
+		c := ch.convert(v.symbols)
+
+		successful := false
+		for _, query := range c.Queries {
+			res := v.world.QueryRule(query)
+			if len(*res) != 0 {
+				successful = true
+				break
+			}
+		}
+		if !successful {
+			errs = append(errs, fmt.Errorf("failed to verify block 0 check #%d: %s", i, debug.Check(c)))
+		}
+	}
+
+	policyMatched := false
+	policyResult := ErrPolicyDenied
+	for _, policy := range v.policies {
+		if policyMatched {
+			break
+		}
+		for _, query := range policy.Queries {
+			res := v.world.QueryRule(query.convert(v.symbols))
+			if len(*res) != 0 {
+				switch policy.Kind {
+				case PolicyKindAllow:
+					policyResult = nil
+					policyMatched = true
+					break
+				case PolicyKindDeny:
+					policyResult = ErrPolicyDenied
+					policyMatched = true
+					break
+				}
+			}
+		}
+	}
+
+	// remove the rules from the vrifier and authority blocks
+	// so they are not affected by facts created by later blocks
+	v.world.ResetRules()
+
+	for i, block := range v.biscuit.blocks {
+		for _, fact := range *block.facts {
+			f, err := fromDatalogFact(v.biscuit.symbols, fact)
+			if err != nil {
+				return fmt.Errorf("biscuit: verification failed: %s", err)
+			}
+			v.world.AddFact(f.convert(v.symbols))
+		}
+	
+		for _, rule := range block.rules {
+			r, err:= fromDatalogRule(v.biscuit.symbols, rule)
+			if err != nil {
+				return fmt.Errorf("biscuit: verification failed: %s", err)
+			}
+			v.world.AddRule(r.convert(v.symbols))
+		}
+
+		if err := v.world.Run(); err != nil {
+			return err
+		}
+
+		for j, check := range block.checks {
+			ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+			if err != nil {
+				return fmt.Errorf("biscuit: verification failed: %s", err)
+			}
+			c := ch.convert(v.symbols)
+	
 			successful := false
-			for _, query := range check.Queries {
+			for _, query := range c.Queries {
 				res := v.world.QueryRule(query)
 				if len(*res) != 0 {
 					successful = true
@@ -119,9 +206,11 @@ func (v *verifier) Verify() error {
 				}
 			}
 			if !successful {
-				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", bi, ci, debug.Check(check)))
+				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", i+1, j, debug.Check(c)))
 			}
 		}
+
+		v.world.ResetRules()
 	}
 
 	if len(errs) > 0 {
@@ -132,21 +221,14 @@ func (v *verifier) Verify() error {
 		return fmt.Errorf("biscuit: verification failed: %s", strings.Join(errMsg, ", "))
 	}
 
-	for _, policy := range v.policies {
-		for _, query := range policy.Queries {
-			res := v.world.QueryRule(query.convert(v.symbols))
-			if len(*res) != 0 {
-				switch policy.Kind {
-				case PolicyKindAllow:
-					return nil
-				case PolicyKindDeny:
-					return ErrPolicyDenied
-				}
-			}
-		}
-	}
+	v.baseWorld = v.world.Clone()
+	v.baseSymbols = v.symbols.Clone()
 
-	return ErrNoMatchingPolicy
+	if policyMatched {
+		return policyResult
+	} else {
+		return ErrNoMatchingPolicy
+	}
 }
 
 func (v *verifier) Query(rule Rule) (FactSet, error) {

@@ -10,18 +10,13 @@ import (
 	"github.com/biscuit-auth/biscuit-go/datalog"
 )
 
-const (
-	SymbolAuthority = Symbol("authority")
-	SymbolAmbient   = Symbol("ambient")
-)
-
 const MaxSchemaVersion uint32 = 2
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
 var defaultSymbolTable = &datalog.SymbolTable{
-	string(SymbolAuthority),
-	string(SymbolAmbient),
+	"authority",
+	"ambient",
 	"resource",
 	"operation",
 	"right",
