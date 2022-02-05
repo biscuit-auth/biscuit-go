@@ -105,7 +105,6 @@ func (b *builder) AddAuthorityCheck(check Check) error {
 
 func (b *builder) Build() (*Biscuit, error) {
 	return New(b.rng, b.root, b.symbols, &Block{
-		index:   0,
 		symbols: b.symbols.SplitOff(b.symbolsStart),
 		facts:   b.facts,
 		rules:   b.rules,
@@ -165,9 +164,7 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 	if err != nil {
 		return nil, err
 	}
-	if authority.index != 0 {
-		return nil, ErrInvalidAuthorityIndex
-	}
+
 	symbols.Extend(authority.symbols)
 
 	blocks := make([]*Block, len(container.Blocks))
@@ -176,10 +173,6 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		if err := proto.Unmarshal(sb.Block, pbBlock); err != nil {
 			return nil, err
 		}
-
-		/*if int(pbBlock.Index) != i+1 {
-			return nil, ErrInvalidBlockIndex
-		}*/
 
 		block, err := protoBlockToTokenBlock(pbBlock)
 		if err != nil {
@@ -206,7 +199,6 @@ type BlockBuilder interface {
 }
 
 type blockBuilder struct {
-	index        uint32
 	symbolsStart int
 	symbols      *datalog.SymbolTable
 	facts        *datalog.FactSet
@@ -217,9 +209,8 @@ type blockBuilder struct {
 
 var _ BlockBuilder = (*blockBuilder)(nil)
 
-func NewBlockBuilder(index uint32, baseSymbols *datalog.SymbolTable) BlockBuilder {
+func NewBlockBuilder(baseSymbols *datalog.SymbolTable) BlockBuilder {
 	return &blockBuilder{
-		index:        index,
 		symbolsStart: baseSymbols.Len(),
 		symbols:      baseSymbols,
 		facts:        new(datalog.FactSet),
@@ -266,7 +257,6 @@ func (b *blockBuilder) Build() *Block {
 	copy(checks, b.checks)
 
 	return &Block{
-		index:   b.index,
 		symbols: b.symbols.Clone(),
 		facts:   &facts,
 		rules:   rules,
