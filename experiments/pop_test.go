@@ -1,5 +1,6 @@
 package experiments
 
+/*
 import (
 	"bytes"
 	"crypto/ed25519"
@@ -309,3 +310,4 @@ func verifySignature(t *testing.T, rootPubKey sig.PublicKey, b []byte) {
 	t.Logf("verifySignature world after:\n%s", verifier.PrintWorld())
 	require.NoError(t, verifier.Verify())
 }
+*/
