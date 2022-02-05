@@ -432,18 +432,6 @@ func TestAppendErrors(t *testing.T) {
 		require.Equal(t, ErrSymbolTableOverlap, err)
 	})
 
-	t.Run("invalid block index", func(t *testing.T) {
-		b, err := builder.Build()
-		require.NoError(t, err)
-
-		_, nextPrivateKey, err := ed25519.GenerateKey(rng)
-		_, err = b.Append(rng, nextPrivateKey, &Block{
-			symbols: &datalog.SymbolTable{},
-			index:   2,
-		})
-		require.Equal(t, ErrInvalidBlockIndex, err)
-	})
-
 	t.Run("biscuit is sealed", func(t *testing.T) {
 		b, err := builder.Build()
 		require.NoError(t, err)
@@ -452,7 +440,6 @@ func TestAppendErrors(t *testing.T) {
 		_, err = b.Append(rng, nextPrivateKey, &Block{
 			symbols: &datalog.SymbolTable{},
 			facts:   &datalog.FactSet{},
-			index:   1,
 		})
 		require.NoError(t, err)
 
@@ -460,7 +447,6 @@ func TestAppendErrors(t *testing.T) {
 		_, nextPrivateKey, err = ed25519.GenerateKey(rng)
 		_, err = b.Append(rng, nextPrivateKey, &Block{
 			symbols: &datalog.SymbolTable{},
-			index:   1,
 		})
 		require.Error(t, err)
 	})
@@ -475,15 +461,6 @@ func TestNewErrors(t *testing.T) {
 			symbols: &datalog.SymbolTable{"symbol1"},
 		})
 		require.Equal(t, ErrSymbolTableOverlap, err)
-	})
-
-	t.Run("invalid authority block index", func(t *testing.T) {
-		_, privateRoot, _ := ed25519.GenerateKey(rng)
-		_, err := New(rng, privateRoot, &datalog.SymbolTable{"symbol1", "symbol2"}, &Block{
-			symbols: &datalog.SymbolTable{"symbol3"},
-			index:   1,
-		})
-		require.Equal(t, ErrInvalidAuthorityIndex, err)
 	})
 }
 

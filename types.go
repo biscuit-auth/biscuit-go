@@ -30,7 +30,6 @@ var defaultSymbolTable = &datalog.SymbolTable{
 }
 
 type Block struct {
-	index   uint32
 	symbols *datalog.SymbolTable
 	facts   *datalog.FactSet
 	rules   []datalog.Rule
@@ -53,7 +52,7 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		checks[i] = debug.Check(c)
 	}
 
-	return fmt.Sprintf(`Block[%d] {
+	return fmt.Sprintf(`Block {
 		symbols: %+q
 		context: %q
 		facts: %v
@@ -61,7 +60,6 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		checks: %v
 		version: %d
 	}`,
-		b.index,
 		*b.symbols,
 		b.context,
 		debug.FactSet(b.facts),

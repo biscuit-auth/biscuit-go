@@ -55,10 +55,6 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 		return nil, ErrSymbolTableOverlap
 	}
 
-	if authority.index != 0 {
-		return nil, ErrInvalidAuthorityIndex
-	}
-
 	symbols.Extend(authority.symbols)
 
 	nextPublicKey, nextPrivateKey, err := ed25519.GenerateKey(rng)
@@ -100,7 +96,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 }
 
 func (b *Biscuit) CreateBlock() BlockBuilder {
-	return NewBlockBuilder(uint32(len(b.blocks)+1), b.symbols.Clone())
+	return NewBlockBuilder(b.symbols.Clone())
 }
 
 func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block) (*Biscuit, error) {
@@ -117,10 +113,6 @@ func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block
 
 	if !b.symbols.IsDisjoint(block.symbols) {
 		return nil, ErrSymbolTableOverlap
-	}
-
-	if int(block.index) != len(b.blocks)+1 {
-		return nil, ErrInvalidBlockIndex
 	}
 
 	// clone biscuit fields and append new block
