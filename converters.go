@@ -5,14 +5,13 @@ import (
 
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
-	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
 
 func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 	out := &pb.Block{
 		Symbols: *input.symbols,
-		Context: &input.context,
+		Context: proto.String(input.context),
 		Version: proto.Uint32(input.version),
 	}
 
@@ -108,7 +107,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		facts:   &facts,
 		rules:   rules,
 		checks:  checks,
-		context: *input.Context,
+		context: input.GetContext(),
 		version: input.GetVersion(),
 	}, nil
 }

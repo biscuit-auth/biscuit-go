@@ -42,6 +42,11 @@ var (
 	ErrUnknownPublicKey = errors.New("biscuit: unknown public key")
 
 	ErrInvalidSignature = errors.New("biscuit: invalid signature")
+
+	ErrInvalidSignatureSize = errors.New("biscuit: invalid signature size")
+
+	ErrInvalidKeySize = errors.New("biscuit: invalid key size")
+
 )
 
 func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
@@ -108,7 +113,11 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	if privateKey == nil {
 		return nil, errors.New("biscuit: append failed, token is sealed")
 	}
-	//FIXME: return an error on invalid key size
+	
+	if len(privateKey) != 32 {
+		return nil, ErrInvalidKeySize
+	}
+
 	privateKey = ed25519.NewKeyFromSeed(privateKey)
 
 	if !b.symbols.IsDisjoint(block.symbols) {
@@ -174,10 +183,6 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 }
 
 func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
-	/*if err := b.checkRootKey(root); err != nil {
-		return nil, err
-	}*/
-
 	currentKey := root
 
 	toVerify := append(b.container.Authority.Block[:], b.container.Authority.NextKey[:]...)
@@ -187,6 +192,9 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 	}
 
 	currentKey = b.container.Authority.NextKey
+	if len(currentKey) != 32 {
+		return nil, ErrInvalidKeySize
+	}
 
 	for _, block := range b.container.Blocks {
 		toVerify := append(block.Block[:], block.NextKey[:]...)
@@ -196,6 +204,9 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 		}
 
 		currentKey = block.NextKey
+		if len(currentKey) != 32 {
+			return nil, ErrInvalidKeySize
+		}
 	}
 
 	privateKey := b.container.Proof.GetNextSecret()
