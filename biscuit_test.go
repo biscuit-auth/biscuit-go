@@ -184,7 +184,7 @@ func TestBiscuitRules(t *testing.T) {
 }
 
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
-	
+
 	for user, valid := range owners {
 		v, err := b.Verify(publicRoot)
 		require.NoError(t, err)

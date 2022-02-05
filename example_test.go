@@ -80,7 +80,7 @@ func ExampleBiscuit() {
 					IDs:  []biscuit.Term{biscuit.Variable("file"), biscuit.Variable("permission")},
 				},
 				Body: []biscuit.Predicate{
-					{Name: "resource", IDs: []biscuit.Term{ biscuit.Variable("file")}},
+					{Name: "resource", IDs: []biscuit.Term{biscuit.Variable("file")}},
 					{Name: "operation", IDs: []biscuit.Term{biscuit.Variable("permission")}},
 				},
 				Expressions: []biscuit.Expression{
@@ -118,10 +118,10 @@ func ExampleBiscuit() {
 	}
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "resource", IDs: []biscuit.Term{ biscuit.String("/a/file1.txt")}},
+		Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "operation", IDs: []biscuit.Term{ biscuit.Symbol("read")}},
+		Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("read")}},
 	})
 	v1.AddPolicy(biscuit.Policy{Kind: biscuit.PolicyKindAllow, Queries: []biscuit.Rule{
 		{
@@ -138,10 +138,10 @@ func ExampleBiscuit() {
 		fmt.Println("allowed to read /a/file1.txt")
 	}
 
-	v1, err = b2.Verify(publicRoot)
+	v1, _ = b2.Verify(publicRoot)
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "resource", IDs: []biscuit.Term{ biscuit.String("/a/file1.txt")}},
+		Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("write")}},

@@ -382,21 +382,21 @@ func TestSample13_BlockRules(t *testing.T) {
 			file1ValidTime, err := time.Parse(time.RFC3339, "2030-12-31T12:59:59+00:00")
 			require.NoError(t, err)
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Verify(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime)
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Verify())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Verify(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime.Add(1 * time.Second))
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Verify())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Verify(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file2")
 			verifier.SetTime(time.Now())
@@ -406,7 +406,7 @@ func TestSample13_BlockRules(t *testing.T) {
 			otherFileValidTime, err := time.Parse(time.RFC3339, "1999-12-31T12:59:59+00:00")
 			require.NoError(t, err)
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Verify(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file2")
 			verifier.SetTime(otherFileValidTime)
