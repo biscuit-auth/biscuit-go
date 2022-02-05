@@ -15,7 +15,7 @@ const (
 	SymbolAmbient   = Symbol("ambient")
 )
 
-const MaxSchemaVersion uint32 = 1
+const MaxSchemaVersion uint32 = 2
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
