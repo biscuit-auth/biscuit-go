@@ -86,7 +86,8 @@ func TestVerifierPolicies(t *testing.T) {
 
 	require.NoError(t, v.Verify())
 
-	v.Reset()
+	v, err = b.Verify(publicRoot)
+	require.NoError(t, err)
 	v.AddPolicy(policy)
 	v.AddFact(Fact{Predicate: Predicate{
 		Name: "operation",

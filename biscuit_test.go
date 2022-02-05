@@ -90,13 +90,15 @@ func TestBiscuit(t *testing.T) {
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Verify())
 
-	v3.Reset()
+	v3, err = b3deser.Verify(publicRoot)
+	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{Symbol("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{Symbol("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Verify())
 
-	v3.Reset()
+	v3, err = b3deser.Verify(publicRoot)
+	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{Symbol("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{Symbol("write")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
@@ -143,9 +145,9 @@ func TestBiscuitRules(t *testing.T) {
 	require.NoError(t, err)
 
 	// b1 should allow alice & bob only
-	v, err := b1.Verify(publicRoot)
-	require.NoError(t, err)
-	verifyOwner(t, v, map[string]bool{"alice": true, "bob": true, "eve": false})
+	//v, err := b1.Verify(publicRoot)
+	//require.NoError(t, err)
+	verifyOwner(t, *b1, publicRoot, map[string]bool{"alice": true, "bob": true, "eve": false})
 
 	block := b1.CreateBlock()
 	block.AddCheck(Check{
@@ -176,13 +178,17 @@ func TestBiscuitRules(t *testing.T) {
 	require.NoError(t, err)
 
 	// b2 should now only allow alice
-	v, err = b2.Verify(publicRoot)
-	require.NoError(t, err)
-	verifyOwner(t, v, map[string]bool{"alice": true, "bob": false, "eve": false})
+	//v, err = b2.Verify(publicRoot)
+	//require.NoError(t, err)
+	verifyOwner(t, *b2, publicRoot, map[string]bool{"alice": true, "bob": false, "eve": false})
 }
 
-func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
+func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
+	
 	for user, valid := range owners {
+		v, err := b.Verify(publicRoot)
+		require.NoError(t, err)
+
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
 			v.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("file1")}}})
 			v.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{Symbol("write")}}})
@@ -202,7 +208,6 @@ func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
 			} else {
 				require.Error(t, v.Verify())
 			}
-			v.Reset()
 		})
 	}
 }
@@ -297,116 +302,6 @@ func TestGenerateWorld(t *testing.T) {
 		blockRule.convert(&allSymbols),
 	)
 	require.Equal(t, expectedWorld, world)
-}
-
-func TestGenerateWorldErrors(t *testing.T) {
-	testCases := []struct {
-		Desc       string
-		Symbols    *datalog.SymbolTable
-		Facts      []Fact
-		BlockFacts []Fact
-		BlockRules []Rule
-	}{
-		{
-			Desc:    "missing authority symbol",
-			Symbols: &datalog.SymbolTable{},
-		},
-		{
-			Desc:    "missing ambient symbol",
-			Symbols: &datalog.SymbolTable{"authority"},
-		},
-		{
-			Desc:    "invalid ambient authority fact",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			Facts: []Fact{
-				{Predicate: Predicate{Name: "test", IDs: []Term{Variable("0")}}},
-			},
-		},
-		{
-			Desc:    "empty authority fact",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			Facts: []Fact{
-				{Predicate: Predicate{Name: "test", IDs: []Term{}}},
-			},
-		},
-		{
-			Desc:    "invalid block fact authority",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockFacts: []Fact{
-				{Predicate: Predicate{Name: "test", IDs: []Term{Variable("0")}}},
-			},
-		},
-		{
-			Desc:    "invalid block fact ambient",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockFacts: []Fact{
-				{Predicate: Predicate{Name: "test", IDs: []Term{Variable("0")}}},
-			},
-		},
-		{
-			Desc:    "invalid block fact empty",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockFacts: []Fact{
-				{Predicate: Predicate{Name: "test", IDs: []Term{}}},
-			},
-		},
-		{
-			Desc:    "invalid block rule authority",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockRules: []Rule{
-				{Head: Predicate{Name: "test", IDs: []Term{}}},
-			},
-		},
-		{
-			Desc:    "invalid block rule ambient",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockRules: []Rule{
-				{Head: Predicate{Name: "test", IDs: []Term{}}},
-			},
-		},
-		{
-			Desc:    "invalid block rule empty",
-			Symbols: &datalog.SymbolTable{"authority", "ambient"},
-			BlockRules: []Rule{
-				{Head: Predicate{Name: "test", IDs: []Term{}}},
-			},
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.Desc, func(t *testing.T) {
-			rng := rand.Reader
-			_, privateRoot, _ := ed25519.GenerateKey(rng)
-
-			builder := NewBuilder(privateRoot)
-			b, err := builder.Build()
-			require.NoError(t, err)
-
-			facts := make(datalog.FactSet, 0, len(testCase.Facts))
-			for _, f := range testCase.Facts {
-				facts = append(facts, f.convert(testCase.Symbols))
-			}
-			b.authority.facts = &facts
-
-			blockFacts := make(datalog.FactSet, 0, len(testCase.BlockFacts))
-			for _, f := range testCase.BlockFacts {
-				blockFacts = append(blockFacts, f.convert(testCase.Symbols))
-			}
-
-			blockRules := make([]datalog.Rule, 0, len(testCase.BlockRules))
-			for _, r := range testCase.BlockRules {
-				blockRules = append(blockRules, r.convert(testCase.Symbols))
-			}
-
-			b.blocks = []*Block{{
-				facts: &blockFacts,
-				rules: blockRules,
-			}}
-
-			_, err = b.generateWorld(testCase.Symbols)
-			require.Error(t, err)
-		})
-	}
 }
 
 func TestAppendErrors(t *testing.T) {

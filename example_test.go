@@ -16,7 +16,6 @@ func ExampleBiscuit() {
 	err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Term{
-			biscuit.Symbol("authority"),
 			biscuit.String("/a/file1.txt"),
 			biscuit.Symbol("read"),
 		},
@@ -27,7 +26,6 @@ func ExampleBiscuit() {
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Term{
-			biscuit.Symbol("authority"),
 			biscuit.String("/a/file1.txt"),
 			biscuit.Symbol("write"),
 		},
@@ -38,7 +36,6 @@ func ExampleBiscuit() {
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Term{
-			biscuit.Symbol("authority"),
 			biscuit.String("/a/file2.txt"),
 			biscuit.Symbol("read"),
 		},
@@ -49,7 +46,6 @@ func ExampleBiscuit() {
 	err = builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
 		IDs: []biscuit.Term{
-			biscuit.Symbol("authority"),
 			biscuit.String("/a/file3.txt"),
 			biscuit.Symbol("write"),
 		},
@@ -137,12 +133,12 @@ func ExampleBiscuit() {
 	}})
 	if err := v1.Verify(); err != nil {
 		fmt.Println(v1.PrintWorld())
-		fmt.Println("forbiden to read /a/file1.txt")
+		fmt.Println("forbidden to read /a/file1.txt")
 	} else {
 		fmt.Println("allowed to read /a/file1.txt")
 	}
 
-	v1.Reset()
+	v1, err = b2.Verify(publicRoot)
 
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "resource", IDs: []biscuit.Term{ biscuit.String("/a/file1.txt")}},
@@ -165,8 +161,8 @@ func ExampleBiscuit() {
 		fmt.Println("allowed to write /a/file1.txt")
 	}
 
-	// Output: Token1 length: 279
-	// Token2 length: 487
+	// Output: Token1 length: 262
+	// Token2 length: 462
 	// allowed to read /a/file1.txt
 	// forbidden to write /a/file1.txt
 }
