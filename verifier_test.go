@@ -2,17 +2,17 @@ package biscuit
 
 import (
 	"crypto/rand"
+	"crypto/ed25519"
 	"testing"
 
-	"github.com/biscuit-auth/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVerifierDefaultPolicy(t *testing.T) {
 	rng := rand.Reader
-	root := sig.GenerateKeypair(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
-	builder := NewBuilder(root)
+	builder := NewBuilder(privateRoot)
 	err := builder.AddAuthorityFact(Fact{Predicate{
 		Name: "right",
 		IDs: []Term{
@@ -26,7 +26,7 @@ func TestVerifierDefaultPolicy(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v, err := b.Verify(root.Public())
+	v, err := b.Verify(publicRoot)
 	require.NoError(t, err)
 
 	v.AddPolicy(DefaultDenyPolicy)
@@ -40,9 +40,9 @@ func TestVerifierDefaultPolicy(t *testing.T) {
 
 func TestVerifierPolicies(t *testing.T) {
 	rng := rand.Reader
-	root := sig.GenerateKeypair(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
-	builder := NewBuilder(root)
+	builder := NewBuilder(privateRoot)
 	err := builder.AddAuthorityRule(Rule{
 		Head: Predicate{Name: "right", IDs: []Term{SymbolAuthority, Variable("file"), Variable("operation")}},
 		Body: []Predicate{
@@ -55,7 +55,7 @@ func TestVerifierPolicies(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v, err := b.Verify(root.Public())
+	v, err := b.Verify(publicRoot)
 	require.NoError(t, err)
 
 	policy := Policy{Kind: PolicyKindAllow, Queries: []Rule{
@@ -101,13 +101,13 @@ func TestVerifierPolicies(t *testing.T) {
 
 func TestVerifierSerializeLoad(t *testing.T) {
 	rng := rand.Reader
-	root := sig.GenerateKeypair(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
-	builder := NewBuilder(root)
+	builder := NewBuilder(privateRoot)
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v1, err := b.Verify(root.Public())
+	v1, err := b.Verify(publicRoot)
 	require.NoError(t, err)
 
 	policy := Policy{Kind: PolicyKindAllow, Queries: []Rule{
@@ -153,7 +153,7 @@ func TestVerifierSerializeLoad(t *testing.T) {
 	s, err := v1.SerializePolicies()
 	require.NoError(t, err)
 
-	v2, err := b.Verify(root.Public())
+	v2, err := b.Verify(publicRoot)
 	require.NoError(t, err)
 
 	require.NoError(t, v2.LoadPolicies(s))

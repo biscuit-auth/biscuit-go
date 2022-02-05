@@ -61,7 +61,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 
 	symbols.Extend(authority.symbols)
 
-	nextPrivateKey, nextPublicKey, err := ed25519.GenerateKey(rng)
+	nextPublicKey, nextPrivateKey, err := ed25519.GenerateKey(rng)
 
 	protoAuthority, err := tokenBlockToProtoBlock(authority)
 	if err != nil {
@@ -83,7 +83,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 
 	proof := &pb.Proof{
 		Content: &pb.Proof_NextSecret{
-			NextSecret: nextPrivateKey,
+			NextSecret: nextPrivateKey.Seed(),
 		},
 	}
 
@@ -112,6 +112,8 @@ func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block
 	if privateKey == nil {
 		return nil, errors.New("biscuit: append failed, token is sealed")
 	}
+	//FIXME: return an error on invalid key size
+	privateKey = ed25519.NewKeyFromSeed(privateKey)
 
 	if !b.symbols.IsDisjoint(block.symbols) {
 		return nil, ErrSymbolTableOverlap
@@ -135,7 +137,7 @@ func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block
 	symbols := b.symbols.Clone()
 	symbols.Extend(block.symbols)
 
-	nextPrivateKey, nextPublicKey, err := ed25519.GenerateKey(rng)
+	nextPublicKey, nextPrivateKey, err := ed25519.GenerateKey(rng)
 
 	// serialize and sign the new block
 	protoBlock, err := tokenBlockToProtoBlock(block)
@@ -158,7 +160,7 @@ func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block
 
 	proof := &pb.Proof{
 		Content: &pb.Proof_NextSecret{
-			NextSecret: nextPrivateKey,
+			NextSecret: nextPrivateKey.Seed(),
 		},
 	}
 
@@ -192,6 +194,8 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 		return nil, ErrInvalidSignature
 	}
 
+	currentKey = b.container.Authority.NextKey
+
 	for _, block := range b.container.Blocks {
 		toVerify := append(block.Block[:], block.NextKey[:]...)
 
@@ -208,8 +212,8 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 	}
 
 	publicKey := ed25519.NewKeyFromSeed(privateKey).Public()
-	if bytes.Compare(currentKey, publicKey.([]byte)) != 0 {
-		return nil, errors.New("biscuit: invalid signature")
+	if bytes.Compare(currentKey, publicKey.(ed25519.PublicKey)) != 0 {
+		return nil, errors.New("biscuit: invalid last signature")
 	}
 	//if b.p
 	/*FIXME: sealed token
