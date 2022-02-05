@@ -50,8 +50,7 @@ func TestBiscuit(t *testing.T) {
 		},
 	})
 
-	_, nextPrivateKey, err := ed25519.GenerateKey(rng)
-	b2, err := b1deser.Append(rng, nextPrivateKey, block2.Build())
+	b2, err := b1deser.Append(rng, block2.Build())
 	require.NoError(t, err)
 
 	b2ser, err := b2.Serialize()
@@ -73,8 +72,7 @@ func TestBiscuit(t *testing.T) {
 		},
 	})
 
-	_, nextPrivateKey, err = ed25519.GenerateKey(rng)
-	b3, err := b2deser.Append(rng, nextPrivateKey, block3.Build())
+	b3, err := b2deser.Append(rng, block3.Build())
 	require.NoError(t, err)
 
 	b3ser, err := b3.Serialize()
@@ -174,8 +172,7 @@ func TestBiscuitRules(t *testing.T) {
 		},
 	})
 
-	_, nextPrivateKey, err := ed25519.GenerateKey(rng)
-	b2, err := b1.Append(rng, nextPrivateKey, block.Build())
+	b2, err := b1.Append(rng, block.Build())
 	require.NoError(t, err)
 
 	// b2 should now only allow alice
@@ -284,8 +281,7 @@ func TestGenerateWorld(t *testing.T) {
 	blockFact := Fact{Predicate{Name: "resource", IDs: []Term{String("file1")}}}
 	blockBuild.AddFact(blockFact)
 
-	_, nextPrivateKey, err := ed25519.GenerateKey(rng)
-	b2, err := b.Append(rng, nextPrivateKey, blockBuild.Build())
+	b2, err := b.Append(rng, blockBuild.Build())
 	require.NoError(t, err)
 
 	allSymbols := append(*symbolTable, *(blockBuild.(*blockBuilder)).symbols...)
@@ -424,9 +420,8 @@ func TestAppendErrors(t *testing.T) {
 	t.Run("symbols overlap", func(t *testing.T) {
 		b, err := builder.Build()
 		require.NoError(t, err)
-		_, nextPrivateKey, err := ed25519.GenerateKey(rng)
 
-		_, err = b.Append(rng, nextPrivateKey, &Block{
+		_, err = b.Append(rng, &Block{
 			symbols: &datalog.SymbolTable{"authority"},
 		})
 		require.Equal(t, ErrSymbolTableOverlap, err)
@@ -436,16 +431,14 @@ func TestAppendErrors(t *testing.T) {
 		b, err := builder.Build()
 		require.NoError(t, err)
 
-		_, nextPrivateKey, err := ed25519.GenerateKey(rng)
-		_, err = b.Append(rng, nextPrivateKey, &Block{
+		_, err = b.Append(rng, &Block{
 			symbols: &datalog.SymbolTable{},
 			facts:   &datalog.FactSet{},
 		})
 		require.NoError(t, err)
 
 		b.container = nil
-		_, nextPrivateKey, err = ed25519.GenerateKey(rng)
-		_, err = b.Append(rng, nextPrivateKey, &Block{
+		_, err = b.Append(rng, &Block{
 			symbols: &datalog.SymbolTable{},
 		})
 		require.Error(t, err)
@@ -552,8 +545,7 @@ func TestGetBlockID(t *testing.T) {
 				IDs:  []Term{Symbol("block"), Integer(i), Integer(j)},
 			}})
 		}
-		_ , privateNext, _ := ed25519.GenerateKey(rng)
-		b, err = b.Append(rng, privateNext, blockBuilder.Build())
+		b, err = b.Append(rng, blockBuilder.Build())
 		require.NoError(t, err)
 	}
 
@@ -626,8 +618,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	})
 
 	block := blockBuilder.Build()
-	_, nextPrivate, _ := ed25519.GenerateKey(rng)
-	b, err = b.Append(rng, nextPrivate, block)
+	b, err = b.Append(rng, block)
 	require.NoError(t, err)
 	t.Log(b.String())
 
