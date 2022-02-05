@@ -12,7 +12,7 @@ import (
 
 func TestBiscuit(t *testing.T) {
 	rng := rand.Reader
-	publicRoot, privateRoot, err := ed25519.GenerateKey(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	builder := NewBuilder(privateRoot)
 
@@ -105,7 +105,7 @@ func TestBiscuit(t *testing.T) {
 
 func TestBiscuitRules(t *testing.T) {
 	rng := rand.Reader
-	publicRoot, privateRoot, err := ed25519.GenerateKey(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	builder := NewBuilder(privateRoot)
 
@@ -210,7 +210,7 @@ func verifyOwner(t *testing.T, v Verifier, owners map[string]bool) {
 
 func TestCheckRootKey(t *testing.T) {
 	rng := rand.Reader
-	publicRoot, privateRoot, err := ed25519.GenerateKey(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	builder := NewBuilder(privateRoot)
 
@@ -220,14 +220,14 @@ func TestCheckRootKey(t *testing.T) {
 	_, err = b.Verify(publicRoot)
 	require.NoError(t, err)
 
-	publicNotRoot, _, err := ed25519.GenerateKey(rng)
+	publicNotRoot, _, _ := ed25519.GenerateKey(rng)
 	_, err = b.Verify(publicNotRoot)
 	require.Equal(t, ErrInvalidSignature, err)
 }
 
 func TestGenerateWorld(t *testing.T) {
 	rng := rand.Reader
-	_, privateRoot, err := ed25519.GenerateKey(rng)
+	_, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	build := NewBuilder(privateRoot)
 
@@ -379,7 +379,7 @@ func TestGenerateWorldErrors(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Desc, func(t *testing.T) {
 			rng := rand.Reader
-			_, privateRoot, err := ed25519.GenerateKey(rng)
+			_, privateRoot, _ := ed25519.GenerateKey(rng)
 
 			builder := NewBuilder(privateRoot)
 			b, err := builder.Build()
@@ -459,7 +459,7 @@ func TestNewErrors(t *testing.T) {
 
 func TestBiscuitVerifyErrors(t *testing.T) {
 	rng := rand.Reader
-	publicRoot, privateRoot, err := ed25519.GenerateKey(rng)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	builder := NewBuilder(privateRoot)
 	b, err := builder.Build()
@@ -468,7 +468,7 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	_, err = b.Verify(publicRoot)
 	require.NoError(t, err)
 
-	publicTest, _, err := ed25519.GenerateKey(rng)
+	publicTest, _, _ := ed25519.GenerateKey(rng)
 	_, err = b.Verify(publicTest)
 	require.Error(t, err)
 }

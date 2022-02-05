@@ -61,7 +61,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 
 	symbols.Extend(authority.symbols)
 
-	nextPublicKey, nextPrivateKey, err := ed25519.GenerateKey(rng)
+	nextPublicKey, nextPrivateKey, _ := ed25519.GenerateKey(rng)
 
 	protoAuthority, err := tokenBlockToProtoBlock(authority)
 	if err != nil {
@@ -137,7 +137,7 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	symbols := b.symbols.Clone()
 	symbols.Extend(block.symbols)
 
-	nextPublicKey, nextPrivateKey, err := ed25519.GenerateKey(rng)
+	nextPublicKey, nextPrivateKey, _ := ed25519.GenerateKey(rng)
 
 	// serialize and sign the new block
 	protoBlock, err := tokenBlockToProtoBlock(block)
