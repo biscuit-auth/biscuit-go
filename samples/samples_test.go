@@ -86,7 +86,7 @@ func TestSample2_DifferentRootKey(t *testing.T) {
 			require.NoError(t, err)
 
 			v, err := b.Verify(loadRootPublicKey(t, v))
-			require.Equal(t, biscuit.ErrUnknownPublicKey, err)
+			require.Equal(t, biscuit.ErrInvalidSignature, err)
 			require.Nil(t, v)
 		})
 	}
@@ -98,6 +98,7 @@ func TestSample3_InvalidSignatureFormat(t *testing.T) {
 			token := loadSampleToken(t, v, "test3_invalid_signature_format.bc")
 
 			b, err := biscuit.Unmarshal(token)
+
 			require.Equal(t, biscuit.ErrInvalidSignatureSize, err)
 			require.Nil(t, b)
 		})
@@ -110,7 +111,9 @@ func TestSample4_RandomBlock(t *testing.T) {
 			token := loadSampleToken(t, v, "test4_random_block.bc")
 
 			_, err := biscuit.Unmarshal(token)
-			require.Equal(t, biscuit.ErrInvalidSignature, err)
+			// FIXME: how to create a protobuf error here to compare?
+			//require.Equal(t, errors.New("cannot parse invalid wire-format data"), err)
+			require.Error(t, err)
 		})
 	}
 }
@@ -121,8 +124,11 @@ func TestSample5_InvalidSignature(t *testing.T) {
 			token := loadSampleToken(t, v, "test5_invalid_signature.bc")
 
 			b, err := biscuit.Unmarshal(token)
+			require.NoError(t, err)
+
+			verifier, err := b.Verify(loadRootPublicKey(t, v))
 			require.Equal(t, biscuit.ErrInvalidSignature, err)
-			require.Nil(t, b)
+			require.Nil(t, verifier)
 		})
 	}
 }
@@ -132,8 +138,12 @@ func TestSample6_ReorderedBlocks(t *testing.T) {
 		t.Run(v, func(t *testing.T) {
 			token := loadSampleToken(t, v, "test6_reordered_blocks.bc")
 
-			_, err := biscuit.Unmarshal(token)
+			b, err := biscuit.Unmarshal(token)
+			require.NoError(t, err)
+
+			verifier, err := b.Verify(loadRootPublicKey(t, v))
 			require.Equal(t, biscuit.ErrInvalidSignature, err)
+			require.Nil(t, verifier)
 		})
 	}
 }
@@ -529,12 +539,12 @@ func TestSample16_CheckHeadName(t *testing.T) {
 }
 func TestSample17_Expressions(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
-		token := loadSampleToken(t, "v1", "test17_expressions.bc")
+		token := loadSampleToken(t, "v2", "test17_expressions.bc")
 
 		b, err := biscuit.Unmarshal(token)
 		require.NoError(t, err)
 
-		v, err := b.Verify(loadRootPublicKey(t, "v1"))
+		v, err := b.Verify(loadRootPublicKey(t, "v2"))
 		require.NoError(t, err)
 
 		v.AddPolicy(biscuit.DefaultAllowPolicy)

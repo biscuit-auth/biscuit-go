@@ -134,31 +134,18 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
+	if len(container.Authority.NextKey) != 32 {
+		return nil, ErrInvalidKeySize
+	}
+	if len(container.Authority.Signature) != 64 {
+		return nil, ErrInvalidSignatureSize
+	}
+
 	pbAuthority := new(pb.Block)
 	if err := proto.Unmarshal(container.Authority.Block, pbAuthority); err != nil {
 		return nil, err
 	}
 
-	/*signature, err := protoSignatureToTokenSignature(container.Signature)
-	if err != nil {
-		return nil, err
-	}
-
-	pubKeys := make([]sig.PublicKey, len(container.Keys))
-	for i, pk := range container.Keys {
-		pubKey, err := sig.NewPublicKey(pk)
-		if err != nil {
-			return nil, err
-		}
-		pubKeys[i] = pubKey
-	}
-
-	signedBlocks := make([][]byte, 0, len(container.Blocks)+1)
-	signedBlocks = append(signedBlocks, container.Authority)
-	signedBlocks = append(signedBlocks, container.Blocks...)
-	if err := signature.Verify(pubKeys, signedBlocks); err != nil {
-		return nil, err
-	}*/
 
 	authority, err := protoBlockToTokenBlock(pbAuthority)
 	if err != nil {
@@ -169,6 +156,13 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
+		if len(sb.NextKey) != 32 {
+			return nil, ErrInvalidKeySize
+		}
+		if len(sb.Signature) != 64 {
+			return nil, ErrInvalidSignatureSize
+		}
+
 		pbBlock := new(pb.Block)
 		if err := proto.Unmarshal(sb.Block, pbBlock); err != nil {
 			return nil, err
