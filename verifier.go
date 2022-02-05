@@ -93,7 +93,7 @@ func (v *verifier) Verify() error {
 	}
 
 	for _, rule := range v.biscuit.authority.rules {
-		r, err:= fromDatalogRule(v.biscuit.symbols, rule)
+		r, err := fromDatalogRule(v.biscuit.symbols, rule)
 		if err != nil {
 			return fmt.Errorf("biscuit: verification failed: %s", err)
 		}
@@ -161,12 +161,11 @@ func (v *verifier) Verify() error {
 				case PolicyKindAllow:
 					policyResult = nil
 					policyMatched = true
-					break
 				case PolicyKindDeny:
 					policyResult = ErrPolicyDenied
 					policyMatched = true
-					break
 				}
+				break
 			}
 		}
 	}
@@ -183,9 +182,9 @@ func (v *verifier) Verify() error {
 			}
 			v.world.AddFact(f.convert(v.symbols))
 		}
-	
+
 		for _, rule := range block.rules {
-			r, err:= fromDatalogRule(v.biscuit.symbols, rule)
+			r, err := fromDatalogRule(v.biscuit.symbols, rule)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
@@ -202,7 +201,7 @@ func (v *verifier) Verify() error {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
 			c := ch.convert(v.symbols)
-	
+
 			successful := false
 			for _, query := range c.Queries {
 				res := v.world.QueryRule(query)
