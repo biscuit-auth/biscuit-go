@@ -146,7 +146,6 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-
 	authority, err := protoBlockToTokenBlock(pbAuthority)
 	if err != nil {
 		return nil, err

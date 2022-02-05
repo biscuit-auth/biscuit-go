@@ -15,7 +15,7 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 		Version: proto.Uint32(input.version),
 	}
 
-	facts:= input.facts
+	facts := input.facts
 	if facts != nil {
 		out.FactsV2 = make([]*pb.FactV2, len(*facts))
 		var err error
