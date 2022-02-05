@@ -46,7 +46,6 @@ var (
 	ErrInvalidSignatureSize = errors.New("biscuit: invalid signature size")
 
 	ErrInvalidKeySize = errors.New("biscuit: invalid key size")
-
 )
 
 func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
@@ -113,7 +112,7 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	if privateKey == nil {
 		return nil, errors.New("biscuit: append failed, token is sealed")
 	}
-	
+
 	if len(privateKey) != 32 {
 		return nil, ErrInvalidKeySize
 	}

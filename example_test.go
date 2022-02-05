@@ -1,8 +1,8 @@
 package biscuit_test
 
 import (
-	"crypto/rand"
 	"crypto/ed25519"
+	"crypto/rand"
 	"fmt"
 
 	"github.com/biscuit-auth/biscuit-go"

@@ -310,7 +310,7 @@ func (v *verifier) SerializePolicies() ([]byte, error) {
 			protoPolicy.Kind = &kind
 		case PolicyKindDeny:
 			kind := pb.Policy_Deny
-		    protoPolicy.Kind = &kind
+			protoPolicy.Kind = &kind
 		default:
 			return nil, fmt.Errorf("verifier: unsupported policy kind %v", policy.Kind)
 		}
@@ -327,7 +327,7 @@ func (v *verifier) SerializePolicies() ([]byte, error) {
 		protoPolicies[i] = protoPolicy
 	}
 
-	version:= MaxSchemaVersion
+	version := MaxSchemaVersion
 	return proto.Marshal(&pb.VerifierPolicies{
 		Symbols:  *v.symbols.Clone(),
 		Version:  proto.Uint32(version),

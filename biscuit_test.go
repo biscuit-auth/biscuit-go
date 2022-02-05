@@ -1,8 +1,8 @@
 package biscuit
 
 import (
-	"crypto/rand"
 	"crypto/ed25519"
+	"crypto/rand"
 	"fmt"
 	"testing"
 
