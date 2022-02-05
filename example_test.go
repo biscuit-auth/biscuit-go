@@ -98,8 +98,7 @@ func ExampleBiscuit() {
 		},
 	})
 
-	_, nextPrivate, _ := ed25519.GenerateKey(rng)
-	b2, err := deser.Append(rng, nextPrivate, blockBuilder.Build())
+	b2, err := deser.Append(rng, blockBuilder.Build())
 	if err != nil {
 		panic(fmt.Errorf("failed to append: %v", err))
 	}

@@ -99,7 +99,7 @@ func (b *Biscuit) CreateBlock() BlockBuilder {
 	return NewBlockBuilder(b.symbols.Clone())
 }
 
-func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block) (*Biscuit, error) {
+func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	if b.container == nil {
 		return nil, errors.New("biscuit: append failed, token is sealed")
 	}
