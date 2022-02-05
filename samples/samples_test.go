@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"testing"
 	"time"
+	"crypto/ed25519"
 
 	"github.com/biscuit-auth/biscuit-go"
-	"github.com/biscuit-auth/biscuit-go/sig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +36,7 @@ func (s *sampleVerifier) SetTime(t time.Time) {
 	)
 }
 
-var versions = []string{"v0", "v1"}
+var versions = []string{"v2"}
 
 func TestSample1_Basic(t *testing.T) {
 	for _, v := range versions {
@@ -98,7 +98,7 @@ func TestSample3_InvalidSignatureFormat(t *testing.T) {
 			token := loadSampleToken(t, v, "test3_invalid_signature_format.bc")
 
 			b, err := biscuit.Unmarshal(token)
-			require.Equal(t, sig.ErrInvalidZSize, err)
+			require.Equal(t, biscuit.ErrInvalidSignatureSize, err)
 			require.Nil(t, b)
 		})
 	}
@@ -110,7 +110,7 @@ func TestSample4_RandomBlock(t *testing.T) {
 			token := loadSampleToken(t, v, "test4_random_block.bc")
 
 			_, err := biscuit.Unmarshal(token)
-			require.Equal(t, sig.ErrInvalidSignature, err)
+			require.Equal(t, biscuit.ErrInvalidSignature, err)
 		})
 	}
 }
@@ -121,7 +121,7 @@ func TestSample5_InvalidSignature(t *testing.T) {
 			token := loadSampleToken(t, v, "test5_invalid_signature.bc")
 
 			b, err := biscuit.Unmarshal(token)
-			require.Equal(t, sig.ErrInvalidSignature, err)
+			require.Equal(t, biscuit.ErrInvalidSignature, err)
 			require.Nil(t, b)
 		})
 	}
@@ -133,7 +133,7 @@ func TestSample6_ReorderedBlocks(t *testing.T) {
 			token := loadSampleToken(t, v, "test6_reordered_blocks.bc")
 
 			_, err := biscuit.Unmarshal(token)
-			require.Equal(t, biscuit.ErrInvalidBlockIndex, err)
+			require.Equal(t, biscuit.ErrInvalidSignature, err)
 		})
 	}
 }
@@ -590,10 +590,8 @@ func loadSampleToken(t *testing.T, version string, path string) []byte {
 	return token
 }
 
-func loadRootPublicKey(t *testing.T, version string) sig.PublicKey {
-	pk, err := ioutil.ReadFile(fmt.Sprintf("data/%s/root_key.pub", version))
-	require.NoError(t, err)
-	pubkey, err := sig.NewPublicKey(pk)
+func loadRootPublicKey(t *testing.T, version string) ed25519.PublicKey {
+	pubkey, err := ioutil.ReadFile(fmt.Sprintf("data/%s/root_key.pub", version))
 	require.NoError(t, err)
 
 	return pubkey
