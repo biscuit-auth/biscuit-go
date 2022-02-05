@@ -1,13 +1,14 @@
 package biscuit
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 	"io"
 
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
-	"github.com/biscuit-auth/biscuit-go/sig"
+	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,7 +26,7 @@ type Builder interface {
 
 type builder struct {
 	rng  io.Reader
-	root sig.Keypair
+	root ed25519.PrivateKey
 
 	symbolsStart int
 	symbols      *datalog.SymbolTable
@@ -50,7 +51,7 @@ func WithSymbols(symbols *datalog.SymbolTable) builderOption {
 	}
 }
 
-func NewBuilder(root sig.Keypair, opts ...builderOption) Builder {
+func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
 	b := &builder{
 		rng:          rand.Reader,
 		root:         root,
@@ -135,11 +136,11 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 	}
 
 	pbAuthority := new(pb.Block)
-	if err := proto.Unmarshal(container.Authority, pbAuthority); err != nil {
+	if err := proto.Unmarshal(container.Authority.Block, pbAuthority); err != nil {
 		return nil, err
 	}
 
-	signature, err := protoSignatureToTokenSignature(container.Signature)
+	/*signature, err := protoSignatureToTokenSignature(container.Signature)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 	signedBlocks = append(signedBlocks, container.Blocks...)
 	if err := signature.Verify(pubKeys, signedBlocks); err != nil {
 		return nil, err
-	}
+	}*/
 
 	authority, err := protoBlockToTokenBlock(pbAuthority)
 	if err != nil {
@@ -172,13 +173,13 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
 		pbBlock := new(pb.Block)
-		if err := proto.Unmarshal(sb, pbBlock); err != nil {
+		if err := proto.Unmarshal(sb.Block, pbBlock); err != nil {
 			return nil, err
 		}
 
-		if int(pbBlock.Index) != i+1 {
+		/*if int(pbBlock.Index) != i+1 {
 			return nil, ErrInvalidBlockIndex
-		}
+		}*/
 
 		block, err := protoBlockToTokenBlock(pbBlock)
 		if err != nil {
