@@ -166,8 +166,8 @@ func ExampleBiscuit() {
 		fmt.Println("allowed to write /a/file1.txt")
 	}
 
-	// Output: Token1 length: 242
-	// Token2 length: 415
+	// Output: Token1 length: 279
+	// Token2 length: 487
 	// allowed to read /a/file1.txt
 	// forbidden to write /a/file1.txt
 }
