@@ -1,193 +1,61 @@
-syntax = "proto3";
+syntax = "proto2";
 
 option go_package = ".;pb";
 
 message Biscuit {
-  bytes authority = 1;
-  repeated bytes blocks = 2;
-  repeated bytes keys = 3;
-  Signature signature = 4;
+  optional uint32 rootKeyId = 1;
+  required SignedBlock authority = 2;
+  repeated SignedBlock blocks = 3;
+  required Proof proof = 4;
 }
 
-message SealedBiscuit {
-  bytes authority = 1;
-  repeated bytes blocks = 2;
-  bytes signature = 3;
+message SignedBlock {
+  required bytes block = 1;
+  required bytes nextKey = 2;
+  required bytes signature = 3;
 }
 
-message Signature {
-  repeated bytes parameters = 1;
-  bytes z = 2;
+message Proof {
+  oneof Content {
+    bytes nextSecret = 1;
+    bytes finalSignature = 2;
+  }
 }
 
 message Block {
-  uint32 index = 1;
-  repeated string symbols = 2;
-  repeated FactV0 facts_v0 = 3;
-  repeated RuleV0 rules_v0 = 4;
-  repeated CaveatV0 caveats_v0 = 5;
-  string context = 6;
-  uint32 version = 7;
-  repeated FactV1 facts_v1 = 8;
-  repeated RuleV1 rules_v1 = 9;
-  repeated CheckV1 checks_v1 = 10;
+  repeated string symbols = 1;
+  optional string context = 2;
+  optional uint32 version = 3;
+  repeated FactV2 facts_v2 = 4;
+  repeated RuleV2 rules_v2 = 5;
+  repeated CheckV2 checks_v2 = 6;
 }
 
-message FactV0 { PredicateV0 predicate = 1; }
-
-message RuleV0 {
-  PredicateV0 head = 1;
-  repeated PredicateV0 body = 2;
-  repeated ConstraintV0 constraints = 3;
+message FactV2 {
+  required PredicateV2 predicate = 1;
 }
 
-message CaveatV0 { repeated RuleV0 queries = 1; }
-
-message PredicateV0 {
-  uint64 name = 1;
-  repeated IDV0 ids = 2;
+message RuleV2 {
+  required PredicateV2 head = 1;
+  repeated PredicateV2 body = 2;
+  repeated ExpressionV2 expressions = 3;
 }
 
-message IDV0 {
-  enum Kind {
-    SYMBOL = 0;
-    VARIABLE = 1;
-    INTEGER = 2;
-    STR = 3;
-    DATE = 4;
-    BYTES = 5;
-  }
-
-  Kind kind = 1;
-  uint64 symbol = 2;
-  uint32 variable = 3;
-  int64 integer = 4;
-  string str = 5;
-  uint64 date = 6;
-  bytes bytes = 7;
+message CheckV2 {
+  repeated RuleV2 queries = 1;
 }
 
-message ConstraintV0 {
-  uint32 id = 1;
-
-  enum Kind {
-    INT = 0;
-    STRING = 1;
-    DATE = 2;
-    SYMBOL = 3;
-    BYTES = 4;
-  }
-
-  Kind kind = 2;
-
-  IntConstraintV0 int = 3;
-  StringConstraintV0 str = 4;
-  DateConstraintV0 date = 5;
-  SymbolConstraintV0 symbol = 6;
-  BytesConstraintV0 bytes = 7;
+message PredicateV2 {
+  required uint64 name = 1;
+  repeated IDV2 ids = 2;
 }
 
-message IntConstraintV0 {
-  enum Kind {
-    LOWER = 0;
-    LARGER = 1;
-    LOWER_OR_EQUAL = 2;
-    LARGER_OR_EQUAL = 3;
-    EQUAL = 4;
-    IN = 5;
-    NOT_IN = 6;
-  }
-
-  Kind kind = 1;
-
-  int64 lower = 2;
-  int64 larger = 3;
-  int64 lower_or_equal = 4;
-  int64 larger_or_equal = 5;
-  int64 equal = 6;
-  repeated int64 in_set = 7 [ packed = true ];
-  repeated int64 not_in_set = 8 [ packed = true ];
-}
-
-message StringConstraintV0 {
-  enum Kind {
-    PREFIX = 0;
-    SUFFIX = 1;
-    EQUAL = 2;
-    IN = 3;
-    NOT_IN = 4;
-    REGEX = 5;
-  }
-
-  Kind kind = 1;
-
-  string prefix = 2;
-  string suffix = 3;
-  string equal = 4;
-  repeated string in_set = 5;
-  repeated string not_in_set = 6;
-  string regex = 7;
-}
-
-message DateConstraintV0 {
-  enum Kind {
-    BEFORE = 0;
-    AFTER = 1;
-  }
-
-  Kind kind = 1;
-
-  uint64 before = 2;
-  uint64 after = 3;
-}
-
-message SymbolConstraintV0 {
-  enum Kind {
-    IN = 0;
-    NOT_IN = 1;
-  }
-
-  Kind kind = 1;
-
-  repeated uint64 in_set = 2;
-  repeated uint64 not_in_set = 3;
-}
-
-message BytesConstraintV0 {
-  enum Kind {
-    EQUAL = 0;
-    IN = 1;
-    NOT_IN = 2;
-  }
-
-  Kind kind = 1;
-
-  bytes equal = 2;
-  repeated bytes in_set = 3;
-  repeated bytes not_in_set = 4;
-}
-
-message FactV1 { PredicateV1 predicate = 1; }
-
-message RuleV1 {
-  PredicateV1 head = 1;
-  repeated PredicateV1 body = 2;
-  repeated ExpressionV1 expressions = 3;
-}
-
-message CheckV1 { repeated RuleV1 queries = 1; }
-
-message PredicateV1 {
-  uint64 name = 1;
-  repeated IDV1 ids = 2;
-}
-
-message IDV1 {
+message IDV2 {
   oneof Content {
     uint64 symbol = 1;
     uint32 variable = 2;
     int64 integer = 3;
-    string str = 4;
+    string string = 4;
     uint64 date = 5;
     bytes bytes = 6;
     bool bool = 7;
@@ -195,15 +63,92 @@ message IDV1 {
   }
 }
 
-message IDSet { repeated IDV1 set = 1; }
+message IDSet {
+  repeated IDV2 set = 1;
+}
 
-message ExpressionV1 { repeated Op ops = 1; }
+message ConstraintV2 {
+  required uint32 id = 1;
+
+  oneof Constraint {
+    IntConstraintV2 int = 2;
+    StringConstraintV2 string = 3;
+    DateConstraintV2 date = 4;
+    SymbolConstraintV2 symbol = 5;
+    BytesConstraintV2 bytes = 6;
+  }
+}
+
+message IntConstraintV2 {
+  oneof Constraint {
+    int64 less_than = 1;
+    int64 greater_than = 2;
+    int64 less_or_equal = 3;
+    int64 greater_or_equal = 4;
+    int64 equal = 5;
+    IntSet in_set = 6;
+    IntSet not_in_set = 7;
+  }
+}
+
+message IntSet {
+  repeated int64 set = 7 [packed=true];
+}
+
+message StringConstraintV2 {
+  oneof Constraint {
+    string prefix = 1;
+    string suffix = 2;
+    string equal = 3;
+    StringSet in_set = 4;
+    StringSet not_in_set = 5;
+    string regex = 6;
+  }
+}
+
+message StringSet {
+  repeated string set = 1;
+}
+
+message DateConstraintV2 {
+  oneof Constraint {
+    uint64 before = 1;
+    uint64 after = 2;
+  }
+}
+
+message SymbolConstraintV2 {
+  oneof Constraint {
+    SymbolSet in_set = 1;
+    SymbolSet not_in_set = 2;
+  }
+}
+
+message SymbolSet {
+  repeated uint64 set = 1 [packed=true];
+}
+
+message BytesConstraintV2 {
+  oneof Constraint {
+    bytes equal = 1;
+    BytesSet in_set = 2;
+    BytesSet not_in_set = 3;
+  }
+}
+
+message BytesSet {
+  repeated bytes set = 1;
+}
+
+message ExpressionV2 {
+  repeated Op ops = 1;
+}
 
 message Op {
   oneof Content {
-    IDV1 value = 1;
+    IDV2 value = 1;
     OpUnary unary = 2;
-    OpBinary binary = 3;
+    OpBinary Binary = 3;
   }
 }
 
@@ -214,7 +159,7 @@ message OpUnary {
     Length = 2;
   }
 
-  Kind kind = 1;
+  required Kind kind = 1;
 }
 
 message OpBinary {
@@ -238,7 +183,7 @@ message OpBinary {
     Union = 16;
   }
 
-  Kind kind = 1;
+  required Kind kind = 1;
 }
 
 message Policy {
@@ -247,15 +192,16 @@ message Policy {
     Deny = 1;
   }
 
-  repeated RuleV1 queries = 1;
-  Kind kind = 2;
+  repeated RuleV2 queries = 1;
+  required Kind kind = 2;
 }
 
 message VerifierPolicies {
   repeated string symbols = 1;
-  uint32 version = 2;
-  repeated FactV1 facts = 3;
-  repeated RuleV1 rules = 4;
-  repeated CheckV1 checks = 5;
+  optional uint32 version = 2;
+  repeated FactV2 facts = 3;
+  repeated RuleV2 rules = 4;
+  repeated CheckV2 checks = 5;
   repeated Policy policies = 6;
+  repeated RuleV2 privileged_rules = 7;
 }

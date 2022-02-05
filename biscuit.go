@@ -3,14 +3,15 @@ package biscuit
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
+	//"crypto/sha256"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
-	"github.com/biscuit-auth/biscuit-go/sig"
+	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -39,9 +40,11 @@ var (
 	ErrEmptyKeys = errors.New("biscuit: empty keys")
 	// ErrUnknownPublicKey is returned when verifying a biscuit with the wrong public key
 	ErrUnknownPublicKey = errors.New("biscuit: unknown public key")
+
+	ErrInvalidSignature = errors.New("biscuit: invalid signature")
 )
 
-func New(rng io.Reader, root sig.Keypair, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
+func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
 	if rng == nil {
 		rng = rand.Reader
 	}
@@ -58,6 +61,8 @@ func New(rng io.Reader, root sig.Keypair, baseSymbols *datalog.SymbolTable, auth
 
 	symbols.Extend(authority.symbols)
 
+	nextPrivateKey, nextPublicKey, err := ed25519.GenerateKey(rng)
+
 	protoAuthority, err := tokenBlockToProtoBlock(authority)
 	if err != nil {
 		return nil, err
@@ -67,13 +72,24 @@ func New(rng io.Reader, root sig.Keypair, baseSymbols *datalog.SymbolTable, auth
 		return nil, err
 	}
 
-	ts := &sig.TokenSignature{}
-	ts.Sign(rng, root, marshalledAuthority)
+	toSign := append(marshalledAuthority[:], nextPublicKey[:]...)
+	signature := ed25519.Sign(root, toSign)
+
+	signedBlock := &pb.SignedBlock{
+		Block:     marshalledAuthority,
+		NextKey:   nextPublicKey,
+		Signature: signature,
+	}
+
+	proof := &pb.Proof{
+		Content: &pb.Proof_NextSecret{
+			NextSecret: nextPrivateKey,
+		},
+	}
 
 	container := &pb.Biscuit{
-		Authority: marshalledAuthority,
-		Keys:      [][]byte{root.Public().Bytes()},
-		Signature: tokenSignatureToProtoSignature(ts),
+		Authority: signedBlock,
+		Proof:     proof,
 	}
 
 	return &Biscuit{
@@ -87,8 +103,13 @@ func (b *Biscuit) CreateBlock() BlockBuilder {
 	return NewBlockBuilder(uint32(len(b.blocks)+1), b.symbols.Clone())
 }
 
-func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Biscuit, error) {
+func (b *Biscuit) Append(rng io.Reader, keypair ed25519.PrivateKey, block *Block) (*Biscuit, error) {
 	if b.container == nil {
+		return nil, errors.New("biscuit: append failed, token is sealed")
+	}
+
+	privateKey := b.container.Proof.GetNextSecret()
+	if privateKey == nil {
 		return nil, errors.New("biscuit: append failed, token is sealed")
 	}
 
@@ -114,6 +135,8 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 	symbols := b.symbols.Clone()
 	symbols.Extend(block.symbols)
 
+	nextPrivateKey, nextPublicKey, err := ed25519.GenerateKey(rng)
+
 	// serialize and sign the new block
 	protoBlock, err := tokenBlockToProtoBlock(block)
 	if err != nil {
@@ -124,22 +147,29 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 		return nil, err
 	}
 
-	ts, err := protoSignatureToTokenSignature(b.container.Signature)
-	if err != nil {
-		return nil, err
+	toSign := append(marshalledBlock[:], nextPublicKey[:]...)
+	signature := ed25519.Sign(privateKey, toSign)
+
+	signedBlock := &pb.SignedBlock{
+		Block:     marshalledBlock,
+		NextKey:   nextPublicKey,
+		Signature: signature,
 	}
-	ts.Sign(rng, keypair, marshalledBlock)
+
+	proof := &pb.Proof{
+		Content: &pb.Proof_NextSecret{
+			NextSecret: nextPrivateKey,
+		},
+	}
 
 	// clone container and append new marshalled block and public key
 	container := &pb.Biscuit{
-		Authority: append([]byte{}, b.container.Authority...),
-		Blocks:    append([][]byte{}, b.container.Blocks...),
-		Keys:      append([][]byte{}, b.container.Keys...),
-		Signature: tokenSignatureToProtoSignature(ts),
+		Authority: b.container.Authority,
+		Blocks:    append([]*pb.SignedBlock{}, b.container.Blocks...),
+		Proof:     proof,
 	}
 
-	container.Blocks = append(container.Blocks, marshalledBlock)
-	container.Keys = append(container.Keys, keypair.Public().Bytes())
+	container.Blocks = append(container.Blocks, signedBlock)
 
 	return &Biscuit{
 		authority: authority,
@@ -149,10 +179,46 @@ func (b *Biscuit) Append(rng io.Reader, keypair sig.Keypair, block *Block) (*Bis
 	}, nil
 }
 
-func (b *Biscuit) Verify(root sig.PublicKey) (Verifier, error) {
-	if err := b.checkRootKey(root); err != nil {
+func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
+	/*if err := b.checkRootKey(root); err != nil {
 		return nil, err
+	}*/
+
+	currentKey := root
+
+	toVerify := append(b.container.Authority.Block[:], b.container.Authority.NextKey[:]...)
+
+	if ok := ed25519.Verify(currentKey, toVerify, b.container.Authority.Signature); !ok {
+		return nil, ErrInvalidSignature
 	}
+
+	for _, block := range b.container.Blocks {
+		toVerify := append(block.Block[:], block.NextKey[:]...)
+
+		if ok := ed25519.Verify(currentKey, toVerify, block.Signature); !ok {
+			return nil, ErrInvalidSignature
+		}
+
+		currentKey = block.NextKey
+	}
+
+	privateKey := b.container.Proof.GetNextSecret()
+	if privateKey == nil {
+		return nil, errors.New("biscuit: sealed token verification not implemented")
+	}
+
+	publicKey := ed25519.NewKeyFromSeed(privateKey).Public()
+	if bytes.Compare(currentKey, publicKey.([]byte)) != 0 {
+		return nil, errors.New("biscuit: invalid signature")
+	}
+	//if b.p
+	/*FIXME: sealed token
+	if b.blocks.Len() == 0 {
+		toVerify := append(b.Authority.Block[:], b.Authority.nextKey[:], b.			Authority.Signature[:]...)
+	} else {
+		block := b.blocks[b.blocks.Len() - 1]
+		toVerify := append(block.Block[:], block.nextKey[:], block.Signature[:]...)
+	}*/
 
 	return NewVerifier(b)
 }
@@ -197,6 +263,7 @@ func (b *Biscuit) GetBlockID(fact Fact) (int, error) {
 	return 0, ErrFactNotFound
 }
 
+/*
 // SHA256Sum returns a hash of `count` biscuit blocks + the authority block
 // along with their respective keys.
 func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
@@ -228,7 +295,7 @@ func (b *Biscuit) SHA256Sum(count int) ([]byte, error) {
 	}
 
 	return h.Sum(nil), nil
-}
+}*/
 
 func (b *Biscuit) BlockCount() int {
 	return len(b.container.Blocks)
@@ -252,7 +319,8 @@ Biscuit {
 	)
 }
 
-func (b *Biscuit) checkRootKey(root sig.PublicKey) error {
+/*
+func (b *Biscuit) checkRootKey(root ed25519.PublicKey) error {
 	if len(b.container.Keys) == 0 {
 		return ErrEmptyKeys
 	}
@@ -261,7 +329,7 @@ func (b *Biscuit) checkRootKey(root sig.PublicKey) error {
 	}
 
 	return nil
-}
+}*/
 
 func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
 	world := datalog.NewWorld()
