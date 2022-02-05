@@ -2,17 +2,16 @@ package biscuit_test
 
 import (
 	"crypto/rand"
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/biscuit-auth/biscuit-go"
-	"github.com/biscuit-auth/biscuit-go/sig"
 )
 
 func ExampleBiscuit() {
 	rng := rand.Reader
-	root := sig.GenerateKeypair(rng)
-
-	builder := biscuit.NewBuilder(root)
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
+	builder := biscuit.NewBuilder(privateRoot)
 
 	err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
 		Name: "right",
@@ -99,8 +98,8 @@ func ExampleBiscuit() {
 		},
 	})
 
-	newKeyPair := sig.GenerateKeypair(rng)
-	b2, err := deser.Append(rng, newKeyPair, blockBuilder.Build())
+	_, nextPrivate, _ := ed25519.GenerateKey(rng)
+	b2, err := deser.Append(rng, nextPrivate, blockBuilder.Build())
 	if err != nil {
 		panic(fmt.Errorf("failed to append: %v", err))
 	}
@@ -118,7 +117,7 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to deserialize token: %v", err))
 	}
 
-	v1, err := b2.Verify(root.Public())
+	v1, err := b2.Verify(publicRoot)
 	if err != nil {
 		panic(fmt.Errorf("failed to create verifier: %v", err))
 	}
