@@ -1,12 +1,12 @@
 package biscuittest
 
 import (
+	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"testing"
-	"errors"
 	"time"
-	"crypto/ed25519"
 
 	"github.com/biscuit-auth/biscuit-go"
 	"github.com/stretchr/testify/require"
@@ -19,21 +19,21 @@ type sampleVerifier struct {
 func (s *sampleVerifier) AddOperation(op string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "operation",
-		IDs:  []biscuit.Term{ biscuit.Symbol(op)}}},
+		IDs:  []biscuit.Term{biscuit.String(op)}}},
 	)
 }
 
 func (s *sampleVerifier) AddResource(res string) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "resource",
-		IDs:  []biscuit.Term{ biscuit.String(res)}}},
+		IDs:  []biscuit.Term{biscuit.String(res)}}},
 	)
 }
 
 func (s *sampleVerifier) SetTime(t time.Time) {
 	s.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 		Name: "time",
-		IDs:  []biscuit.Term{ biscuit.Date(t)}}},
+		IDs:  []biscuit.Term{biscuit.Date(t)}}},
 	)
 }
 
@@ -169,8 +169,8 @@ func TestSample7_ScopedRules(t *testing.T) {
 			verifier.AddOperation("read")
 
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
-			res:= verifier.Verify()
-			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: check if resource($0), operation(#read), right($0, #read)"), res)
+			res := verifier.Verify()
+			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: check if resource($0), operation(\"read\"), right($0, \"read\")"), res)
 		})
 	}
 }
@@ -191,8 +191,8 @@ func TestSample8_ScopedChecks(t *testing.T) {
 			verifier.AddOperation("read")
 
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
-			res:= verifier.Verify()
-			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: check if resource($0), operation(#read), right($0, #read)"), res)
+			res := verifier.Verify()
+			require.Equal(t, errors.New("biscuit: verification failed: failed to verify block #1 check #0: check if resource($0), operation(\"read\"), right($0, \"read\")"), res)
 		})
 	}
 }
@@ -253,9 +253,9 @@ func TestSample10_VerifierScope(t *testing.T) {
 							IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
 						},
 						Body: []biscuit.Predicate{
-							{Name: "right", IDs: []biscuit.Term{ biscuit.Variable("0"), biscuit.Variable("1")}},
-							{Name: "resource", IDs: []biscuit.Term{ biscuit.Variable("0")}},
-							{Name: "operation", IDs: []biscuit.Term{ biscuit.Variable("1")}},
+							{Name: "right", IDs: []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")}},
+							{Name: "resource", IDs: []biscuit.Term{biscuit.Variable("0")}},
+							{Name: "operation", IDs: []biscuit.Term{biscuit.Variable("1")}},
 						},
 					},
 				},
@@ -263,11 +263,10 @@ func TestSample10_VerifierScope(t *testing.T) {
 
 			verifier.AddCheck(verifierCheck)
 
-		
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
-			res:= verifier.Verify()
+			res := verifier.Verify()
 			require.Equal(t, errors.New("biscuit: verification failed: failed to verify check #0: check if right($0, $1), resource($0), operation($1)"), res)
-			
+
 		})
 	}
 }
@@ -291,9 +290,9 @@ func TestSample11_VerifierAuthorityChecks(t *testing.T) {
 							IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
 						},
 						Body: []biscuit.Predicate{
-							{Name: "right", IDs: []biscuit.Term{ biscuit.Variable("0"), biscuit.Variable("1")}},
-							{Name: "resource", IDs: []biscuit.Term{ biscuit.Variable("0")}},
-							{Name: "operation", IDs: []biscuit.Term{ biscuit.Variable("1")}},
+							{Name: "right", IDs: []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")}},
+							{Name: "resource", IDs: []biscuit.Term{biscuit.Variable("0")}},
+							{Name: "operation", IDs: []biscuit.Term{biscuit.Variable("1")}},
 						},
 					},
 				},
@@ -424,8 +423,6 @@ func TestSample14_RegexConstraint(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			
-
 			validFiles := []string{
 				"file1.txt",
 				"file1.txt.zip",
@@ -532,7 +529,7 @@ func TestSample16_CheckHeadName(t *testing.T) {
 
 			v.Reset()
 			v.AddFact(biscuit.Fact{
-				Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.Symbol("hello")}},
+				Predicate: biscuit.Predicate{Name: "resource", IDs: []biscuit.Term{biscuit.String("hello")}},
 			})
 			v.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, v.Verify())
@@ -566,7 +563,7 @@ func TestSample18_UnboundVariables(t *testing.T) {
 			require.NoError(t, err)
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 				Name: "operation",
-				IDs:  []biscuit.Term{ biscuit.Symbol("write")},
+				IDs:  []biscuit.Term{biscuit.String("write")},
 			}})
 			require.Error(t, v.Verify())
 		})
@@ -588,7 +585,7 @@ func TestSample19_GeneratingAmbientFromVariables(t *testing.T) {
 
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 				Name: "operation",
-				IDs:  []biscuit.Term{ biscuit.Symbol("write")},
+				IDs:  []biscuit.Term{biscuit.String("write")},
 			}})
 			require.Error(t, v.Verify())
 		})

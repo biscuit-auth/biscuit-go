@@ -27,19 +27,6 @@ func (c *Comment) Capture(values []string) error {
 	return nil
 }
 
-type Symbol string
-
-func (s *Symbol) Capture(values []string) error {
-	if len(values) != 1 {
-		return errors.New("parser: invalid symbol values")
-	}
-	if !strings.HasPrefix(values[0], "#") {
-		return errors.New("parser: invalid symbol prefix")
-	}
-	*s = Symbol(strings.TrimPrefix(values[0], "#"))
-	return nil
-}
-
 type Variable string
 
 func (v *Variable) Capture(values []string) error {
@@ -84,8 +71,7 @@ type Check struct {
 }
 
 type Term struct {
-	Symbol   *Symbol    `@Symbol`
-	Variable *Variable  `| @Variable`
+	Variable *Variable  `@Variable`
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
 	Integer  *int64     `| @Int`
@@ -134,11 +120,10 @@ type DateComparison struct {
 }
 
 type Set struct {
-	Not     bool        `@"not"? "in"`
-	Symbols []Symbol    `("[" ( @Symbol ("," @Symbol)*)+ "]"`
-	Bytes   []HexString `| "[" ( @@ ("," @@)*)+ "]"`
-	String  []string    `| "[" (@String ("," @String)*)+ "]"`
-	Int     []int64     `| "[" (@Int ("," @Int)*)+ "]")`
+	Not    bool        `@"not"? "in"`
+	Bytes  []HexString `("[" ( @@ ("," @@)*)+ "]"`
+	String []string    `| "[" (@String ("," @String)*)+ "]"`
+	Int    []int64     `| "[" (@Int ("," @Int)*)+ "]")`
 }
 
 type HexString string
@@ -194,8 +179,6 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 		biscuitTerm = biscuit.Integer(*a.Integer)
 	case a.String != nil:
 		biscuitTerm = biscuit.String(*a.String)
-	case a.Symbol != nil:
-		biscuitTerm = biscuit.Symbol(*a.Symbol)
 	case a.Variable != nil:
 		biscuitTerm = biscuit.Variable(*a.Variable)
 	case a.Bytes != nil:
@@ -220,7 +203,7 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 		}
 		biscuitTerm = biscuitSet
 	default:
-		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, symbol, variable, or bytes")
+		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, variable, or bytes")
 	}
 
 	return biscuitTerm, nil
@@ -329,11 +312,6 @@ func (c *VariableConstraint) ToExpr() (biscuit.Expression, error) {
 	case c.Set != nil:
 		var set []biscuit.Term
 		switch {
-		case c.Set.Symbols != nil:
-			set := make([]biscuit.Term, len(c.Set.Symbols))
-			for i, s := range c.Set.Symbols {
-				set[i] = biscuit.Symbol(s)
-			}
 		case c.Set.Int != nil:
 			set := make([]biscuit.Term, len(c.Set.Int))
 			for i, s := range c.Set.Int {
@@ -354,7 +332,7 @@ func (c *VariableConstraint) ToExpr() (biscuit.Expression, error) {
 				set[i] = biscuit.Bytes(b)
 			}
 		default:
-			return nil, errors.New("parser: unsupported set type, must be one of symbols, int, string, or bytes")
+			return nil, errors.New("parser: unsupported set type, must be one of int, string, or bytes")
 		}
 
 		expr = biscuit.Expression{

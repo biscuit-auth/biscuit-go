@@ -16,9 +16,8 @@ func TestVerifierDefaultPolicy(t *testing.T) {
 	err := builder.AddAuthorityFact(Fact{Predicate{
 		Name: "right",
 		IDs: []Term{
-			Symbol("authority"),
 			String("/a/file1.txt"),
-			Symbol("read"),
+			String("read"),
 		},
 	}})
 	require.NoError(t, err)
@@ -46,8 +45,8 @@ func TestVerifierPolicies(t *testing.T) {
 	err := builder.AddAuthorityRule(Rule{
 		Head: Predicate{Name: "right", IDs: []Term{Variable("file"), Variable("operation")}},
 		Body: []Predicate{
-			{Name: "resource", IDs: []Term{Symbol("ambient"), Variable("file")}},
-			{Name: "operation", IDs: []Term{Symbol("ambient"), Variable("operation")}},
+			{Name: "resource", IDs: []Term{Variable("file")}},
+			{Name: "operation", IDs: []Term{Variable("operation")}},
 		},
 	})
 	require.NoError(t, err)
@@ -77,11 +76,11 @@ func TestVerifierPolicies(t *testing.T) {
 	v.AddPolicy(policy)
 	v.AddFact(Fact{Predicate: Predicate{
 		Name: "operation",
-		IDs:  []Term{Symbol("ambient"), String("read")},
+		IDs:  []Term{String("read")},
 	}})
 	v.AddFact(Fact{Predicate: Predicate{
 		Name: "resource",
-		IDs:  []Term{Symbol("ambient"), String("some_file.txt")},
+		IDs:  []Term{String("some_file.txt")},
 	}})
 
 	require.NoError(t, v.Verify())
@@ -91,11 +90,11 @@ func TestVerifierPolicies(t *testing.T) {
 	v.AddPolicy(policy)
 	v.AddFact(Fact{Predicate: Predicate{
 		Name: "operation",
-		IDs:  []Term{Symbol("ambient"), String("write")},
+		IDs:  []Term{String("write")},
 	}})
 	v.AddFact(Fact{Predicate: Predicate{
 		Name: "resource",
-		IDs:  []Term{Symbol("ambient"), String("some_file.txt")},
+		IDs:  []Term{String("some_file.txt")},
 	}})
 	require.Equal(t, v.Verify(), ErrNoMatchingPolicy)
 }
@@ -129,16 +128,16 @@ func TestVerifierSerializeLoad(t *testing.T) {
 
 	fact1 := Fact{Predicate: Predicate{
 		Name: "operation",
-		IDs:  []Term{Symbol("ambient"), String("read")},
+		IDs:  []Term{String("read")},
 	}}
 	fact2 := Fact{Predicate: Predicate{
 		Name: "resource",
-		IDs:  []Term{Symbol("ambient"), String("some_file.txt")},
+		IDs:  []Term{String("some_file.txt")},
 	}}
 	rule1 := Rule{
 		Head: Predicate{Name: "rule1", IDs: []Term{Variable("test")}},
 		Body: []Predicate{
-			{Name: "resource", IDs: []Term{Symbol("ambient"), String("some_file.txt")}},
+			{Name: "resource", IDs: []Term{String("some_file.txt")}},
 		},
 		Expressions: []Expression{
 			{Value{Term: Integer(1)}, Value{Term: Integer(2)}, BinaryLessThan},

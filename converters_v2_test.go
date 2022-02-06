@@ -13,6 +13,7 @@ import (
 
 func TestExpressionConvertV2(t *testing.T) {
 	now := time.Now()
+	syms := &datalog.SymbolTable{}
 
 	testCases := []struct {
 		Desc     string
@@ -169,13 +170,13 @@ func TestExpressionConvertV2(t *testing.T) {
 			Desc: "string comparison equal",
 			Input: datalog.Expression{
 				datalog.Value{ID: datalog.Variable(10)},
-				datalog.Value{ID: datalog.String("abcd")},
+				datalog.Value{ID: syms.Insert("abcd")},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 10}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: "abcd"}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 				},
 			},
@@ -184,13 +185,13 @@ func TestExpressionConvertV2(t *testing.T) {
 			Desc: "string comparison prefix",
 			Input: datalog.Expression{
 				datalog.Value{ID: datalog.Variable(11)},
-				datalog.Value{ID: datalog.String("abcd")},
+				datalog.Value{ID: syms.Insert("abcd")},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 11}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: "abcd"}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix.Enum()}}},
 				},
 			},
@@ -199,13 +200,13 @@ func TestExpressionConvertV2(t *testing.T) {
 			Desc: "string comparison suffix",
 			Input: datalog.Expression{
 				datalog.Value{ID: datalog.Variable(12)},
-				datalog.Value{ID: datalog.String("abcd")},
+				datalog.Value{ID: syms.Insert("abcd")},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Suffix{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 12}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: "abcd"}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Suffix.Enum()}}},
 				},
 			},
@@ -213,16 +214,16 @@ func TestExpressionConvertV2(t *testing.T) {
 		{
 			Desc: "string comparison in",
 			Input: datalog.Expression{
-				datalog.Value{ID: datalog.Set{datalog.String("a"), datalog.String("b"), datalog.String("c")}},
+				datalog.Value{ID: datalog.Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")}},
 				datalog.Value{ID: datalog.Variable(13)},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: "a"}},
-						{Content: &pb.IDV2_String_{String_: "b"}},
-						{Content: &pb.IDV2_String_{String_: "c"}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("a")}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("b")}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("c")}},
 					}}}}}},
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 13}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
@@ -232,7 +233,7 @@ func TestExpressionConvertV2(t *testing.T) {
 		{
 			Desc: "string comparison not in",
 			Input: datalog.Expression{
-				datalog.Value{ID: datalog.Set{datalog.String("a"), datalog.String("b"), datalog.String("c")}},
+				datalog.Value{ID: datalog.Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")}},
 				datalog.Value{ID: datalog.Variable(14)},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
@@ -240,9 +241,9 @@ func TestExpressionConvertV2(t *testing.T) {
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: "a"}},
-						{Content: &pb.IDV2_String_{String_: "b"}},
-						{Content: &pb.IDV2_String_{String_: "c"}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("a")}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("b")}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("c")}},
 					}}}}}},
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 14}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
@@ -254,13 +255,13 @@ func TestExpressionConvertV2(t *testing.T) {
 			Desc: "string regexp",
 			Input: datalog.Expression{
 				datalog.Value{ID: datalog.Variable(15)},
-				datalog.Value{ID: datalog.String("abcd")},
+				datalog.Value{ID: syms.Insert("abcd")},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Regex{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 15}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: "abcd"}}}},
+					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Regex.Enum()}}},
 				},
 			},
@@ -323,16 +324,16 @@ func TestExpressionConvertV2(t *testing.T) {
 		{
 			Desc: "symbols in",
 			Input: datalog.Expression{
-				datalog.Value{ID: datalog.Set{datalog.Symbol(1), datalog.Symbol(2), datalog.Symbol(3)}},
+				datalog.Value{ID: datalog.Set{datalog.String(1), datalog.String(2), datalog.String(3)}},
 				datalog.Value{ID: datalog.Variable(19)},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Symbol{Symbol: 1}},
-						{Content: &pb.IDV2_Symbol{Symbol: 2}},
-						{Content: &pb.IDV2_Symbol{Symbol: 3}},
+						{Content: &pb.IDV2_String_{String_: 1}},
+						{Content: &pb.IDV2_String_{String_: 2}},
+						{Content: &pb.IDV2_String_{String_: 3}},
 					}}}}}},
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 19}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
@@ -342,7 +343,7 @@ func TestExpressionConvertV2(t *testing.T) {
 		{
 			Desc: "symbols not in",
 			Input: datalog.Expression{
-				datalog.Value{ID: datalog.Set{datalog.Symbol(1), datalog.Symbol(2), datalog.Symbol(3)}},
+				datalog.Value{ID: datalog.Set{datalog.String(1), datalog.String(2), datalog.String(3)}},
 				datalog.Value{ID: datalog.Variable(20)},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Contains{}},
 				datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}},
@@ -350,9 +351,9 @@ func TestExpressionConvertV2(t *testing.T) {
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Symbol{Symbol: 1}},
-						{Content: &pb.IDV2_Symbol{Symbol: 2}},
-						{Content: &pb.IDV2_Symbol{Symbol: 3}},
+						{Content: &pb.IDV2_String_{String_: 1}},
+						{Content: &pb.IDV2_String_{String_: 2}},
+						{Content: &pb.IDV2_String_{String_: 3}},
 					}}}}}},
 					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 20}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
@@ -468,18 +469,19 @@ func TestExpressionConvertV2(t *testing.T) {
 
 func TestRuleConvertV2(t *testing.T) {
 	now := time.Now()
+	syms := &datalog.SymbolTable{}
 
 	in := &datalog.Rule{
 		Head: datalog.Predicate{
-			Name: datalog.Symbol(42),
-			IDs:  []datalog.ID{datalog.Integer(1), datalog.String("id_1")},
+			Name: datalog.String(42),
+			IDs:  []datalog.ID{datalog.Integer(1), syms.Insert("id_1")},
 		},
 		Body: []datalog.Predicate{
 			{
-				Name: datalog.Symbol(43),
-				IDs:  []datalog.ID{datalog.Symbol(2), datalog.Date(now.Unix())},
+				Name: datalog.String(43),
+				IDs:  []datalog.ID{datalog.String(2), datalog.Date(now.Unix())},
 			}, {
-				Name: datalog.Symbol(44),
+				Name: datalog.String(44),
 				IDs:  []datalog.ID{datalog.Bytes([]byte("abcd"))},
 			},
 		},
@@ -491,7 +493,7 @@ func TestRuleConvertV2(t *testing.T) {
 			},
 			{
 				datalog.Value{ID: datalog.Variable(99)},
-				datalog.Value{ID: datalog.String("abcd")},
+				datalog.Value{ID: syms.Insert("abcd")},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Prefix{}},
 			},
 		},
@@ -503,13 +505,13 @@ func TestRuleConvertV2(t *testing.T) {
 	expectedPbRule := &pb.RuleV2{
 		Head: &pb.PredicateV2{Name: &name1, Ids: []*pb.IDV2{
 			{Content: &pb.IDV2_Integer{Integer: 1}},
-			{Content: &pb.IDV2_String_{String_: "id_1"}},
+			{Content: &pb.IDV2_String_{String_: syms.Index("id_1")}},
 		}},
 		Body: []*pb.PredicateV2{
 			{
 				Name: &name2,
 				Ids: []*pb.IDV2{
-					{Content: &pb.IDV2_Symbol{Symbol: 2}},
+					{Content: &pb.IDV2_String_{String_: 2}},
 					{Content: &pb.IDV2_Date{Date: uint64(now.Unix())}},
 				},
 			},
@@ -528,7 +530,7 @@ func TestRuleConvertV2(t *testing.T) {
 			}},
 			{Ops: []*pb.Op{
 				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 99}}}},
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: "abcd"}}}},
+				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
 				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix.Enum()}}},
 			}},
 		},
@@ -544,19 +546,21 @@ func TestRuleConvertV2(t *testing.T) {
 
 func TestFactConvertV2(t *testing.T) {
 	now := time.Now()
+	syms := &datalog.SymbolTable{}
+
 	in := &datalog.Fact{Predicate: datalog.Predicate{
-		Name: datalog.Symbol(42),
+		Name: datalog.String(42),
 		IDs: []datalog.ID{
-			datalog.Symbol(1),
+			datalog.String(1),
 			datalog.Integer(2),
 			datalog.Variable(3),
 			datalog.Bytes([]byte("bytes")),
-			datalog.String("abcd"),
+			syms.Insert("abcd"),
 			datalog.Date(now.Unix()),
 			datalog.Bool(true),
 			datalog.Set{
-				datalog.String("abc"),
-				datalog.String("def"),
+				syms.Insert("abc"),
+				syms.Insert("def"),
 			},
 		},
 	}}
@@ -565,16 +569,16 @@ func TestFactConvertV2(t *testing.T) {
 	expectedPbFact := &pb.FactV2{Predicate: &pb.PredicateV2{
 		Name: &name1,
 		Ids: []*pb.IDV2{
-			{Content: &pb.IDV2_Symbol{Symbol: 1}},
+			{Content: &pb.IDV2_String_{String_: 1}},
 			{Content: &pb.IDV2_Integer{Integer: 2}},
 			{Content: &pb.IDV2_Variable{Variable: 3}},
 			{Content: &pb.IDV2_Bytes{Bytes: []byte("bytes")}},
-			{Content: &pb.IDV2_String_{String_: "abcd"}},
+			{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}},
 			{Content: &pb.IDV2_Date{Date: uint64(now.Unix())}},
 			{Content: &pb.IDV2_Bool{Bool: true}},
 			{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-				{Content: &pb.IDV2_String_{String_: "abc"}},
-				{Content: &pb.IDV2_String_{String_: "def"}},
+				{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
+				{Content: &pb.IDV2_String_{String_: syms.Index("def")}},
 			}}}},
 		},
 	}}
@@ -589,6 +593,8 @@ func TestFactConvertV2(t *testing.T) {
 }
 
 func TestConvertInvalidSets(t *testing.T) {
+	syms := &datalog.SymbolTable{}
+
 	tokenTestCases := []struct {
 		desc string
 		in   datalog.Set
@@ -600,7 +606,7 @@ func TestConvertInvalidSets(t *testing.T) {
 		{
 			desc: "mixed element types",
 			in: datalog.Set{
-				datalog.String("abc"),
+				syms.Insert("abc"),
 				datalog.Integer(1),
 			},
 		},
@@ -615,8 +621,8 @@ func TestConvertInvalidSets(t *testing.T) {
 			desc: "set with sub sets",
 			in: datalog.Set{
 				datalog.Set{
-					datalog.String("abc"),
-					datalog.String("def"),
+					syms.Insert("abc"),
+					syms.Insert("def"),
 				},
 			},
 		},
@@ -636,7 +642,7 @@ func TestConvertInvalidSets(t *testing.T) {
 			desc: "mixed element types",
 			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
 				Set: []*pb.IDV2{
-					{Content: &pb.IDV2_String_{String_: "abc"}},
+					{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
 					{Content: &pb.IDV2_Integer{Integer: 0}},
 				},
 			}}},
@@ -654,7 +660,7 @@ func TestConvertInvalidSets(t *testing.T) {
 			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
 				Set: []*pb.IDV2{
 					{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: "abc"}},
+						{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
 					}}}},
 				},
 			}}},
@@ -677,15 +683,17 @@ func TestConvertInvalidSets(t *testing.T) {
 }
 
 func TestBlockConvertV2(t *testing.T) {
+	syms := &datalog.SymbolTable{}
+
 	predicate := datalog.Predicate{
-		Name: datalog.Symbol(12),
-		IDs:  []datalog.ID{datalog.String("abcd")},
+		Name: datalog.String(12),
+		IDs:  []datalog.ID{syms.Insert("abcd")},
 	}
 
 	name1 := uint64(12)
 	pbPredicate := &pb.PredicateV2{
 		Name: &name1,
-		Ids:  []*pb.IDV2{{Content: &pb.IDV2_String_{String_: "abcd"}}},
+		Ids:  []*pb.IDV2{{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}},
 	}
 
 	rule := &datalog.Rule{

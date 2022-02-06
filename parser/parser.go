@@ -24,7 +24,6 @@ var BiscuitLexerRules = []stateful.Rule{
 	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_]+`, Action: nil},
 	{Name: "Int", Pattern: `[0-9]+`, Action: nil},
 	{Name: "Bool", Pattern: `true|false`, Action: nil},
-	{Name: "Symbol", Pattern: `#[a-zA-Z0-9_]+`, Action: nil},
 	{Name: "Ident", Pattern: `[a-zA-Z0-9_]+`, Action: nil},
 	{Name: "Whitespace", Pattern: `[ \t]+`, Action: nil},
 	{Name: "EOL", Pattern: `[\n\r]+`, Action: nil},

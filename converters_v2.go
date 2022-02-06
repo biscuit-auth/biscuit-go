@@ -58,7 +58,7 @@ func protoPredicateToTokenPredicateV2(input *pb.PredicateV2) (*datalog.Predicate
 		ids[i] = *dlid
 	}
 
-	nameSymbol := datalog.Symbol(*input.Name)
+	nameSymbol := datalog.String(*input.Name)
 	return &datalog.Predicate{
 		Name: nameSymbol,
 		IDs:  ids,
@@ -70,7 +70,7 @@ func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
 	switch input.Type() {
 	case datalog.IDTypeString:
 		pbId = &pb.IDV2{
-			Content: &pb.IDV2_String_{String_: string(input.(datalog.String))},
+			Content: &pb.IDV2_String_{String_: uint64(input.(datalog.String))},
 		}
 	case datalog.IDTypeDate:
 		pbId = &pb.IDV2{
@@ -79,10 +79,6 @@ func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
 	case datalog.IDTypeInteger:
 		pbId = &pb.IDV2{
 			Content: &pb.IDV2_Integer{Integer: int64(input.(datalog.Integer))},
-		}
-	case datalog.IDTypeSymbol:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Symbol{Symbol: uint64(input.(datalog.Symbol))},
 		}
 	case datalog.IDTypeVariable:
 		pbId = &pb.IDV2{
@@ -149,8 +145,6 @@ func protoIDToTokenIDV2(input *pb.IDV2) (*datalog.ID, error) {
 		id = datalog.Date(input.GetDate())
 	case *pb.IDV2_Integer:
 		id = datalog.Integer(input.GetInteger())
-	case *pb.IDV2_Symbol:
-		id = datalog.Symbol(input.GetSymbol())
 	case *pb.IDV2_Variable:
 		id = datalog.Variable(input.GetVariable())
 	case *pb.IDV2_Bytes:

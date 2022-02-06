@@ -19,7 +19,8 @@ func TestUnaryNegate(t *testing.T) {
 		UnaryOp{Negate{}},
 	}
 
-	res, err := ops.Evaluate(nil)
+	syms := &SymbolTable{}
+	res, err := ops.Evaluate(nil, syms)
 	require.NoError(t, err)
 	require.Equal(t, Bool(true), res)
 }
@@ -37,7 +38,8 @@ func TestUnaryParens(t *testing.T) {
 		2: idptr(Integer(2)),
 	}
 
-	res, err := ops.Evaluate(values)
+	syms := &SymbolTable{}
+	res, err := ops.Evaluate(values, syms)
 	require.NoError(t, err)
 	require.Equal(t, Integer(7), res)
 
@@ -50,13 +52,14 @@ func TestUnaryParens(t *testing.T) {
 		BinaryOp{Mul{}},
 	}
 
-	res, err = ops.Evaluate(values)
+	res, err = ops.Evaluate(values, syms)
 	require.NoError(t, err)
 	require.Equal(t, Integer(9), res)
 }
 
 func TestBinaryLessThan(t *testing.T) {
 	require.Equal(t, BinaryLessThan, LessThan{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -97,20 +100,20 @@ func TestBinaryLessThan(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type errors",
-			left:        Symbol(42),
+			left:        String(42),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type errors",
 			left:        Integer(42),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid both type errors",
-			left:        String("def"),
-			right:       String("abc"),
+			left:        syms.Insert("def"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -123,7 +126,7 @@ func TestBinaryLessThan(t *testing.T) {
 				BinaryOp{LessThan{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -136,6 +139,7 @@ func TestBinaryLessThan(t *testing.T) {
 
 func TestBinaryLessOrEqual(t *testing.T) {
 	require.Equal(t, BinaryLessOrEqual, LessOrEqual{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -200,20 +204,20 @@ func TestBinaryLessOrEqual(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type errors",
-			left:        Symbol(42),
+			left:        String(42),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type errors",
 			left:        Integer(42),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid both type errors",
-			left:        String("def"),
-			right:       String("abc"),
+			left:        syms.Insert("def"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -226,7 +230,7 @@ func TestBinaryLessOrEqual(t *testing.T) {
 				BinaryOp{LessOrEqual{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -239,6 +243,7 @@ func TestBinaryLessOrEqual(t *testing.T) {
 
 func TestBinaryGreaterThan(t *testing.T) {
 	require.Equal(t, BinaryGreaterThan, GreaterThan{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -279,20 +284,20 @@ func TestBinaryGreaterThan(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type errors",
-			left:        Symbol(42),
+			left:        String(42),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type errors",
 			left:        Integer(42),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid both type errors",
-			left:        String("def"),
-			right:       String("abc"),
+			left:        syms.Insert("def"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -305,7 +310,7 @@ func TestBinaryGreaterThan(t *testing.T) {
 				BinaryOp{GreaterThan{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -319,6 +324,7 @@ func TestBinaryGreaterThan(t *testing.T) {
 func TestBinaryGreaterOrEqual(t *testing.T) {
 	require.Equal(t, BinaryGreaterOrEqual, GreaterOrEqual{}.Type())
 
+	syms := &SymbolTable{}
 	testCases := []struct {
 		desc        string
 		left        ID
@@ -382,20 +388,20 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type errors",
-			left:        Symbol(42),
+			left:        String(42),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type errors",
 			left:        Integer(42),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid both type errors",
-			left:        String("def"),
-			right:       String("abc"),
+			left:        syms.Insert("def"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -408,7 +414,7 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 				BinaryOp{GreaterOrEqual{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -421,6 +427,7 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 
 func TestBinaryEqual(t *testing.T) {
 	require.Equal(t, BinaryEqual, Equal{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -443,8 +450,8 @@ func TestBinaryEqual(t *testing.T) {
 		},
 		{
 			desc:  "not equal string",
-			left:  String("abc"),
-			right: String("def"),
+			left:  syms.Insert("abc"),
+			right: syms.Insert("def"),
 			res:   false,
 		},
 		{
@@ -461,26 +468,20 @@ func TestBinaryEqual(t *testing.T) {
 		},
 		{
 			desc:  "equal strings",
-			left:  String("abc"),
-			right: String("abc"),
+			left:  syms.Insert("abc"),
+			right: syms.Insert("abc"),
 			res:   true,
 		},
 		{
 			desc:        "invalid left type errors",
-			left:        Symbol(42),
+			left:        String(42),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type errors",
 			left:        Integer(42),
-			right:       String("abc"),
-			expectedErr: true,
-		},
-		{
-			desc:        "invalid both type errors",
-			left:        Symbol(0),
-			right:       Symbol(0),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -493,7 +494,7 @@ func TestBinaryEqual(t *testing.T) {
 				BinaryOp{Equal{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -506,6 +507,7 @@ func TestBinaryEqual(t *testing.T) {
 
 func TestBinaryContains(t *testing.T) {
 	require.Equal(t, BinaryContains, Contains{}.Type())
+	syms := &SymbolTable{}
 
 	tests := []struct {
 		name    string
@@ -522,8 +524,8 @@ func TestBinaryContains(t *testing.T) {
 		},
 		{
 			name:  "string not in set",
-			left:  Set{String("def"), String("ijk")},
-			right: String("abc"),
+			left:  Set{syms.Insert("def"), syms.Insert("ijk")},
+			right: syms.Insert("abc"),
 			want:  Bool(false),
 		},
 		{
@@ -534,14 +536,14 @@ func TestBinaryContains(t *testing.T) {
 		},
 		{
 			name:  "symbol not in set",
-			left:  Set{Symbol(1), Symbol(2)},
-			right: Symbol(0),
+			left:  Set{String(1), String(2)},
+			right: String(0),
 			want:  Bool(false),
 		},
 		{
 			name:    "set element type mismatch",
 			left:    Set{Integer(1), Integer(2)},
-			right:   Symbol(0),
+			right:   String(0),
 			wantErr: true,
 		},
 		{
@@ -584,7 +586,7 @@ func TestBinaryContains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Contains{}.Eval(tt.left, tt.right)
+			got, err := Contains{}.Eval(tt.left, tt.right, syms)
 			require.Equal(t, tt.wantErr, (err != nil))
 			require.Equal(t, tt.want, got)
 		})
@@ -593,6 +595,7 @@ func TestBinaryContains(t *testing.T) {
 
 func TestBinaryPrefix(t *testing.T) {
 	require.Equal(t, BinaryPrefix, Prefix{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -603,38 +606,26 @@ func TestBinaryPrefix(t *testing.T) {
 	}{
 		{
 			desc:  "prefix",
-			left:  String("abcdef"),
-			right: String("abc"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("abc"),
 			res:   true,
 		},
 		{
 			desc:  "not prefix",
-			left:  String("abcdef"),
-			right: String("def"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("def"),
 			res:   false,
 		},
 		{
 			desc:  "not prefix 2",
-			left:  String("abc"),
-			right: String("abcdef"),
+			left:  syms.Insert("abc"),
+			right: syms.Insert("abcdef"),
 			res:   false,
 		},
 		{
-			desc:        "invalid left type errors",
-			left:        Symbol(42),
-			right:       String("abc"),
-			expectedErr: true,
-		},
-		{
 			desc:        "invalid right type errors",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(42),
-			expectedErr: true,
-		},
-		{
-			desc:        "invalid both type errors",
-			left:        Symbol(0),
-			right:       Symbol(0),
 			expectedErr: true,
 		},
 	}
@@ -647,7 +638,7 @@ func TestBinaryPrefix(t *testing.T) {
 				BinaryOp{Prefix{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -660,6 +651,7 @@ func TestBinaryPrefix(t *testing.T) {
 
 func TestBinarySuffix(t *testing.T) {
 	require.Equal(t, BinarySuffix, Suffix{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -670,38 +662,26 @@ func TestBinarySuffix(t *testing.T) {
 	}{
 		{
 			desc:  "suffix",
-			left:  String("abcdef"),
-			right: String("def"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("def"),
 			res:   true,
 		},
 		{
 			desc:  "not suffix",
-			left:  String("abcdef"),
-			right: String("abc"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("abc"),
 			res:   false,
 		},
 		{
 			desc:  "not suffix 2",
-			left:  String("def"),
-			right: String("abcdef"),
+			left:  syms.Insert("def"),
+			right: syms.Insert("abcdef"),
 			res:   false,
 		},
 		{
-			desc:        "invalid left type errors",
-			left:        Symbol(42),
-			right:       String("abc"),
-			expectedErr: true,
-		},
-		{
 			desc:        "invalid right type errors",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(42),
-			expectedErr: true,
-		},
-		{
-			desc:        "invalid both type errors",
-			left:        Symbol(0),
-			right:       Symbol(0),
 			expectedErr: true,
 		},
 	}
@@ -714,7 +694,7 @@ func TestBinarySuffix(t *testing.T) {
 				BinaryOp{Suffix{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -727,6 +707,8 @@ func TestBinarySuffix(t *testing.T) {
 
 func TestBinaryRegex(t *testing.T) {
 	require.Equal(t, BinaryRegex, Regex{}.Type())
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc        string
 		left        ID
@@ -736,44 +718,32 @@ func TestBinaryRegex(t *testing.T) {
 	}{
 		{
 			desc:  "regex match",
-			left:  String("abcdef"),
-			right: String("def$"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("def$"),
 			res:   true,
 		},
 		{
 			desc:  "regex match 2",
-			left:  String("abcdef"),
-			right: String("[a-f]{6}"),
+			left:  syms.Insert("abcdef"),
+			right: syms.Insert("[a-f]{6}"),
 			res:   true,
 		},
 		{
 			desc:  "regex no match",
-			left:  String("abc"),
-			right: String("ABC"),
+			left:  syms.Insert("abc"),
+			right: syms.Insert("ABC"),
 			res:   false,
 		},
 		{
-			desc:        "invalid left type errors",
-			left:        Symbol(42),
-			right:       String("abc"),
-			expectedErr: true,
-		},
-		{
 			desc:        "invalid right type errors",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(42),
 			expectedErr: true,
 		},
 		{
-			desc:        "invalid both type errors",
-			left:        Symbol(0),
-			right:       Symbol(0),
-			expectedErr: true,
-		},
-		{
 			desc:        "invalid regexp",
-			left:        String("abc"),
-			right:       String("[abc"),
+			left:        syms.Insert("abc"),
+			right:       syms.Insert("[abc"),
 			expectedErr: true,
 		},
 	}
@@ -786,7 +756,7 @@ func TestBinaryRegex(t *testing.T) {
 				BinaryOp{Regex{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -799,6 +769,8 @@ func TestBinaryRegex(t *testing.T) {
 
 func TestBinaryAdd(t *testing.T) {
 	require.Equal(t, BinaryAdd, Add{}.Type())
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc            string
 		left            ID
@@ -827,14 +799,14 @@ func TestBinaryAdd(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(-3),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type",
 			left:        Integer(-3),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
@@ -854,7 +826,7 @@ func TestBinaryAdd(t *testing.T) {
 				BinaryOp{Add{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				if tc.expectedErrType != nil {
 					require.Equal(t, tc.expectedErrType, errors.Unwrap(err))
@@ -870,6 +842,8 @@ func TestBinaryAdd(t *testing.T) {
 
 func TestBinarySub(t *testing.T) {
 	require.Equal(t, BinarySub, Sub{}.Type())
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc            string
 		left            ID
@@ -898,14 +872,14 @@ func TestBinarySub(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(-3),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type",
 			left:        Integer(-3),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
@@ -925,7 +899,7 @@ func TestBinarySub(t *testing.T) {
 				BinaryOp{Sub{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				if tc.expectedErrType != nil {
 					require.Equal(t, tc.expectedErrType, errors.Unwrap(err))
@@ -941,6 +915,8 @@ func TestBinarySub(t *testing.T) {
 
 func TestBinaryMul(t *testing.T) {
 	require.Equal(t, BinaryMul, Mul{}.Type())
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc            string
 		left            ID
@@ -969,14 +945,14 @@ func TestBinaryMul(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(-3),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type",
 			left:        Integer(-3),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
@@ -996,7 +972,7 @@ func TestBinaryMul(t *testing.T) {
 				BinaryOp{Mul{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				if tc.expectedErrType != nil {
 					require.Equal(t, tc.expectedErrType, errors.Unwrap(err))
@@ -1012,6 +988,8 @@ func TestBinaryMul(t *testing.T) {
 
 func TestBinaryDiv(t *testing.T) {
 	require.Equal(t, BinaryDiv, Div{}.Type())
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc            string
 		left            ID
@@ -1034,14 +1012,14 @@ func TestBinaryDiv(t *testing.T) {
 		},
 		{
 			desc:        "invalid left type",
-			left:        String("abc"),
+			left:        syms.Insert("abc"),
 			right:       Integer(-3),
 			expectedErr: true,
 		},
 		{
 			desc:        "invalid right type",
 			left:        Integer(-3),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 		{
@@ -1061,7 +1039,7 @@ func TestBinaryDiv(t *testing.T) {
 				BinaryOp{Div{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				if tc.expectedErrType != nil {
 					require.Equal(t, tc.expectedErrType, errors.Unwrap(err))
@@ -1077,6 +1055,7 @@ func TestBinaryDiv(t *testing.T) {
 
 func TestBinaryAnd(t *testing.T) {
 	require.Equal(t, BinaryAnd, And{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -1118,7 +1097,7 @@ func TestBinaryAnd(t *testing.T) {
 		{
 			desc:        "invalid right type",
 			left:        Bool(true),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -1131,7 +1110,7 @@ func TestBinaryAnd(t *testing.T) {
 				BinaryOp{And{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
@@ -1144,6 +1123,7 @@ func TestBinaryAnd(t *testing.T) {
 
 func TestBinaryOr(t *testing.T) {
 	require.Equal(t, BinaryOr, Or{}.Type())
+	syms := &SymbolTable{}
 
 	testCases := []struct {
 		desc        string
@@ -1185,7 +1165,7 @@ func TestBinaryOr(t *testing.T) {
 		{
 			desc:        "invalid right type",
 			left:        Bool(true),
-			right:       String("abc"),
+			right:       syms.Insert("abc"),
 			expectedErr: true,
 		},
 	}
@@ -1198,7 +1178,7 @@ func TestBinaryOr(t *testing.T) {
 				BinaryOp{Or{}},
 			}
 
-			res, err := ops.Evaluate(nil)
+			res, err := ops.Evaluate(nil, syms)
 			if tc.expectedErr {
 				require.Error(t, err)
 			} else {
