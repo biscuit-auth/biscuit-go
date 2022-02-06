@@ -19,7 +19,7 @@ var (
 
 type Expression []Op
 
-func (e *Expression) Evaluate(values map[Variable]*ID, symbols *SymbolTable) (ID, error) {
+func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (Term, error) {
 	s := &stack{}
 
 	for _, op := range *e {
@@ -27,7 +27,7 @@ func (e *Expression) Evaluate(values map[Variable]*ID, symbols *SymbolTable) (ID
 		case OpTypeValue:
 			id := op.(Value).ID
 			switch id.Type() {
-			case IDTypeVariable:
+			case TermTypeVariable:
 				idptr, ok := values[id.(Variable)]
 				if !ok {
 					return nil, fmt.Errorf("datalog: expressions: unknown variable %d", id.(Variable))
@@ -82,9 +82,9 @@ func (e *Expression) Print(symbols *SymbolTable) string {
 		case OpTypeValue:
 			id := op.(Value).ID
 			switch id.Type() {
-			case IDTypeString:
+			case TermTypeString:
 				s.Push(symbols.Str(id.(String)))
-			case IDTypeVariable:
+			case TermTypeVariable:
 				s.Push(symbols.Var(id.(Variable)))
 			default:
 				s.Push(id.String())
@@ -139,7 +139,7 @@ type Op interface {
 }
 
 type Value struct {
-	ID ID
+	ID Term
 }
 
 func (v Value) Type() OpType {
@@ -168,7 +168,7 @@ func (op UnaryOp) Print(value string) string {
 
 type UnaryOpFunc interface {
 	Type() UnaryOpType
-	Eval(value ID) (ID, error)
+	Eval(value Term) (Term, error)
 }
 
 type UnaryOpType byte
@@ -185,10 +185,10 @@ type Negate struct{}
 func (Negate) Type() UnaryOpType {
 	return UnaryNegate
 }
-func (Negate) Eval(value ID) (ID, error) {
-	var out ID
+func (Negate) Eval(value Term) (Term, error) {
+	var out Term
 	switch value.Type() {
-	case IDTypeBool:
+	case TermTypeBool:
 		out = !value.(Bool)
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Negate value type: %d", value.Type())
@@ -205,7 +205,7 @@ type Parens struct{}
 func (Parens) Type() UnaryOpType {
 	return UnaryParens
 }
-func (Parens) Eval(value ID) (ID, error) {
+func (Parens) Eval(value Term) (Term, error) {
 	return value, nil
 }
 
@@ -257,7 +257,7 @@ func (op BinaryOp) Print(left, right string) string {
 
 type BinaryOpFunc interface {
 	Type() BinaryOpType
-	Eval(left, right ID, symbols *SymbolTable) (ID, error)
+	Eval(left, right Term, symbols *SymbolTable) (Term, error)
 }
 
 type BinaryOpType byte
@@ -288,14 +288,14 @@ type LessThan struct{}
 func (LessThan) Type() BinaryOpType {
 	return BinaryLessThan
 }
-func (LessThan) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (LessThan) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: LessThan type mismatch: %d != %d", g, w)
 	}
 
-	var out ID
+	var out Term
 	switch left.Type() {
-	case IDTypeInteger:
+	case TermTypeInteger:
 		out = Bool(left.(Integer) < right.(Integer))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected LessThan value type: %d", left.Type())
@@ -312,16 +312,16 @@ type LessOrEqual struct{}
 func (LessOrEqual) Type() BinaryOpType {
 	return BinaryLessOrEqual
 }
-func (LessOrEqual) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (LessOrEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: LessOrEqual type mismatch: %d != %d", g, w)
 	}
 
-	var out ID
+	var out Term
 	switch left.Type() {
-	case IDTypeInteger:
+	case TermTypeInteger:
 		out = Bool(left.(Integer) <= right.(Integer))
-	case IDTypeDate:
+	case TermTypeDate:
 		out = Bool(left.(Date) <= right.(Date))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected LessOrEqual value type: %d", left.Type())
@@ -338,14 +338,14 @@ type GreaterThan struct{}
 func (GreaterThan) Type() BinaryOpType {
 	return BinaryGreaterThan
 }
-func (GreaterThan) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (GreaterThan) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: GreaterThan type mismatch: %d != %d", g, w)
 	}
 
-	var out ID
+	var out Term
 	switch left.Type() {
-	case IDTypeInteger:
+	case TermTypeInteger:
 		out = Bool(left.(Integer) > right.(Integer))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected GreaterThan value type: %d", left.Type())
@@ -362,16 +362,16 @@ type GreaterOrEqual struct{}
 func (GreaterOrEqual) Type() BinaryOpType {
 	return BinaryGreaterOrEqual
 }
-func (GreaterOrEqual) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (GreaterOrEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: GreaterOrEqual type mismatch: %d != %d", g, w)
 	}
 
-	var out ID
+	var out Term
 	switch left.Type() {
-	case IDTypeInteger:
+	case TermTypeInteger:
 		out = Bool(left.(Integer) >= right.(Integer))
-	case IDTypeDate:
+	case TermTypeDate:
 		out = Bool(left.(Date) >= right.(Date))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected GreaterOrEqual value type: %d", left.Type())
@@ -388,15 +388,15 @@ type Equal struct{}
 func (Equal) Type() BinaryOpType {
 	return BinaryEqual
 }
-func (Equal) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Equal) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	if g, w := left.Type(), right.Type(); g != w {
 		return nil, fmt.Errorf("datalog: Equal type mismatch: %d != %d", g, w)
 	}
 
 	switch left.Type() {
-	case IDTypeInteger:
-	case IDTypeBytes:
-	case IDTypeString:
+	case TermTypeInteger:
+	case TermTypeBytes:
+	case TermTypeString:
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Equal value type: %d", left.Type())
 	}
@@ -412,11 +412,11 @@ type Contains struct{}
 func (Contains) Type() BinaryOpType {
 	return BinaryContains
 }
-func (Contains) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	switch right.Type() {
-	case IDTypeInteger:
-	case IDTypeBytes:
-	case IDTypeString:
+	case TermTypeInteger:
+	case TermTypeBytes:
+	case TermTypeString:
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Contains right value type: %d", right.Type())
 	}
@@ -445,7 +445,7 @@ type Prefix struct{}
 func (Prefix) Type() BinaryOpType {
 	return BinaryPrefix
 }
-func (Prefix) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Prefix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Prefix requires left value to be a String, got %T", left)
@@ -465,7 +465,7 @@ type Suffix struct{}
 func (Suffix) Type() BinaryOpType {
 	return BinarySuffix
 }
-func (Suffix) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Suffix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Suffix requires left value to be a String, got %T", left)
@@ -485,7 +485,7 @@ type Regex struct{}
 func (Regex) Type() BinaryOpType {
 	return BinaryRegex
 }
-func (Regex) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Regex) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Regex requires left value to be a String, got %T", left)
@@ -509,7 +509,7 @@ type Add struct{}
 func (Add) Type() BinaryOpType {
 	return BinaryAdd
 }
-func (Add) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Add) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Add requires left value to be an Integer, got %T", left)
@@ -537,7 +537,7 @@ type Sub struct{}
 func (Sub) Type() BinaryOpType {
 	return BinarySub
 }
-func (Sub) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Sub) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Sub requires left value to be an Integer, got %T", left)
@@ -565,7 +565,7 @@ type Mul struct{}
 func (Mul) Type() BinaryOpType {
 	return BinaryMul
 }
-func (Mul) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Mul) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Mul requires left value to be an Integer, got %T", left)
@@ -594,7 +594,7 @@ type Div struct{}
 func (Div) Type() BinaryOpType {
 	return BinaryDiv
 }
-func (Div) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Div) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Div requires left value to be an Integer, got %T", left)
@@ -618,7 +618,7 @@ type And struct{}
 func (And) Type() BinaryOpType {
 	return BinaryAnd
 }
-func (And) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (And) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
 		return nil, fmt.Errorf("datalog: And requires left value to be a Bool, got %T", left)
@@ -638,7 +638,7 @@ type Or struct{}
 func (Or) Type() BinaryOpType {
 	return BinaryOr
 }
-func (Or) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
+func (Or) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	bleft, ok := left.(Bool)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Or requires left value to be a Bool, got %T", left)
@@ -651,9 +651,9 @@ func (Or) Eval(left ID, right ID, symbols *SymbolTable) (ID, error) {
 	return Bool(bleft || bright), nil
 }
 
-type stack []ID
+type stack []Term
 
-func (s *stack) Push(v ID) error {
+func (s *stack) Push(v Term) error {
 	if len(*s) >= maxStackSize {
 		return errors.New("stack overflow")
 	}
@@ -663,7 +663,7 @@ func (s *stack) Push(v ID) error {
 	return nil
 }
 
-func (s *stack) Pop() (ID, error) {
+func (s *stack) Pop() (Term, error) {
 	if len(*s) == 0 {
 		return nil, errors.New("cannot pop from empty stack")
 	}

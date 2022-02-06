@@ -29,8 +29,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 1}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Date{Date: uint64(now.Unix())}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 1}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Date{Date: uint64(now.Unix())}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterOrEqual.Enum()}}},
 				},
 			},
@@ -44,8 +44,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 2}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Date{Date: uint64(123456789)}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 2}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Date{Date: uint64(123456789)}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessOrEqual.Enum()}}},
 				},
 			},
@@ -59,8 +59,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 3}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 3}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 				},
 			},
@@ -74,8 +74,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 4}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: -42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 4}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: -42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterThan.Enum()}}},
 				},
 			},
@@ -89,8 +89,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 5}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 43}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 5}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 43}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_GreaterOrEqual.Enum()}}},
 				},
 			},
@@ -104,8 +104,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 6}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 0}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 6}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 0}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessThan.Enum()}}},
 				},
 			},
@@ -119,8 +119,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 7}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: math.MaxInt64}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 7}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: math.MaxInt64}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_LessOrEqual.Enum()}}},
 				},
 			},
@@ -134,12 +134,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Integer{Integer: 1}},
-						{Content: &pb.IDV2_Integer{Integer: 2}},
-						{Content: &pb.IDV2_Integer{Integer: 3}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_Integer{Integer: 1}},
+						{Content: &pb.TermV2_Integer{Integer: 2}},
+						{Content: &pb.TermV2_Integer{Integer: 3}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 8}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 8}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 				},
 			},
@@ -154,12 +154,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Integer{Integer: 1}},
-						{Content: &pb.IDV2_Integer{Integer: 2}},
-						{Content: &pb.IDV2_Integer{Integer: 3}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_Integer{Integer: 1}},
+						{Content: &pb.TermV2_Integer{Integer: 2}},
+						{Content: &pb.TermV2_Integer{Integer: 3}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 9}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 9}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate.Enum()}}},
 				},
@@ -175,8 +175,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 10}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 10}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 				},
 			},
@@ -190,8 +190,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 11}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 11}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix.Enum()}}},
 				},
 			},
@@ -205,8 +205,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 12}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 12}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Suffix.Enum()}}},
 				},
 			},
@@ -220,12 +220,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: syms.Index("a")}},
-						{Content: &pb.IDV2_String_{String_: syms.Index("b")}},
-						{Content: &pb.IDV2_String_{String_: syms.Index("c")}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_String_{String_: syms.Index("a")}},
+						{Content: &pb.TermV2_String_{String_: syms.Index("b")}},
+						{Content: &pb.TermV2_String_{String_: syms.Index("c")}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 13}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 13}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 				},
 			},
@@ -240,12 +240,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: syms.Index("a")}},
-						{Content: &pb.IDV2_String_{String_: syms.Index("b")}},
-						{Content: &pb.IDV2_String_{String_: syms.Index("c")}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_String_{String_: syms.Index("a")}},
+						{Content: &pb.TermV2_String_{String_: syms.Index("b")}},
+						{Content: &pb.TermV2_String_{String_: syms.Index("c")}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 14}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 14}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate.Enum()}}},
 				},
@@ -260,8 +260,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 15}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 15}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Regex.Enum()}}},
 				},
 			},
@@ -275,8 +275,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 16}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Bytes{Bytes: []byte("abcd")}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 16}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Bytes{Bytes: []byte("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 				},
 			},
@@ -290,12 +290,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("a")}},
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("b")}},
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("c")}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("a")}},
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("b")}},
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("c")}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 17}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 17}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 				},
 			},
@@ -310,12 +310,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("a")}},
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("b")}},
-						{Content: &pb.IDV2_Bytes{Bytes: []byte("c")}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("a")}},
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("b")}},
+						{Content: &pb.TermV2_Bytes{Bytes: []byte("c")}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 18}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 18}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate.Enum()}}},
 				},
@@ -330,12 +330,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: 1}},
-						{Content: &pb.IDV2_String_{String_: 2}},
-						{Content: &pb.IDV2_String_{String_: 3}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_String_{String_: 1}},
+						{Content: &pb.TermV2_String_{String_: 2}},
+						{Content: &pb.TermV2_String_{String_: 3}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 19}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 19}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 				},
 			},
@@ -350,12 +350,12 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: 1}},
-						{Content: &pb.IDV2_String_{String_: 2}},
-						{Content: &pb.IDV2_String_{String_: 3}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_String_{String_: 1}},
+						{Content: &pb.TermV2_String_{String_: 2}},
+						{Content: &pb.TermV2_String_{String_: 3}},
 					}}}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 20}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 20}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Contains.Enum()}}},
 					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Negate.Enum()}}},
 				},
@@ -370,8 +370,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 21}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 21}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Add.Enum()}}},
 				},
 			},
@@ -385,8 +385,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 22}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 22}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Sub.Enum()}}},
 				},
 			},
@@ -400,8 +400,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 23}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 23}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Mul.Enum()}}},
 				},
 			},
@@ -415,8 +415,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 24}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 24}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Div.Enum()}}},
 				},
 			},
@@ -430,8 +430,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 25}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Bool{Bool: true}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 25}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Bool{Bool: true}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_And.Enum()}}},
 				},
 			},
@@ -445,8 +445,8 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 			Expected: &pb.ExpressionV2{
 				Ops: []*pb.Op{
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 26}}}},
-					{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Bool{Bool: true}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 26}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Bool{Bool: true}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Or.Enum()}}},
 				},
 			},
@@ -473,16 +473,16 @@ func TestRuleConvertV2(t *testing.T) {
 
 	in := &datalog.Rule{
 		Head: datalog.Predicate{
-			Name: datalog.String(42),
-			IDs:  []datalog.ID{datalog.Integer(1), syms.Insert("id_1")},
+			Name:  datalog.String(42),
+			Terms: []datalog.Term{datalog.Integer(1), syms.Insert("id_1")},
 		},
 		Body: []datalog.Predicate{
 			{
-				Name: datalog.String(43),
-				IDs:  []datalog.ID{datalog.String(2), datalog.Date(now.Unix())},
+				Name:  datalog.String(43),
+				Terms: []datalog.Term{datalog.String(2), datalog.Date(now.Unix())},
 			}, {
-				Name: datalog.String(44),
-				IDs:  []datalog.ID{datalog.Bytes([]byte("abcd"))},
+				Name:  datalog.String(44),
+				Terms: []datalog.Term{datalog.Bytes([]byte("abcd"))},
 			},
 		},
 		Expressions: []datalog.Expression{
@@ -503,34 +503,34 @@ func TestRuleConvertV2(t *testing.T) {
 	name2 := uint64(43)
 	name3 := uint64(44)
 	expectedPbRule := &pb.RuleV2{
-		Head: &pb.PredicateV2{Name: &name1, Ids: []*pb.IDV2{
-			{Content: &pb.IDV2_Integer{Integer: 1}},
-			{Content: &pb.IDV2_String_{String_: syms.Index("id_1")}},
+		Head: &pb.PredicateV2{Name: &name1, Terms: []*pb.TermV2{
+			{Content: &pb.TermV2_Integer{Integer: 1}},
+			{Content: &pb.TermV2_String_{String_: syms.Index("id_1")}},
 		}},
 		Body: []*pb.PredicateV2{
 			{
 				Name: &name2,
-				Ids: []*pb.IDV2{
-					{Content: &pb.IDV2_String_{String_: 2}},
-					{Content: &pb.IDV2_Date{Date: uint64(now.Unix())}},
+				Terms: []*pb.TermV2{
+					{Content: &pb.TermV2_String_{String_: 2}},
+					{Content: &pb.TermV2_Date{Date: uint64(now.Unix())}},
 				},
 			},
 			{
 				Name: &name3,
-				Ids: []*pb.IDV2{
-					{Content: &pb.IDV2_Bytes{Bytes: []byte("abcd")}},
+				Terms: []*pb.TermV2{
+					{Content: &pb.TermV2_Bytes{Bytes: []byte("abcd")}},
 				},
 			},
 		},
 		Expressions: []*pb.ExpressionV2{
 			{Ops: []*pb.Op{
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 9}}}},
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 42}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 9}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
 				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 			}},
 			{Ops: []*pb.Op{
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 99}}}},
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 99}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Prefix.Enum()}}},
 			}},
 		},
@@ -550,7 +550,7 @@ func TestFactConvertV2(t *testing.T) {
 
 	in := &datalog.Fact{Predicate: datalog.Predicate{
 		Name: datalog.String(42),
-		IDs: []datalog.ID{
+		Terms: []datalog.Term{
 			datalog.String(1),
 			datalog.Integer(2),
 			datalog.Variable(3),
@@ -568,17 +568,17 @@ func TestFactConvertV2(t *testing.T) {
 	name1 := uint64(42)
 	expectedPbFact := &pb.FactV2{Predicate: &pb.PredicateV2{
 		Name: &name1,
-		Ids: []*pb.IDV2{
-			{Content: &pb.IDV2_String_{String_: 1}},
-			{Content: &pb.IDV2_Integer{Integer: 2}},
-			{Content: &pb.IDV2_Variable{Variable: 3}},
-			{Content: &pb.IDV2_Bytes{Bytes: []byte("bytes")}},
-			{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}},
-			{Content: &pb.IDV2_Date{Date: uint64(now.Unix())}},
-			{Content: &pb.IDV2_Bool{Bool: true}},
-			{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-				{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
-				{Content: &pb.IDV2_String_{String_: syms.Index("def")}},
+		Terms: []*pb.TermV2{
+			{Content: &pb.TermV2_String_{String_: 1}},
+			{Content: &pb.TermV2_Integer{Integer: 2}},
+			{Content: &pb.TermV2_Variable{Variable: 3}},
+			{Content: &pb.TermV2_Bytes{Bytes: []byte("bytes")}},
+			{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}},
+			{Content: &pb.TermV2_Date{Date: uint64(now.Unix())}},
+			{Content: &pb.TermV2_Bool{Bool: true}},
+			{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+				{Content: &pb.TermV2_String_{String_: syms.Index("abc")}},
+				{Content: &pb.TermV2_String_{String_: syms.Index("def")}},
 			}}}},
 		},
 	}}
@@ -592,7 +592,7 @@ func TestFactConvertV2(t *testing.T) {
 	require.Equal(t, in, out)
 }
 
-func TestConvertInvalidSets(t *testing.T) {
+func TestConvertInvalTermsets(t *testing.T) {
 	syms := &datalog.SymbolTable{}
 
 	tokenTestCases := []struct {
@@ -630,37 +630,37 @@ func TestConvertInvalidSets(t *testing.T) {
 
 	protoTestCases := []struct {
 		desc string
-		in   *pb.IDV2
+		in   *pb.TermV2
 	}{
 		{
 			desc: "empty set",
-			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
-				Set: []*pb.IDV2{},
+			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
+				Set: []*pb.TermV2{},
 			}}},
 		},
 		{
 			desc: "mixed element types",
-			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
-				Set: []*pb.IDV2{
-					{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
-					{Content: &pb.IDV2_Integer{Integer: 0}},
+			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
+				Set: []*pb.TermV2{
+					{Content: &pb.TermV2_String_{String_: syms.Index("abc")}},
+					{Content: &pb.TermV2_Integer{Integer: 0}},
 				},
 			}}},
 		},
 		{
 			desc: "set with variables",
-			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
-				Set: []*pb.IDV2{
-					{Content: &pb.IDV2_Variable{Variable: 1}},
+			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
+				Set: []*pb.TermV2{
+					{Content: &pb.TermV2_Variable{Variable: 1}},
 				},
 			}}},
 		},
 		{
 			desc: "set with sub sets",
-			in: &pb.IDV2{Content: &pb.IDV2_Set{Set: &pb.IDSet{
-				Set: []*pb.IDV2{
-					{Content: &pb.IDV2_Set{Set: &pb.IDSet{Set: []*pb.IDV2{
-						{Content: &pb.IDV2_String_{String_: syms.Index("abc")}},
+			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
+				Set: []*pb.TermV2{
+					{Content: &pb.TermV2_Set{Set: &pb.TermSet{Set: []*pb.TermV2{
+						{Content: &pb.TermV2_String_{String_: syms.Index("abc")}},
 					}}}},
 				},
 			}}},
@@ -686,14 +686,14 @@ func TestBlockConvertV2(t *testing.T) {
 	syms := &datalog.SymbolTable{}
 
 	predicate := datalog.Predicate{
-		Name: datalog.String(12),
-		IDs:  []datalog.ID{syms.Insert("abcd")},
+		Name:  datalog.String(12),
+		Terms: []datalog.Term{syms.Insert("abcd")},
 	}
 
 	name1 := uint64(12)
 	pbPredicate := &pb.PredicateV2{
-		Name: &name1,
-		Ids:  []*pb.IDV2{{Content: &pb.IDV2_String_{String_: syms.Index("abcd")}}},
+		Name:  &name1,
+		Terms: []*pb.TermV2{{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}},
 	}
 
 	rule := &datalog.Rule{
@@ -713,8 +713,8 @@ func TestBlockConvertV2(t *testing.T) {
 		Body: []*pb.PredicateV2{pbPredicate},
 		Expressions: []*pb.ExpressionV2{
 			{Ops: []*pb.Op{
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Variable{Variable: 13}}}},
-				{Content: &pb.Op_Value{Value: &pb.IDV2{Content: &pb.IDV2_Integer{Integer: 1234}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 13}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 1234}}}},
 				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 			}},
 		},
