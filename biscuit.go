@@ -366,3 +366,12 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 
 	return world, nil
 }
+
+func (b *Biscuit) RevocationIds() [][]byte {
+	result := make([][]byte, 0, len(b.blocks)+1)
+	result = append(result, b.container.Authority.Signature)
+	for _, block := range b.container.Blocks {
+		result = append(result, block.Signature)
+	}
+	return result
+}
