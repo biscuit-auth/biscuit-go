@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func idptr(v ID) *ID {
+func idptr(v Term) *Term {
 	return &v
 }
 
@@ -34,7 +34,7 @@ func TestUnaryParens(t *testing.T) {
 		BinaryOp{Add{}},
 	}
 
-	values := map[Variable]*ID{
+	values := map[Variable]*Term{
 		2: idptr(Integer(2)),
 	}
 
@@ -63,8 +63,8 @@ func TestBinaryLessThan(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -143,8 +143,8 @@ func TestBinaryLessOrEqual(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -247,8 +247,8 @@ func TestBinaryGreaterThan(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -327,8 +327,8 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 	syms := &SymbolTable{}
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -431,8 +431,8 @@ func TestBinaryEqual(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -511,9 +511,9 @@ func TestBinaryContains(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		left    ID
-		right   ID
-		want    ID
+		left    Term
+		right   Term
+		want    Term
 		wantErr bool
 	}{
 		{
@@ -599,8 +599,8 @@ func TestBinaryPrefix(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -655,8 +655,8 @@ func TestBinarySuffix(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -711,8 +711,8 @@ func TestBinaryRegex(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -773,9 +773,9 @@ func TestBinaryAdd(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		left            ID
-		right           ID
-		res             ID
+		left            Term
+		right           Term
+		res             Term
 		expectedErr     bool
 		expectedErrType error
 	}{
@@ -846,9 +846,9 @@ func TestBinarySub(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		left            ID
-		right           ID
-		res             ID
+		left            Term
+		right           Term
+		res             Term
 		expectedErr     bool
 		expectedErrType error
 	}{
@@ -919,9 +919,9 @@ func TestBinaryMul(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		left            ID
-		right           ID
-		res             ID
+		left            Term
+		right           Term
+		res             Term
 		expectedErr     bool
 		expectedErrType error
 	}{
@@ -992,9 +992,9 @@ func TestBinaryDiv(t *testing.T) {
 
 	testCases := []struct {
 		desc            string
-		left            ID
-		right           ID
-		res             ID
+		left            Term
+		right           Term
+		res             Term
 		expectedErr     bool
 		expectedErrType error
 	}{
@@ -1059,8 +1059,8 @@ func TestBinaryAnd(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{
@@ -1127,8 +1127,8 @@ func TestBinaryOr(t *testing.T) {
 
 	testCases := []struct {
 		desc        string
-		left        ID
-		right       ID
+		left        Term
+		right       Term
 		res         Bool
 		expectedErr bool
 	}{

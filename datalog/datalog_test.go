@@ -30,15 +30,15 @@ func TestFamily(t *testing.T) {
 	parent := syms.Insert("parent")
 	grandparent := syms.Insert("grandparent")
 
-	w.AddFact(Fact{Predicate{parent, []ID{a, b}}})
-	w.AddFact(Fact{Predicate{parent, []ID{b, c}}})
-	w.AddFact(Fact{Predicate{parent, []ID{c, d}}})
+	w.AddFact(Fact{Predicate{parent, []Term{a, b}}})
+	w.AddFact(Fact{Predicate{parent, []Term{b, c}}})
+	w.AddFact(Fact{Predicate{parent, []Term{c, d}}})
 
 	r1 := Rule{
-		Head: Predicate{grandparent, []ID{hashVar("grandparent"), hashVar("grandchild")}},
+		Head: Predicate{grandparent, []Term{hashVar("grandparent"), hashVar("grandchild")}},
 		Body: []Predicate{
-			{parent, []ID{hashVar("grandparent"), hashVar("parent")}},
-			{parent, []ID{hashVar("parent"), hashVar("grandchild")}},
+			{parent, []Term{hashVar("grandparent"), hashVar("parent")}},
+			{parent, []Term{hashVar("parent"), hashVar("grandchild")}},
 		},
 	}
 
@@ -48,10 +48,10 @@ func TestFamily(t *testing.T) {
 	t.Logf("current facts: %s", dbg.FactSet(w.facts))
 
 	r2 := Rule{
-		Head: Predicate{grandparent, []ID{hashVar("grandparent"), hashVar("grandchild")}},
+		Head: Predicate{grandparent, []Term{hashVar("grandparent"), hashVar("grandchild")}},
 		Body: []Predicate{
-			{parent, []ID{hashVar("grandparent"), hashVar("parent")}},
-			{parent, []ID{hashVar("parent"), hashVar("grandchild")}},
+			{parent, []Term{hashVar("grandparent"), hashVar("parent")}},
+			{parent, []Term{hashVar("parent"), hashVar("grandchild")}},
 		},
 	}
 
@@ -61,17 +61,17 @@ func TestFamily(t *testing.T) {
 		t.Error(err)
 	}
 
-	w.AddFact(Fact{Predicate{parent, []ID{c, e}}})
+	w.AddFact(Fact{Predicate{parent, []Term{c, e}}})
 	if err := w.Run(syms); err != nil {
 		t.Error(err)
 	}
 
-	res := w.Query(Predicate{grandparent, []ID{hashVar("grandparent"), hashVar("grandchild")}})
+	res := w.Query(Predicate{grandparent, []Term{hashVar("grandparent"), hashVar("grandchild")}})
 	t.Logf("grandparents after inserting parent(C, E): %s", dbg.FactSet(res))
 	expected := &FactSet{
-		Fact{Predicate{grandparent, []ID{a, c}}},
-		Fact{Predicate{grandparent, []ID{b, d}}},
-		Fact{Predicate{grandparent, []ID{b, e}}},
+		Fact{Predicate{grandparent, []Term{a, c}}},
+		Fact{Predicate{grandparent, []Term{b, d}}},
+		Fact{Predicate{grandparent, []Term{b, e}}},
 	}
 	if !res.Equal(expected) {
 		t.Errorf("unexpected result:\nhave %s\n want %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -95,37 +95,37 @@ func TestNumbers(t *testing.T) {
 	t2 := syms.Insert("t2")
 	join := syms.Insert("join")
 
-	w.AddFact(Fact{Predicate{t1, []ID{Integer(0), abc}}})
-	w.AddFact(Fact{Predicate{t1, []ID{Integer(1), def}}})
-	w.AddFact(Fact{Predicate{t1, []ID{Integer(2), ghi}}})
-	w.AddFact(Fact{Predicate{t1, []ID{Integer(3), jkl}}})
-	w.AddFact(Fact{Predicate{t1, []ID{Integer(4), mno}}})
+	w.AddFact(Fact{Predicate{t1, []Term{Integer(0), abc}}})
+	w.AddFact(Fact{Predicate{t1, []Term{Integer(1), def}}})
+	w.AddFact(Fact{Predicate{t1, []Term{Integer(2), ghi}}})
+	w.AddFact(Fact{Predicate{t1, []Term{Integer(3), jkl}}})
+	w.AddFact(Fact{Predicate{t1, []Term{Integer(4), mno}}})
 
-	w.AddFact(Fact{Predicate{t2, []ID{Integer(0), aaa, Integer(0)}}})
-	w.AddFact(Fact{Predicate{t2, []ID{Integer(1), bbb, Integer(0)}}})
-	w.AddFact(Fact{Predicate{t2, []ID{Integer(2), ccc, Integer(1)}}})
+	w.AddFact(Fact{Predicate{t2, []Term{Integer(0), aaa, Integer(0)}}})
+	w.AddFact(Fact{Predicate{t2, []Term{Integer(1), bbb, Integer(0)}}})
+	w.AddFact(Fact{Predicate{t2, []Term{Integer(2), ccc, Integer(1)}}})
 
 	res := w.QueryRule(Rule{
-		Head: Predicate{join, []ID{hashVar("left"), hashVar("right")}},
+		Head: Predicate{join, []Term{hashVar("left"), hashVar("right")}},
 		Body: []Predicate{
-			{t1, []ID{hashVar("id"), hashVar("left")}},
-			{t2, []ID{hashVar("t2_id"), hashVar("right"), hashVar("id")}},
+			{t1, []Term{hashVar("id"), hashVar("left")}},
+			{t2, []Term{hashVar("t2_id"), hashVar("right"), hashVar("id")}},
 		},
 	}, syms)
 	expected := &FactSet{
-		{Predicate{join, []ID{abc, aaa}}},
-		{Predicate{join, []ID{abc, bbb}}},
-		{Predicate{join, []ID{def, ccc}}},
+		{Predicate{join, []Term{abc, aaa}}},
+		{Predicate{join, []Term{abc, bbb}}},
+		{Predicate{join, []Term{def, ccc}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
 	res = w.QueryRule(Rule{
-		Head: Predicate{join, []ID{hashVar("left"), hashVar("right")}},
+		Head: Predicate{join, []Term{hashVar("left"), hashVar("right")}},
 		Body: []Predicate{
-			{t1, []ID{Variable(1234), hashVar("left")}},
-			{t2, []ID{hashVar("t2_id"), hashVar("right"), Variable(1234)}},
+			{t1, []Term{Variable(1234), hashVar("left")}},
+			{t2, []Term{hashVar("t2_id"), hashVar("right"), Variable(1234)}},
 		},
 		Expressions: []Expression{{
 			Value{Variable(1234)},
@@ -134,8 +134,8 @@ func TestNumbers(t *testing.T) {
 		}},
 	}, syms)
 	expected = &FactSet{
-		{Predicate{join, []ID{abc, aaa}}},
-		{Predicate{join, []ID{abc, bbb}}},
+		{Predicate{join, []Term{abc, aaa}}},
+		{Predicate{join, []Term{abc, bbb}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("constraint query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -153,16 +153,16 @@ func TestString(t *testing.T) {
 	route := syms.Insert("route")
 	suff := syms.Insert("route suffix")
 
-	w.AddFact(Fact{Predicate{route, []ID{Integer(0), app0, syms.Insert("example.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(1), app1, syms.Insert("test.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(2), app2, syms.Insert("test.fr")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(3), app0, syms.Insert("www.example.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(4), app1, syms.Insert("mx.example.com")}}})
+	w.AddFact(Fact{Predicate{route, []Term{Integer(0), app0, syms.Insert("example.com")}}})
+	w.AddFact(Fact{Predicate{route, []Term{Integer(1), app1, syms.Insert("test.com")}}})
+	w.AddFact(Fact{Predicate{route, []Term{Integer(2), app2, syms.Insert("test.fr")}}})
+	w.AddFact(Fact{Predicate{route, []Term{Integer(3), app0, syms.Insert("www.example.com")}}})
+	w.AddFact(Fact{Predicate{route, []Term{Integer(4), app1, syms.Insert("mx.example.com")}}})
 
 	testSuffix := func(suffix string, syms *SymbolTable) *FactSet {
 		return w.QueryRule(Rule{
-			Head: Predicate{suff, []ID{hashVar("app_id"), Variable(1234)}},
-			Body: []Predicate{{route, []ID{Variable(0), hashVar("app_id"), Variable(1234)}}},
+			Head: Predicate{suff, []Term{hashVar("app_id"), Variable(1234)}},
+			Body: []Predicate{{route, []Term{Variable(0), hashVar("app_id"), Variable(1234)}}},
 			Expressions: []Expression{{
 				Value{Variable(1234)},
 				Value{syms.Insert(suffix)},
@@ -172,16 +172,16 @@ func TestString(t *testing.T) {
 	}
 
 	res := testSuffix(".fr", syms)
-	expected := &FactSet{{Predicate{suff, []ID{app2, syms.Insert("test.fr")}}}}
+	expected := &FactSet{{Predicate{suff, []Term{app2, syms.Insert("test.fr")}}}}
 	if !expected.Equal(res) {
 		t.Errorf(".fr suffix query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
 	res = testSuffix("example.com", syms)
 	expected = &FactSet{
-		{Predicate{suff, []ID{app0, syms.Insert("example.com")}}},
-		{Predicate{suff, []ID{app0, syms.Insert("www.example.com")}}},
-		{Predicate{suff, []ID{app1, syms.Insert("mx.example.com")}}},
+		{Predicate{suff, []Term{app0, syms.Insert("example.com")}}},
+		{Predicate{suff, []Term{app0, syms.Insert("www.example.com")}}},
+		{Predicate{suff, []Term{app1, syms.Insert("mx.example.com")}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("example.com suffix query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -203,12 +203,12 @@ func TestDate(t *testing.T) {
 	before := syms.Insert("before")
 	after := syms.Insert("after")
 
-	w.AddFact(Fact{Predicate{x, []ID{Date(t1.Unix()), abc}}})
-	w.AddFact(Fact{Predicate{x, []ID{Date(t3.Unix()), def}}})
+	w.AddFact(Fact{Predicate{x, []Term{Date(t1.Unix()), abc}}})
+	w.AddFact(Fact{Predicate{x, []Term{Date(t3.Unix()), def}}})
 
 	res := w.QueryRule(Rule{
-		Head: Predicate{before, []ID{Variable(1234), hashVar("val")}},
-		Body: []Predicate{{x, []ID{Variable(1234), hashVar("val")}}},
+		Head: Predicate{before, []Term{Variable(1234), hashVar("val")}},
+		Body: []Predicate{{x, []Term{Variable(1234), hashVar("val")}}},
 		Expressions: []Expression{{
 			Value{Variable(1234)},
 			Value{Date(t2.Unix())},
@@ -219,14 +219,14 @@ func TestDate(t *testing.T) {
 			BinaryOp{GreaterOrEqual{}},
 		}},
 	}, syms)
-	expected := &FactSet{{Predicate{before, []ID{Date(t1.Unix()), abc}}}}
+	expected := &FactSet{{Predicate{before, []Term{Date(t1.Unix()), abc}}}}
 	if !expected.Equal(res) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
 	res = w.QueryRule(Rule{
-		Head: Predicate{after, []ID{Variable(1234), hashVar("val")}},
-		Body: []Predicate{{x, []ID{Variable(1234), hashVar("val")}}},
+		Head: Predicate{after, []Term{Variable(1234), hashVar("val")}},
+		Body: []Predicate{{x, []Term{Variable(1234), hashVar("val")}}},
 		Expressions: []Expression{{
 			Value{Variable(1234)},
 			Value{Date(t2.Unix())},
@@ -237,7 +237,7 @@ func TestDate(t *testing.T) {
 			BinaryOp{GreaterOrEqual{}},
 		}},
 	}, syms)
-	expected = &FactSet{{Predicate{after, []ID{Date(t3.Unix()), def}}}}
+	expected = &FactSet{{Predicate{after, []Term{Date(t3.Unix()), def}}}}
 	if !expected.Equal(res) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
@@ -273,13 +273,13 @@ func TestBytes(t *testing.T) {
 	key := syms.Insert("pkey")
 	keyMatch := syms.Insert("pkey match")
 
-	w.AddFact(Fact{Predicate{key, []ID{usr1, Bytes(k1)}}})
-	w.AddFact(Fact{Predicate{key, []ID{usr2, Bytes(k2)}}})
-	w.AddFact(Fact{Predicate{key, []ID{usr3, Bytes(k3)}}})
+	w.AddFact(Fact{Predicate{key, []Term{usr1, Bytes(k1)}}})
+	w.AddFact(Fact{Predicate{key, []Term{usr2, Bytes(k2)}}})
+	w.AddFact(Fact{Predicate{key, []Term{usr3, Bytes(k3)}}})
 
 	res := w.QueryRule(Rule{
-		Head: Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
-		Body: []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
+		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
 			Value{Variable(1)},
 			Value{Bytes(k1)},
@@ -287,15 +287,15 @@ func TestBytes(t *testing.T) {
 		}},
 	}, syms)
 	expected := &FactSet{
-		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
+		{Predicate{keyMatch, []Term{usr1, Bytes(k1)}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("key equal query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
 	res = w.QueryRule(Rule{
-		Head: Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
-		Body: []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
+		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
 			Value{Set{Bytes(k1), Bytes(k3)}},
 			Value{Variable(1)},
@@ -303,16 +303,16 @@ func TestBytes(t *testing.T) {
 		}},
 	}, syms)
 	expected = &FactSet{
-		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
-		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
+		{Predicate{keyMatch, []Term{usr1, Bytes(k1)}}},
+		{Predicate{keyMatch, []Term{usr3, Bytes(k3)}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("key in query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
 	res = w.QueryRule(Rule{
-		Head: Predicate{keyMatch, []ID{hashVar("usr"), Variable(1)}},
-		Body: []Predicate{{key, []ID{hashVar("usr"), Variable(1)}}},
+		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
+		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
 			Value{Set{Bytes(k1)}},
 			Value{Variable(1)},
@@ -321,8 +321,8 @@ func TestBytes(t *testing.T) {
 		}},
 	}, syms)
 	expected = &FactSet{
-		{Predicate{keyMatch, []ID{usr2, Bytes(k2)}}},
-		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
+		{Predicate{keyMatch, []Term{usr2, Bytes(k2)}}},
+		{Predicate{keyMatch, []Term{usr3, Bytes(k3)}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("key not in query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -344,16 +344,16 @@ func TestResource(t *testing.T) {
 	read := syms.Insert("read")
 	write := syms.Insert("write")
 
-	w.AddFact(Fact{Predicate{resource, []ID{ambient, file2}}})
-	w.AddFact(Fact{Predicate{operation, []ID{ambient, write}}})
-	w.AddFact(Fact{Predicate{right, []ID{authority, file1, read}}})
-	w.AddFact(Fact{Predicate{right, []ID{authority, file2, read}}})
-	w.AddFact(Fact{Predicate{right, []ID{authority, file1, write}}})
+	w.AddFact(Fact{Predicate{resource, []Term{ambient, file2}}})
+	w.AddFact(Fact{Predicate{operation, []Term{ambient, write}}})
+	w.AddFact(Fact{Predicate{right, []Term{authority, file1, read}}})
+	w.AddFact(Fact{Predicate{right, []Term{authority, file2, read}}})
+	w.AddFact(Fact{Predicate{right, []Term{authority, file1, write}}})
 
 	check1 := syms.Insert("check1")
 	res := w.QueryRule(Rule{
-		Head: Predicate{check1, []ID{file1}},
-		Body: []Predicate{{resource, []ID{ambient, file1}}},
+		Head: Predicate{check1, []Term{file1}},
+		Body: []Predicate{{resource, []Term{ambient, file1}}},
 	}, syms)
 	if len(*res) > 0 {
 		t.Errorf("unexpected facts: %s", dbg.FactSet(res))
@@ -362,11 +362,11 @@ func TestResource(t *testing.T) {
 	check2 := syms.Insert("check2")
 	var0 := Variable(0)
 	r2 := Rule{
-		Head: Predicate{check2, []ID{var0}},
+		Head: Predicate{check2, []Term{var0}},
 		Body: []Predicate{
-			{resource, []ID{ambient, var0}},
-			{operation, []ID{ambient, read}},
-			{right, []ID{authority, var0, read}},
+			{resource, []Term{ambient, var0}},
+			{operation, []Term{ambient, read}},
+			{right, []Term{authority, var0, read}},
 		},
 	}
 	t.Logf("r2 = %s", dbg.Rule(r2))
@@ -537,15 +537,15 @@ func TestWorldRunLimits(t *testing.T) {
 	for _, tc := range testCases {
 		w := NewWorld(tc.opts...)
 
-		w.AddFact(Fact{Predicate{parent, []ID{a, b}}})
-		w.AddFact(Fact{Predicate{parent, []ID{b, c}}})
-		w.AddFact(Fact{Predicate{parent, []ID{c, d}}})
+		w.AddFact(Fact{Predicate{parent, []Term{a, b}}})
+		w.AddFact(Fact{Predicate{parent, []Term{b, c}}})
+		w.AddFact(Fact{Predicate{parent, []Term{c, d}}})
 
 		r1 := Rule{
-			Head: Predicate{grandparent, []ID{hashVar("grandparent"), hashVar("grandchild")}},
+			Head: Predicate{grandparent, []Term{hashVar("grandparent"), hashVar("grandchild")}},
 			Body: []Predicate{
-				{parent, []ID{hashVar("grandparent"), hashVar("parent")}},
-				{parent, []ID{hashVar("parent"), hashVar("grandchild")}},
+				{parent, []Term{hashVar("grandparent"), hashVar("parent")}},
+				{parent, []Term{hashVar("parent"), hashVar("grandchild")}},
 			},
 		}
 

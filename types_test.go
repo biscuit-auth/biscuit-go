@@ -15,7 +15,7 @@ func TestFromDatalogFact(t *testing.T) {
 	dlFact := datalog.Fact{
 		Predicate: datalog.Predicate{
 			Name: datalog.String(0),
-			IDs: []datalog.ID{
+			Terms: []datalog.Term{
 				datalog.String(1),
 				datalog.Integer(42),
 				symbolTable.Insert("foo"),

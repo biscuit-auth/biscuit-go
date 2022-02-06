@@ -31,10 +31,10 @@ func protoFactToTokenFactV2(input *pb.FactV2) (*datalog.Fact, error) {
 }
 
 func tokenPredicateToProtoPredicateV2(input datalog.Predicate) (*pb.PredicateV2, error) {
-	pbIds := make([]*pb.IDV2, len(input.IDs))
+	pbTerms := make([]*pb.TermV2, len(input.Terms))
 	var err error
-	for i, id := range input.IDs {
-		pbIds[i], err = tokenIDToProtoIDV2(id)
+	for i, id := range input.Terms {
+		pbTerms[i], err = tokenIDToProtoIDV2(id)
 		if err != nil {
 			return nil, err
 		}
@@ -42,57 +42,57 @@ func tokenPredicateToProtoPredicateV2(input datalog.Predicate) (*pb.PredicateV2,
 
 	nameSymbol := uint64(input.Name)
 	return &pb.PredicateV2{
-		Name: &nameSymbol,
-		Ids:  pbIds,
+		Name:  &nameSymbol,
+		Terms: pbTerms,
 	}, nil
 }
 
 func protoPredicateToTokenPredicateV2(input *pb.PredicateV2) (*datalog.Predicate, error) {
-	ids := make([]datalog.ID, len(input.Ids))
-	for i, id := range input.Ids {
+	Terms := make([]datalog.Term, len(input.Terms))
+	for i, id := range input.Terms {
 		dlid, err := protoIDToTokenIDV2(id)
 		if err != nil {
 			return nil, err
 		}
 
-		ids[i] = *dlid
+		Terms[i] = *dlid
 	}
 
 	nameSymbol := datalog.String(*input.Name)
 	return &datalog.Predicate{
-		Name: nameSymbol,
-		IDs:  ids,
+		Name:  nameSymbol,
+		Terms: Terms,
 	}, nil
 }
 
-func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
-	var pbId *pb.IDV2
+func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
+	var pbId *pb.TermV2
 	switch input.Type() {
-	case datalog.IDTypeString:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_String_{String_: uint64(input.(datalog.String))},
+	case datalog.TermTypeString:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_String_{String_: uint64(input.(datalog.String))},
 		}
-	case datalog.IDTypeDate:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Date{Date: uint64(input.(datalog.Date))},
+	case datalog.TermTypeDate:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Date{Date: uint64(input.(datalog.Date))},
 		}
-	case datalog.IDTypeInteger:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Integer{Integer: int64(input.(datalog.Integer))},
+	case datalog.TermTypeInteger:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Integer{Integer: int64(input.(datalog.Integer))},
 		}
-	case datalog.IDTypeVariable:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Variable{Variable: uint32(input.(datalog.Variable))},
+	case datalog.TermTypeVariable:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Variable{Variable: uint32(input.(datalog.Variable))},
 		}
-	case datalog.IDTypeBytes:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Bytes{Bytes: input.(datalog.Bytes)},
+	case datalog.TermTypeBytes:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Bytes{Bytes: input.(datalog.Bytes)},
 		}
-	case datalog.IDTypeBool:
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Bool{Bool: bool(input.(datalog.Bool))},
+	case datalog.TermTypeBool:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Bool{Bool: bool(input.(datalog.Bool))},
 		}
-	case datalog.IDTypeSet:
+	case datalog.TermTypeSet:
 		datalogSet := input.(datalog.Set)
 		if len(datalogSet) == 0 {
 			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot be empty")
@@ -100,13 +100,13 @@ func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
 
 		expectedEltType := datalogSet[0].Type()
 		switch expectedEltType {
-		case datalog.IDTypeVariable:
+		case datalog.TermTypeVariable:
 			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
-		case datalog.IDTypeSet:
+		case datalog.TermTypeSet:
 			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
 		}
 
-		protoSet := make([]*pb.IDV2, 0, len(datalogSet))
+		protoSet := make([]*pb.TermV2, 0, len(datalogSet))
 		for _, datalogElt := range datalogSet {
 			if datalogElt.Type() != expectedEltType {
 				return nil, fmt.Errorf(
@@ -123,9 +123,9 @@ func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
 
 			protoSet = append(protoSet, protoElt)
 		}
-		pbId = &pb.IDV2{
-			Content: &pb.IDV2_Set{
-				Set: &pb.IDSet{
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Set{
+				Set: &pb.TermSet{
 					Set: protoSet,
 				},
 			},
@@ -136,22 +136,22 @@ func tokenIDToProtoIDV2(input datalog.ID) (*pb.IDV2, error) {
 	return pbId, nil
 }
 
-func protoIDToTokenIDV2(input *pb.IDV2) (*datalog.ID, error) {
-	var id datalog.ID
+func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
+	var id datalog.Term
 	switch input.Content.(type) {
-	case *pb.IDV2_String_:
+	case *pb.TermV2_String_:
 		id = datalog.String(input.GetString_())
-	case *pb.IDV2_Date:
+	case *pb.TermV2_Date:
 		id = datalog.Date(input.GetDate())
-	case *pb.IDV2_Integer:
+	case *pb.TermV2_Integer:
 		id = datalog.Integer(input.GetInteger())
-	case *pb.IDV2_Variable:
+	case *pb.TermV2_Variable:
 		id = datalog.Variable(input.GetVariable())
-	case *pb.IDV2_Bytes:
+	case *pb.TermV2_Bytes:
 		id = datalog.Bytes(input.GetBytes())
-	case *pb.IDV2_Bool:
+	case *pb.TermV2_Bool:
 		id = datalog.Bool(input.GetBool())
-	case *pb.IDV2_Set:
+	case *pb.TermV2_Set:
 		elts := input.GetSet().Set
 		if len(elts) == 0 {
 			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot be empty")
@@ -159,9 +159,9 @@ func protoIDToTokenIDV2(input *pb.IDV2) (*datalog.ID, error) {
 
 		expectedEltType := reflect.TypeOf(elts[0].GetContent())
 		switch expectedEltType {
-		case reflect.TypeOf(&pb.IDV2_Variable{}):
+		case reflect.TypeOf(&pb.TermV2_Variable{}):
 			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
-		case reflect.TypeOf(&pb.IDV2_Set{}):
+		case reflect.TypeOf(&pb.TermV2_Set{}):
 			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
 		}
 

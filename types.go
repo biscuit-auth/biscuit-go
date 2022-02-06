@@ -105,8 +105,8 @@ func fromDatalogFact(symbols *datalog.SymbolTable, f datalog.Fact) (*Fact, error
 }
 
 func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*Predicate, error) {
-	terms := make([]Term, 0, len(p.IDs))
-	for _, id := range p.IDs {
+	terms := make([]Term, 0, len(p.Terms))
+	for _, id := range p.Terms {
 		a, err := fromDatalogID(symbols, id)
 		if err != nil {
 			return nil, err
@@ -120,22 +120,22 @@ func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*P
 	}, nil
 }
 
-func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
+func fromDatalogID(symbols *datalog.SymbolTable, id datalog.Term) (Term, error) {
 	var a Term
 	switch id.Type() {
-	case datalog.IDTypeVariable:
+	case datalog.TermTypeVariable:
 		a = Variable(symbols.Str(datalog.String(id.(datalog.Variable))))
-	case datalog.IDTypeInteger:
+	case datalog.TermTypeInteger:
 		a = Integer(id.(datalog.Integer))
-	case datalog.IDTypeString:
+	case datalog.TermTypeString:
 		a = String(symbols.Str(id.(datalog.String)))
-	case datalog.IDTypeDate:
+	case datalog.TermTypeDate:
 		a = Date(time.Unix(int64(id.(datalog.Date)), 0))
-	case datalog.IDTypeBytes:
+	case datalog.TermTypeBytes:
 		a = Bytes(id.(datalog.Bytes))
-	case datalog.IDTypeBool:
+	case datalog.TermTypeBool:
 		a = Bool(id.(datalog.Bool))
-	case datalog.IDTypeSet:
+	case datalog.TermTypeSet:
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
 		for _, i := range setIDs {
@@ -448,14 +448,14 @@ type Predicate struct {
 }
 
 func (p Predicate) convert(symbols *datalog.SymbolTable) datalog.Predicate {
-	var ids []datalog.ID
+	var ids []datalog.Term
 	for _, a := range p.IDs {
 		ids = append(ids, a.convert(symbols))
 	}
 
 	return datalog.Predicate{
-		Name: symbols.Insert(p.Name),
-		IDs:  ids,
+		Name:  symbols.Insert(p.Name),
+		Terms: ids,
 	}
 }
 func (p Predicate) String() string {
@@ -482,13 +482,13 @@ const (
 type Term interface {
 	Type() TermType
 	String() string
-	convert(symbols *datalog.SymbolTable) datalog.ID
+	convert(symbols *datalog.SymbolTable) datalog.Term
 }
 
 type Variable string
 
 func (a Variable) Type() TermType { return TermTypeVariable }
-func (a Variable) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a Variable) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Variable(symbols.Insert(string(a)))
 }
 func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
@@ -496,7 +496,7 @@ func (a Variable) String() string { return fmt.Sprintf("$%s", string(a)) }
 type Integer int64
 
 func (a Integer) Type() TermType { return TermTypeInteger }
-func (a Integer) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a Integer) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Integer(a)
 }
 func (a Integer) String() string { return fmt.Sprintf("%d", a) }
@@ -504,7 +504,7 @@ func (a Integer) String() string { return fmt.Sprintf("%d", a) }
 type String string
 
 func (a String) Type() TermType { return TermTypeString }
-func (a String) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a String) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.String(symbols.Insert(string(a)))
 }
 func (a String) String() string { return fmt.Sprintf("%q", string(a)) }
@@ -512,7 +512,7 @@ func (a String) String() string { return fmt.Sprintf("%q", string(a)) }
 type Date time.Time
 
 func (a Date) Type() TermType { return TermTypeDate }
-func (a Date) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a Date) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Date(time.Time(a).Unix())
 }
 func (a Date) String() string { return time.Time(a).Format(time.RFC3339) }
@@ -520,7 +520,7 @@ func (a Date) String() string { return time.Time(a).Format(time.RFC3339) }
 type Bytes []byte
 
 func (a Bytes) Type() TermType { return TermTypeBytes }
-func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a Bytes) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Bytes(a)
 }
 func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString(a)) }
@@ -528,7 +528,7 @@ func (a Bytes) String() string { return fmt.Sprintf("hex:%s", hex.EncodeToString
 type Bool bool
 
 func (b Bool) Type() TermType { return TermTypeBool }
-func (b Bool) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (b Bool) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Bool(b)
 }
 func (b Bool) String() string { return fmt.Sprintf("%t", b) }
@@ -536,7 +536,7 @@ func (b Bool) String() string { return fmt.Sprintf("%t", b) }
 type Set []Term
 
 func (a Set) Type() TermType { return TermTypeSet }
-func (a Set) convert(symbols *datalog.SymbolTable) datalog.ID {
+func (a Set) convert(symbols *datalog.SymbolTable) datalog.Term {
 	datalogSet := make(datalog.Set, 0, len(a))
 	for _, e := range a {
 		datalogSet = append(datalogSet, e.convert(symbols))

@@ -11,34 +11,34 @@ import (
 	"time"
 )
 
-type IDType byte
+type TermType byte
 
 const (
-	IDTypeVariable IDType = iota
-	IDTypeInteger
-	IDTypeString
-	IDTypeDate
-	IDTypeBytes
-	IDTypeBool
-	IDTypeSet
+	TermTypeVariable TermType = iota
+	TermTypeInteger
+	TermTypeString
+	TermTypeDate
+	TermTypeBytes
+	TermTypeBool
+	TermTypeSet
 )
 
-type ID interface {
-	Type() IDType
-	Equal(ID) bool
+type Term interface {
+	Type() TermType
+	Equal(Term) bool
 	String() string
 }
 
-type Set []ID
+type Set []Term
 
-func (Set) Type() IDType { return IDTypeSet }
-func (s Set) Equal(t ID) bool {
+func (Set) Type() TermType { return TermTypeSet }
+func (s Set) Equal(t Term) bool {
 	c, ok := t.(Set)
 	if !ok || len(c) != len(s) {
 		return false
 	}
 
-	cmap := make(map[ID]struct{}, len(c))
+	cmap := make(map[Term]struct{}, len(c))
 	for _, v := range c {
 		cmap[v] = struct{}{}
 	}
@@ -61,63 +61,63 @@ func (s Set) String() string {
 
 type Variable uint32
 
-func (Variable) Type() IDType      { return IDTypeVariable }
-func (v Variable) Equal(t ID) bool { c, ok := t.(Variable); return ok && v == c }
+func (Variable) Type() TermType      { return TermTypeVariable }
+func (v Variable) Equal(t Term) bool { c, ok := t.(Variable); return ok && v == c }
 func (v Variable) String() string {
 	return fmt.Sprintf("$%d", v)
 }
 
 type Integer int64
 
-func (Integer) Type() IDType      { return IDTypeInteger }
-func (i Integer) Equal(t ID) bool { c, ok := t.(Integer); return ok && i == c }
+func (Integer) Type() TermType      { return TermTypeInteger }
+func (i Integer) Equal(t Term) bool { c, ok := t.(Integer); return ok && i == c }
 func (i Integer) String() string {
 	return fmt.Sprintf("%d", i)
 }
 
 type String uint64
 
-func (String) Type() IDType      { return IDTypeString }
-func (s String) Equal(t ID) bool { c, ok := t.(String); return ok && s == c }
+func (String) Type() TermType      { return TermTypeString }
+func (s String) Equal(t Term) bool { c, ok := t.(String); return ok && s == c }
 func (s String) String() string {
 	return fmt.Sprintf("#%d", s)
 }
 
 type Date uint64
 
-func (Date) Type() IDType      { return IDTypeDate }
-func (d Date) Equal(t ID) bool { c, ok := t.(Date); return ok && d == c }
+func (Date) Type() TermType      { return TermTypeDate }
+func (d Date) Equal(t Term) bool { c, ok := t.(Date); return ok && d == c }
 func (d Date) String() string {
 	return time.Unix(int64(d), 0).Format(time.RFC3339)
 }
 
 type Bytes []byte
 
-func (Bytes) Type() IDType      { return IDTypeBytes }
-func (b Bytes) Equal(t ID) bool { c, ok := t.(Bytes); return ok && bytes.Equal(b, c) }
+func (Bytes) Type() TermType      { return TermTypeBytes }
+func (b Bytes) Equal(t Term) bool { c, ok := t.(Bytes); return ok && bytes.Equal(b, c) }
 func (b Bytes) String() string {
 	return fmt.Sprintf("\"hex:%s\"", hex.EncodeToString(b))
 }
 
 type Bool bool
 
-func (Bool) Type() IDType      { return IDTypeBool }
-func (b Bool) Equal(t ID) bool { c, ok := t.(Bool); return ok && b == c }
+func (Bool) Type() TermType      { return TermTypeBool }
+func (b Bool) Equal(t Term) bool { c, ok := t.(Bool); return ok && b == c }
 func (b Bool) String() string {
 	return fmt.Sprintf("%t", b)
 }
 
 type Predicate struct {
-	Name String
-	IDs  []ID
+	Name  String
+	Terms []Term
 }
 
 func (p Predicate) Equal(p2 Predicate) bool {
-	if p.Name != p2.Name || len(p.IDs) != len(p2.IDs) {
+	if p.Name != p2.Name || len(p.Terms) != len(p2.Terms) {
 		return false
 	}
-	for i, id := range p.IDs {
-		if !id.Equal(p2.IDs[i]) {
+	for i, id := range p.Terms {
+		if !id.Equal(p2.Terms[i]) {
 			return false
 		}
 	}
@@ -126,16 +126,16 @@ func (p Predicate) Equal(p2 Predicate) bool {
 }
 
 func (p Predicate) Match(p2 Predicate) bool {
-	if p.Name != p2.Name || len(p.IDs) != len(p2.IDs) {
+	if p.Name != p2.Name || len(p.Terms) != len(p2.Terms) {
 		return false
 	}
-	for i, id := range p.IDs {
+	for i, id := range p.Terms {
 		_, v1 := id.(Variable)
-		_, v2 := p2.IDs[i].(Variable)
+		_, v2 := p2.Terms[i].(Variable)
 		if v1 || v2 {
 			continue
 		}
-		if !id.Equal(p2.IDs[i]) {
+		if !id.Equal(p2.Terms[i]) {
 			return false
 		}
 	}
@@ -143,8 +143,8 @@ func (p Predicate) Match(p2 Predicate) bool {
 }
 
 func (p Predicate) Clone() Predicate {
-	res := Predicate{Name: p.Name, IDs: make([]ID, len(p.IDs))}
-	copy(res.IDs, p.IDs)
+	res := Predicate{Name: p.Name, Terms: make([]Term, len(p.Terms))}
+	copy(res.Terms, p.Terms)
 	return res
 }
 
@@ -157,7 +157,7 @@ type Rule struct {
 	Body        []Predicate
 	Expressions []Expression
 
-	forbiddenIDs []ID
+	forbiddenIDs []Term
 }
 
 type InvalidRuleError struct {
@@ -173,7 +173,7 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error 
 	// extract all variables from the rule body
 	variables := make(MatchedVariables)
 	for _, p := range r.Body {
-		for _, id := range p.IDs {
+		for _, id := range p.Terms {
 			v, ok := id.(Variable)
 			if !ok {
 				continue
@@ -189,7 +189,7 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error 
 outer:
 	for _, h := range combined {
 		p := r.Head.Clone()
-		for i, id := range p.IDs {
+		for i, id := range p.Terms {
 			k, ok := id.(Variable)
 			if !ok {
 				continue
@@ -206,7 +206,7 @@ outer:
 				}
 			}
 
-			p.IDs[i] = *v
+			p.Terms[i] = *v
 		}
 		newFacts.Insert(Fact{p})
 	}
@@ -393,7 +393,7 @@ func (w *World) Query(pred Predicate) *FactSet {
 
 		// if the predicate has a different number of IDs
 		// the fact must not match
-		if len(f.Predicate.IDs) != len(pred.IDs) {
+		if len(f.Predicate.Terms) != len(pred.Terms) {
 			continue
 		}
 		/*minLen := len(f.Predicate.IDs)
@@ -402,11 +402,11 @@ func (w *World) Query(pred Predicate) *FactSet {
 		}*/
 
 		matches := true
-		for i := 0; i < len(pred.IDs); i++ {
-			fID := f.Predicate.IDs[i]
-			pID := pred.IDs[i]
+		for i := 0; i < len(pred.Terms); i++ {
+			fID := f.Predicate.Terms[i]
+			pID := pred.Terms[i]
 
-			if pID.Type() != IDTypeVariable {
+			if pID.Type() != TermTypeVariable {
 				if fID.Type() != pID.Type() || fID != pID {
 					matches = false
 					break
@@ -438,9 +438,9 @@ func (w *World) Clone() *World {
 	}
 }
 
-type MatchedVariables map[Variable]*ID
+type MatchedVariables map[Variable]*Term
 
-func (m MatchedVariables) Insert(k Variable, v ID) bool {
+func (m MatchedVariables) Insert(k Variable, v Term) bool {
 	existing := m[k]
 	if existing == nil {
 		m[k] = &v
@@ -449,13 +449,13 @@ func (m MatchedVariables) Insert(k Variable, v ID) bool {
 	return v.Equal(*existing)
 }
 
-func (m MatchedVariables) Complete() map[Variable]*ID {
+func (m MatchedVariables) Complete() map[Variable]*Term {
 	for _, v := range m {
 		if v == nil {
 			return nil
 		}
 	}
-	return (map[Variable]*ID)(m)
+	return (map[Variable]*Term)(m)
 }
 
 func (m MatchedVariables) Clone() MatchedVariables {
@@ -491,8 +491,8 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, expressio
 	return c
 }
 
-func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*ID, error) {
-	var variables []map[Variable]*ID
+func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*Term, error) {
+	var variables []map[Variable]*Term
 	// Stop when no more predicates are available
 	if len(c.predicates) == 0 {
 		if vars := c.variables.Complete(); vars != nil {
@@ -507,18 +507,18 @@ func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*ID, error) {
 			matchIDs := true
 			// minLen is the smallest number of IDs
 			// between the predicate and the current fact
-			minLen := len(pred.IDs)
-			if l := len(currentFact.Predicate.IDs); l < minLen {
+			minLen := len(pred.Terms)
+			if l := len(currentFact.Predicate.Terms); l < minLen {
 				minLen = l
 			}
 
 			for j := 0; j < minLen; j++ {
-				id := pred.IDs[j]
+				id := pred.Terms[j]
 				k, ok := id.(Variable)
 				if !ok {
 					continue
 				}
-				v := currentFact.Predicate.IDs[j]
+				v := currentFact.Predicate.Terms[j]
 				if !vars.Insert(k, v) {
 					matchIDs = false
 				}
@@ -580,7 +580,7 @@ func (t *SymbolTable) Insert(s string) String {
 	return String(len(*t) - 1)
 }
 
-func (t *SymbolTable) Sym(s string) ID {
+func (t *SymbolTable) Sym(s string) Term {
 	for i, v := range *t {
 		if string(v) == s {
 			return String(i)
@@ -667,8 +667,8 @@ type SymbolDebugger struct {
 }
 
 func (d SymbolDebugger) Predicate(p Predicate) string {
-	strs := make([]string, len(p.IDs))
-	for i, id := range p.IDs {
+	strs := make([]string, len(p.Terms))
+	for i, id := range p.Terms {
 		var s string
 		if sym, ok := id.(String); ok {
 			s = "\"" + d.Str(sym) + "\""
