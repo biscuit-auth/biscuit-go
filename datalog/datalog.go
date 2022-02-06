@@ -14,8 +14,7 @@ import (
 type IDType byte
 
 const (
-	IDTypeSymbol IDType = iota
-	IDTypeVariable
+	IDTypeVariable IDType = iota
 	IDTypeInteger
 	IDTypeString
 	IDTypeDate
@@ -60,14 +59,6 @@ func (s Set) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
 }
 
-type Symbol uint64
-
-func (Symbol) Type() IDType      { return IDTypeSymbol }
-func (s Symbol) Equal(t ID) bool { c, ok := t.(Symbol); return ok && s == c }
-func (s Symbol) String() string {
-	return fmt.Sprintf("#%d", s)
-}
-
 type Variable uint32
 
 func (Variable) Type() IDType      { return IDTypeVariable }
@@ -84,12 +75,12 @@ func (i Integer) String() string {
 	return fmt.Sprintf("%d", i)
 }
 
-type String string
+type String uint64
 
 func (String) Type() IDType      { return IDTypeString }
 func (s String) Equal(t ID) bool { c, ok := t.(String); return ok && s == c }
 func (s String) String() string {
-	return fmt.Sprintf("%q", string(s))
+	return fmt.Sprintf("#%d", s)
 }
 
 type Date uint64
@@ -117,7 +108,7 @@ func (b Bool) String() string {
 }
 
 type Predicate struct {
-	Name Symbol
+	Name String
 	IDs  []ID
 }
 
@@ -178,7 +169,7 @@ func (e InvalidRuleError) Error() string {
 	return fmt.Sprintf("datalog: variable %d in head is missing from body and/or constraints", e.MissingVariable)
 }
 
-func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
+func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error {
 	// extract all variables from the rule body
 	variables := make(MatchedVariables)
 	for _, p := range r.Body {
@@ -191,7 +182,7 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet) error {
 		}
 	}
 
-	combined, err := NewCombinator(variables, r.Body, r.Expressions, facts).Combine()
+	combined, err := NewCombinator(variables, r.Body, r.Expressions, facts).Combine(syms)
 	if err != nil {
 		return err
 	}
@@ -342,7 +333,7 @@ func (w *World) Rules() []Rule {
 	return w.rules
 }
 
-func (w *World) Run() error {
+func (w *World) Run(syms *SymbolTable) error {
 	done := make(chan error)
 	ctx, cancel := context.WithTimeout(context.Background(), w.runLimits.maxDuration)
 	defer cancel()
@@ -359,7 +350,7 @@ func (w *World) Run() error {
 					case <-ctx.Done():
 						return
 					default:
-						if err := r.Apply(w.facts, &newFacts); err != nil {
+						if err := r.Apply(w.facts, &newFacts, syms); err != nil {
 							done <- err
 							return
 						}
@@ -399,29 +390,41 @@ func (w *World) Query(pred Predicate) *FactSet {
 		if f.Predicate.Name != pred.Name {
 			continue
 		}
-		minLen := len(f.Predicate.IDs)
+
+		// if the predicate has a different number of IDs
+		// the fact must not match
+		if len(f.Predicate.IDs) != len(pred.IDs) {
+			continue
+		}
+		/*minLen := len(f.Predicate.IDs)
 		if l := len(pred.IDs); l < minLen {
 			minLen = l
-		}
-		for i := 0; i < minLen; i++ {
+		}*/
+
+		matches := true
+		for i := 0; i < len(pred.IDs); i++ {
 			fID := f.Predicate.IDs[i]
 			pID := pred.IDs[i]
-			if fID.Type() != IDTypeVariable && fID.Type() == pID.Type() {
-				if fID != pID {
-					continue
+
+			if pID.Type() != IDTypeVariable {
+				if fID.Type() != pID.Type() || fID != pID {
+					matches = false
+					break
 				}
-			} else if fID.Type() != IDTypeSymbol && pID.Type() != IDTypeVariable {
-				continue
+
 			}
+		}
+
+		if matches {
 			res.Insert(f)
 		}
 	}
 	return res
 }
 
-func (w *World) QueryRule(rule Rule) *FactSet {
+func (w *World) QueryRule(rule Rule, syms *SymbolTable) *FactSet {
 	newFacts := &FactSet{}
-	rule.Apply(w.facts, newFacts)
+	rule.Apply(w.facts, newFacts, syms)
 	return newFacts
 }
 
@@ -488,7 +491,7 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, expressio
 	return c
 }
 
-func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
+func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*ID, error) {
 	var variables []map[Variable]*ID
 	// Stop when no more predicates are available
 	if len(c.predicates) == 0 {
@@ -529,7 +532,7 @@ func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 			}
 
 			if len(c.predicates) > i+1 {
-				next, err := NewCombinator(vars, c.predicates[i+1:], c.expressions, c.allFacts).Combine()
+				next, err := NewCombinator(vars, c.predicates[i+1:], c.expressions, c.allFacts).Combine(syms)
 				if err != nil {
 					return nil, err
 				}
@@ -545,7 +548,7 @@ func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 				if v := vars.Complete(); v != nil {
 					valid := true
 					for _, e := range c.expressions {
-						res, err := e.Evaluate(v)
+						res, err := e.Evaluate(v, syms)
 						if err != nil {
 							return nil, err
 						}
@@ -567,26 +570,35 @@ func (c *Combinator) Combine() ([]map[Variable]*ID, error) {
 
 type SymbolTable []string
 
-func (t *SymbolTable) Insert(s string) Symbol {
+func (t *SymbolTable) Insert(s string) String {
 	for i, v := range *t {
 		if string(v) == s {
-			return Symbol(i)
+			return String(i)
 		}
 	}
 	*t = append(*t, s)
-	return Symbol(len(*t) - 1)
+	return String(len(*t) - 1)
 }
 
 func (t *SymbolTable) Sym(s string) ID {
 	for i, v := range *t {
 		if string(v) == s {
-			return Symbol(i)
+			return String(i)
 		}
 	}
 	return nil
 }
 
-func (t *SymbolTable) Str(sym Symbol) string {
+func (t *SymbolTable) Index(s string) uint64 {
+	for i, v := range *t {
+		if string(v) == s {
+			return uint64(i)
+		}
+	}
+	panic("index not found")
+}
+
+func (t *SymbolTable) Str(sym String) string {
 	if int(sym) > len(*t)-1 {
 		return fmt.Sprintf("<invalid symbol %d>", sym)
 	}
@@ -658,8 +670,8 @@ func (d SymbolDebugger) Predicate(p Predicate) string {
 	strs := make([]string, len(p.IDs))
 	for i, id := range p.IDs {
 		var s string
-		if sym, ok := id.(Symbol); ok {
-			s = "#" + d.Str(sym)
+		if sym, ok := id.(String); ok {
+			s = "\"" + d.Str(sym) + "\""
 		} else if variable, ok := id.(Variable); ok {
 			s = "$" + d.Var(variable)
 		} else {
@@ -716,7 +728,7 @@ func (d SymbolDebugger) Check(c Check) string {
 	for i, q := range c.Queries {
 		queries[i] = d.CheckQuery(q)
 	}
-	return  fmt.Sprintf("check if %s", strings.Join(queries, " or "))
+	return fmt.Sprintf("check if %s", strings.Join(queries, " or "))
 }
 
 func (d SymbolDebugger) World(w *World) string {

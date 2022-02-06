@@ -16,44 +16,41 @@ func TestGrammarPredicate(t *testing.T) {
 		Expected *Predicate
 	}{
 		{
-			Input: `resource(#ambient, $var1)`,
+			Input: `resource($var1)`,
 			Expected: &Predicate{
 				Name: sptr("resource"),
 				IDs: []*Term{
-					{Symbol: symptr("ambient")},
 					{Variable: varptr("var1")},
 				},
 			},
 		},
 		{
-			Input: `resource(#ambient, $0, #read)`,
+			Input: `resource($0, "read")`,
 			Expected: &Predicate{
 				Name: sptr("resource"),
 				IDs: []*Term{
-					{Symbol: symptr("ambient")},
 					{Variable: varptr("0")},
-					{Symbol: symptr("read")},
+					{String: sptr("read")},
 				},
 			},
 		},
 		{
-			Input: `right(#authority, "/a/file1.txt", #read)`,
+			Input: `right("/a/file1.txt", "read")`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
-					{Symbol: symptr("authority")},
 					{String: sptr("/a/file1.txt")},
-					{Symbol: symptr("read")},
+					{String: sptr("read")},
 				},
 			},
 		},
 		{
-			Input: `right("/a/file1.txt", #read)`,
+			Input: `right("/a/file1.txt", "read")`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
 					{String: sptr("/a/file1.txt")},
-					{Symbol: symptr("read")},
+					{String: sptr("read")},
 				},
 			},
 		},
@@ -78,12 +75,12 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
-			Input: `right($1, ["hex:41414141", #sym])`,
+			Input: `right($1, ["hex:41414141", "sym"])`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
 					{Variable: varptr("1")},
-					{Set: []*Term{{Bytes: hexsptr("41414141")}, {Symbol: symptr("sym")}}},
+					{Set: []*Term{{Bytes: hexsptr("41414141")}, {String: sptr("sym")}}},
 				},
 			},
 		},
@@ -293,30 +290,6 @@ func TestGrammarConstraint(t *testing.T) {
 			},
 		},
 		{
-			Input: `$0 in [#a, #b, #c]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Symbols: []Symbol{"a", "b", "c"},
-						Not:     false,
-					},
-				},
-			},
-		},
-		{
-			Input: `$0 not in [#a, #b, #c]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Symbols: []Symbol{"a", "b", "c"},
-						Not:     true,
-					},
-				},
-			},
-		},
-		{
 			Input: `$0 in ["hex:41", "hex:42", "hex:43"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
@@ -362,29 +335,29 @@ func TestGrammarCheck(t *testing.T) {
 		Expected *Check
 	}{
 		{
-			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)]`,
+			Input: `[grandparent("a", "c") <- parent("a", "b"), parent("b", "c")]`,
 			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("c")},
+							{String: sptr("a")},
+							{String: sptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("a")},
-								{Symbol: symptr("b")},
+								{String: sptr("a")},
+								{String: sptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("b")},
-								{Symbol: symptr("c")},
+								{String: sptr("b")},
+								{String: sptr("c")},
 							},
 						},
 					},
@@ -392,7 +365,7 @@ func TestGrammarCheck(t *testing.T) {
 			}},
 		},
 		{
-			Input: `[empty() <- parent(#a, #b), parent(#b, #c)]`,
+			Input: `[empty() <- parent("a", "b"), parent("b", "c")]`,
 			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
@@ -403,15 +376,15 @@ func TestGrammarCheck(t *testing.T) {
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("a")},
-								{Symbol: symptr("b")},
+								{String: sptr("a")},
+								{String: sptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("b")},
-								{Symbol: symptr("c")},
+								{String: sptr("b")},
+								{String: sptr("c")},
 							},
 						},
 					},
@@ -419,29 +392,29 @@ func TestGrammarCheck(t *testing.T) {
 			}},
 		},
 		{
-			Input: `[grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) || grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")]`,
+			Input: `[grandparent("a", "c") <- parent("a", "b"), parent("b", "c") || grandparent("a", "c") <- parent("a", "b"), parent("b", "c") @ $0 > 42, prefix($1, "test")]`,
 			Expected: &Check{[]*Rule{
 				{
 					Head: &Predicate{
 						Name: sptr("grandparent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("c")},
+							{String: sptr("a")},
+							{String: sptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("a")},
-								{Symbol: symptr("b")},
+								{String: sptr("a")},
+								{String: sptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("b")},
-								{Symbol: symptr("c")},
+								{String: sptr("b")},
+								{String: sptr("c")},
 							},
 						},
 					},
@@ -450,23 +423,23 @@ func TestGrammarCheck(t *testing.T) {
 					Head: &Predicate{
 						Name: sptr("grandparent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("c")},
+							{String: sptr("a")},
+							{String: sptr("c")},
 						},
 					},
 					Body: []*Predicate{
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("a")},
-								{Symbol: symptr("b")},
+								{String: sptr("a")},
+								{String: sptr("b")},
 							},
 						},
 						{
 							Name: sptr("parent"),
 							IDs: []*Term{
-								{Symbol: symptr("b")},
-								{Symbol: symptr("c")},
+								{String: sptr("b")},
+								{String: sptr("c")},
 							},
 						},
 					},
@@ -513,36 +486,36 @@ func TestGrammarRule(t *testing.T) {
 	}{
 		{
 			Input: `// some comment
-	grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c)`,
+	grandparent("a", "c") <- parent("a", "b"), parent("b", "c")`,
 			Expected: &Rule{
 				Comments: []*Comment{commentptr("some comment")},
 				Head: &Predicate{
 					Name: sptr("grandparent"),
 					IDs: []*Term{
-						{Symbol: symptr("a")},
-						{Symbol: symptr("c")},
+						{String: sptr("a")},
+						{String: sptr("c")},
 					},
 				},
 				Body: []*Predicate{
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("b")},
+							{String: sptr("a")},
+							{String: sptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("b")},
-							{Symbol: symptr("c")},
+							{String: sptr("b")},
+							{String: sptr("c")},
 						},
 					},
 				},
 			},
 		},
 		{
-			Input: `empty() <- parent(#a, #b), parent(#b, #c)`,
+			Input: `empty() <- parent("a", "b"), parent("b", "c")`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: sptr("empty"),
@@ -551,43 +524,43 @@ func TestGrammarRule(t *testing.T) {
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("b")},
+							{String: sptr("a")},
+							{String: sptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("b")},
-							{Symbol: symptr("c")},
+							{String: sptr("b")},
+							{String: sptr("c")},
 						},
 					},
 				},
 			},
 		},
 		{
-			Input: `grandparent(#a, #c) <- parent(#a, #b), parent(#b, #c) @ $0 > 42, prefix($1, "test")`,
+			Input: `grandparent("a", "c") <- parent("a", "b"), parent("b", "c") @ $0 > 42, prefix($1, "test")`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: sptr("grandparent"),
 					IDs: []*Term{
-						{Symbol: symptr("a")},
-						{Symbol: symptr("c")},
+						{String: sptr("a")},
+						{String: sptr("c")},
 					},
 				},
 				Body: []*Predicate{
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("a")},
-							{Symbol: symptr("b")},
+							{String: sptr("a")},
+							{String: sptr("b")},
 						},
 					},
 					{
 						Name: sptr("parent"),
 						IDs: []*Term{
-							{Symbol: symptr("b")},
-							{Symbol: symptr("c")},
+							{String: sptr("b")},
+							{String: sptr("c")},
 						},
 					},
 				},
@@ -621,11 +594,6 @@ func TestGrammarRule(t *testing.T) {
 			require.Equal(t, testCase.Expected, parsed)
 		})
 	}
-}
-
-func symptr(s string) *Symbol {
-	sym := Symbol(s)
-	return &sym
 }
 
 func varptr(s string) *Variable {

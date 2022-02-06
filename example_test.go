@@ -17,7 +17,7 @@ func ExampleBiscuit() {
 		Name: "right",
 		IDs: []biscuit.Term{
 			biscuit.String("/a/file1.txt"),
-			biscuit.Symbol("read"),
+			biscuit.String("read"),
 		},
 	}})
 	if err != nil {
@@ -27,7 +27,7 @@ func ExampleBiscuit() {
 		Name: "right",
 		IDs: []biscuit.Term{
 			biscuit.String("/a/file1.txt"),
-			biscuit.Symbol("write"),
+			biscuit.String("write"),
 		},
 	}})
 	if err != nil {
@@ -37,7 +37,7 @@ func ExampleBiscuit() {
 		Name: "right",
 		IDs: []biscuit.Term{
 			biscuit.String("/a/file2.txt"),
-			biscuit.Symbol("read"),
+			biscuit.String("read"),
 		},
 	}})
 	if err != nil {
@@ -47,7 +47,7 @@ func ExampleBiscuit() {
 		Name: "right",
 		IDs: []biscuit.Term{
 			biscuit.String("/a/file3.txt"),
-			biscuit.Symbol("write"),
+			biscuit.String("write"),
 		},
 	}})
 	if err != nil {
@@ -85,7 +85,7 @@ func ExampleBiscuit() {
 				},
 				Expressions: []biscuit.Expression{
 					{
-						biscuit.Value{Term: biscuit.Set{biscuit.Symbol("read")}},
+						biscuit.Value{Term: biscuit.Set{biscuit.String("read")}},
 						biscuit.Value{Term: biscuit.Variable("permission")},
 						biscuit.BinaryContains,
 					},
@@ -121,7 +121,7 @@ func ExampleBiscuit() {
 		Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("read")}},
+		Name: "operation", IDs: []biscuit.Term{biscuit.String("read")}},
 	})
 	v1.AddPolicy(biscuit.Policy{Kind: biscuit.PolicyKindAllow, Queries: []biscuit.Rule{
 		{
@@ -144,7 +144,7 @@ func ExampleBiscuit() {
 		Name: "resource", IDs: []biscuit.Term{biscuit.String("/a/file1.txt")}},
 	})
 	v1.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-		Name: "operation", IDs: []biscuit.Term{biscuit.Symbol("write")}},
+		Name: "operation", IDs: []biscuit.Term{biscuit.String("write")}},
 	})
 	v1.AddPolicy(biscuit.Policy{Kind: biscuit.PolicyKindAllow, Queries: []biscuit.Rule{
 		{
@@ -161,8 +161,8 @@ func ExampleBiscuit() {
 		fmt.Println("allowed to write /a/file1.txt")
 	}
 
-	// Output: Token1 length: 262
-	// Token2 length: 462
+	// Output: Token1 length: 256
+	// Token2 length: 456
 	// allowed to read /a/file1.txt
 	// forbidden to write /a/file1.txt
 }

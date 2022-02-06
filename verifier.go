@@ -100,7 +100,7 @@ func (v *verifier) Verify() error {
 		v.world.AddRule(r.convert(v.symbols))
 	}
 
-	if err := v.world.Run(); err != nil {
+	if err := v.world.Run(v.symbols); err != nil {
 		return err
 	}
 	v.dirty = true
@@ -111,7 +111,7 @@ func (v *verifier) Verify() error {
 		c := check.convert(v.symbols)
 		successful := false
 		for _, query := range c.Queries {
-			res := v.world.QueryRule(query)
+			res := v.world.QueryRule(query, v.symbols)
 			if len(*res) != 0 {
 				successful = true
 				break
@@ -134,7 +134,7 @@ func (v *verifier) Verify() error {
 
 		successful := false
 		for _, query := range c.Queries {
-			res := v.world.QueryRule(query)
+			res := v.world.QueryRule(query, v.symbols)
 			if len(*res) != 0 {
 				successful = true
 				break
@@ -155,7 +155,7 @@ func (v *verifier) Verify() error {
 			break
 		}
 		for _, query := range policy.Queries {
-			res := v.world.QueryRule(query.convert(v.symbols))
+			res := v.world.QueryRule(query.convert(v.symbols), v.symbols)
 			if len(*res) != 0 {
 				switch policy.Kind {
 				case PolicyKindAllow:
@@ -191,7 +191,7 @@ func (v *verifier) Verify() error {
 			v.world.AddRule(r.convert(v.symbols))
 		}
 
-		if err := v.world.Run(); err != nil {
+		if err := v.world.Run(v.symbols); err != nil {
 			return err
 		}
 
@@ -204,7 +204,7 @@ func (v *verifier) Verify() error {
 
 			successful := false
 			for _, query := range c.Queries {
-				res := v.world.QueryRule(query)
+				res := v.world.QueryRule(query, v.symbols)
 				if len(*res) != 0 {
 					successful = true
 					break
@@ -241,12 +241,12 @@ func (v *verifier) Verify() error {
 }
 
 func (v *verifier) Query(rule Rule) (FactSet, error) {
-	if err := v.world.Run(); err != nil {
+	if err := v.world.Run(v.symbols); err != nil {
 		return nil, err
 	}
 	v.dirty = true
 
-	facts := v.world.QueryRule(rule.convert(v.symbols))
+	facts := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
 
 	result := make([]Fact, 0, len(*facts))
 	for _, fact := range *facts {

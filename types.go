@@ -123,14 +123,12 @@ func fromDatalogPredicate(symbols *datalog.SymbolTable, p datalog.Predicate) (*P
 func fromDatalogID(symbols *datalog.SymbolTable, id datalog.ID) (Term, error) {
 	var a Term
 	switch id.Type() {
-	case datalog.IDTypeSymbol:
-		a = Symbol(symbols.Str(id.(datalog.Symbol)))
 	case datalog.IDTypeVariable:
-		a = Variable(symbols.Str(datalog.Symbol(id.(datalog.Variable))))
+		a = Variable(symbols.Str(datalog.String(id.(datalog.Variable))))
 	case datalog.IDTypeInteger:
 		a = Integer(id.(datalog.Integer))
 	case datalog.IDTypeString:
-		a = String(id.(datalog.String))
+		a = String(symbols.Str(id.(datalog.String)))
 	case datalog.IDTypeDate:
 		a = Date(time.Unix(int64(id.(datalog.Date)), 0))
 	case datalog.IDTypeBytes:
@@ -487,14 +485,6 @@ type Term interface {
 	convert(symbols *datalog.SymbolTable) datalog.ID
 }
 
-type Symbol string
-
-func (a Symbol) Type() TermType { return TermTypeSymbol }
-func (a Symbol) convert(symbols *datalog.SymbolTable) datalog.ID {
-	return datalog.Symbol(symbols.Insert(string(a)))
-}
-func (a Symbol) String() string { return fmt.Sprintf("#%s", string(a)) }
-
 type Variable string
 
 func (a Variable) Type() TermType { return TermTypeVariable }
@@ -515,7 +505,7 @@ type String string
 
 func (a String) Type() TermType { return TermTypeString }
 func (a String) convert(symbols *datalog.SymbolTable) datalog.ID {
-	return datalog.String(a)
+	return datalog.String(symbols.Insert(string(a)))
 }
 func (a String) String() string { return fmt.Sprintf("%q", string(a)) }
 

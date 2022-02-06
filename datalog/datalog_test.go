@@ -43,7 +43,7 @@ func TestFamily(t *testing.T) {
 	}
 
 	t.Logf("querying r1: %s", dbg.Rule(r1))
-	queryRuleResult := w.QueryRule(r1)
+	queryRuleResult := w.QueryRule(r1, syms)
 	t.Logf("r1 query: %s", dbg.FactSet(queryRuleResult))
 	t.Logf("current facts: %s", dbg.FactSet(w.facts))
 
@@ -57,12 +57,12 @@ func TestFamily(t *testing.T) {
 
 	t.Logf("adding r2: %s", dbg.Rule(r2))
 	w.AddRule(r2)
-	if err := w.Run(); err != nil {
+	if err := w.Run(syms); err != nil {
 		t.Error(err)
 	}
 
 	w.AddFact(Fact{Predicate{parent, []ID{c, e}}})
-	if err := w.Run(); err != nil {
+	if err := w.Run(syms); err != nil {
 		t.Error(err)
 	}
 
@@ -111,7 +111,7 @@ func TestNumbers(t *testing.T) {
 			{t1, []ID{hashVar("id"), hashVar("left")}},
 			{t2, []ID{hashVar("t2_id"), hashVar("right"), hashVar("id")}},
 		},
-	})
+	}, syms)
 	expected := &FactSet{
 		{Predicate{join, []ID{abc, aaa}}},
 		{Predicate{join, []ID{abc, bbb}}},
@@ -132,7 +132,7 @@ func TestNumbers(t *testing.T) {
 			Value{Integer(1)},
 			BinaryOp{LessThan{}},
 		}},
-	})
+	}, syms)
 	expected = &FactSet{
 		{Predicate{join, []ID{abc, aaa}}},
 		{Predicate{join, []ID{abc, bbb}}},
@@ -153,35 +153,35 @@ func TestString(t *testing.T) {
 	route := syms.Insert("route")
 	suff := syms.Insert("route suffix")
 
-	w.AddFact(Fact{Predicate{route, []ID{Integer(0), app0, String("example.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(1), app1, String("test.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(2), app2, String("test.fr")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(3), app0, String("www.example.com")}}})
-	w.AddFact(Fact{Predicate{route, []ID{Integer(4), app1, String("mx.example.com")}}})
+	w.AddFact(Fact{Predicate{route, []ID{Integer(0), app0, syms.Insert("example.com")}}})
+	w.AddFact(Fact{Predicate{route, []ID{Integer(1), app1, syms.Insert("test.com")}}})
+	w.AddFact(Fact{Predicate{route, []ID{Integer(2), app2, syms.Insert("test.fr")}}})
+	w.AddFact(Fact{Predicate{route, []ID{Integer(3), app0, syms.Insert("www.example.com")}}})
+	w.AddFact(Fact{Predicate{route, []ID{Integer(4), app1, syms.Insert("mx.example.com")}}})
 
-	testSuffix := func(suffix String) *FactSet {
+	testSuffix := func(suffix string, syms *SymbolTable) *FactSet {
 		return w.QueryRule(Rule{
 			Head: Predicate{suff, []ID{hashVar("app_id"), Variable(1234)}},
 			Body: []Predicate{{route, []ID{Variable(0), hashVar("app_id"), Variable(1234)}}},
 			Expressions: []Expression{{
 				Value{Variable(1234)},
-				Value{String(suffix)},
+				Value{syms.Insert(suffix)},
 				BinaryOp{Suffix{}},
 			}},
-		})
+		}, syms)
 	}
 
-	res := testSuffix(".fr")
-	expected := &FactSet{{Predicate{suff, []ID{app2, String("test.fr")}}}}
+	res := testSuffix(".fr", syms)
+	expected := &FactSet{{Predicate{suff, []ID{app2, syms.Insert("test.fr")}}}}
 	if !expected.Equal(res) {
 		t.Errorf(".fr suffix query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
-	res = testSuffix("example.com")
+	res = testSuffix("example.com", syms)
 	expected = &FactSet{
-		{Predicate{suff, []ID{app0, String("example.com")}}},
-		{Predicate{suff, []ID{app0, String("www.example.com")}}},
-		{Predicate{suff, []ID{app1, String("mx.example.com")}}},
+		{Predicate{suff, []ID{app0, syms.Insert("example.com")}}},
+		{Predicate{suff, []ID{app0, syms.Insert("www.example.com")}}},
+		{Predicate{suff, []ID{app1, syms.Insert("mx.example.com")}}},
 	}
 	if !expected.Equal(res) {
 		t.Errorf("example.com suffix query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -218,7 +218,7 @@ func TestDate(t *testing.T) {
 			Value{Date(0)},
 			BinaryOp{GreaterOrEqual{}},
 		}},
-	})
+	}, syms)
 	expected := &FactSet{{Predicate{before, []ID{Date(t1.Unix()), abc}}}}
 	if !expected.Equal(res) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -236,7 +236,7 @@ func TestDate(t *testing.T) {
 			Value{Date(0)},
 			BinaryOp{GreaterOrEqual{}},
 		}},
-	})
+	}, syms)
 	expected = &FactSet{{Predicate{after, []ID{Date(t3.Unix()), def}}}}
 	if !expected.Equal(res) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
@@ -285,7 +285,7 @@ func TestBytes(t *testing.T) {
 			Value{Bytes(k1)},
 			BinaryOp{Equal{}},
 		}},
-	})
+	}, syms)
 	expected := &FactSet{
 		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
 	}
@@ -301,7 +301,7 @@ func TestBytes(t *testing.T) {
 			Value{Variable(1)},
 			BinaryOp{Contains{}},
 		}},
-	})
+	}, syms)
 	expected = &FactSet{
 		{Predicate{keyMatch, []ID{usr1, Bytes(k1)}}},
 		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
@@ -319,7 +319,7 @@ func TestBytes(t *testing.T) {
 			BinaryOp{Contains{}},
 			UnaryOp{Negate{}},
 		}},
-	})
+	}, syms)
 	expected = &FactSet{
 		{Predicate{keyMatch, []ID{usr2, Bytes(k2)}}},
 		{Predicate{keyMatch, []ID{usr3, Bytes(k3)}}},
@@ -354,7 +354,7 @@ func TestResource(t *testing.T) {
 	res := w.QueryRule(Rule{
 		Head: Predicate{check1, []ID{file1}},
 		Body: []Predicate{{resource, []ID{ambient, file1}}},
-	})
+	}, syms)
 	if len(*res) > 0 {
 		t.Errorf("unexpected facts: %s", dbg.FactSet(res))
 	}
@@ -370,7 +370,7 @@ func TestResource(t *testing.T) {
 		},
 	}
 	t.Logf("r2 = %s", dbg.Rule(r2))
-	res = w.QueryRule(r2)
+	res = w.QueryRule(r2, syms)
 	if len(*res) > 0 {
 		t.Errorf("unexpected facts: %s", dbg.FactSet(res))
 	}
@@ -397,21 +397,21 @@ func TestSymbolTable(t *testing.T) {
 
 func TestSymbolTableInsertAndSym(t *testing.T) {
 	s := new(SymbolTable)
-	require.Equal(t, Symbol(0), s.Insert("a"))
-	require.Equal(t, Symbol(1), s.Insert("b"))
-	require.Equal(t, Symbol(2), s.Insert("c"))
+	require.Equal(t, String(0), s.Insert("a"))
+	require.Equal(t, String(1), s.Insert("b"))
+	require.Equal(t, String(2), s.Insert("c"))
 
 	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
 
-	require.Equal(t, Symbol(0), s.Insert("a"))
-	require.Equal(t, Symbol(3), s.Insert("d"))
+	require.Equal(t, String(0), s.Insert("a"))
+	require.Equal(t, String(3), s.Insert("d"))
 
 	require.Equal(t, &SymbolTable{"a", "b", "c", "d"}, s)
 
-	require.Equal(t, Symbol(0), s.Sym("a"))
-	require.Equal(t, Symbol(1), s.Sym("b"))
-	require.Equal(t, Symbol(2), s.Sym("c"))
-	require.Equal(t, Symbol(3), s.Sym("d"))
+	require.Equal(t, String(0), s.Sym("a"))
+	require.Equal(t, String(1), s.Sym("b"))
+	require.Equal(t, String(2), s.Sym("c"))
+	require.Equal(t, String(3), s.Sym("d"))
 	require.Equal(t, nil, s.Sym("e"))
 }
 
@@ -432,6 +432,8 @@ func TestSymbolTableClone(t *testing.T) {
 }
 
 func TestSetEqual(t *testing.T) {
+	syms := &SymbolTable{}
+
 	testCases := []struct {
 		desc  string
 		s1    Set
@@ -440,32 +442,32 @@ func TestSetEqual(t *testing.T) {
 	}{
 		{
 			desc:  "equal with same values in same order",
-			s1:    Set{String("a"), String("b"), String("c")},
-			s2:    Set{String("a"), String("b"), String("c")},
+			s1:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
+			s2:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
 			equal: true,
 		},
 		{
 			desc:  "equal with same values different order",
-			s1:    Set{String("a"), String("b"), String("c")},
-			s2:    Set{String("b"), String("c"), String("a")},
+			s1:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
+			s2:    Set{syms.Insert("b"), syms.Insert("c"), syms.Insert("a")},
 			equal: true,
 		},
 		{
 			desc:  "not equal when length mismatch",
-			s1:    Set{String("a"), String("b"), String("c")},
-			s2:    Set{String("a"), String("b")},
+			s1:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
+			s2:    Set{syms.Insert("a"), syms.Insert("b")},
 			equal: false,
 		},
 		{
 			desc:  "not equal when length mismatch",
-			s1:    Set{String("a"), String("b"), String("c")},
-			s2:    Set{String("a"), String("b"), String("c"), String("d")},
+			s1:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
+			s2:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c"), syms.Insert("d")},
 			equal: false,
 		},
 		{
 			desc:  "not equal when same length but different values",
-			s1:    Set{String("a"), String("b"), String("c")},
-			s2:    Set{String("a"), String("b"), String("d")},
+			s1:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("c")},
+			s2:    Set{syms.Insert("a"), syms.Insert("b"), syms.Insert("d")},
 			equal: false,
 		},
 	}
@@ -548,6 +550,6 @@ func TestWorldRunLimits(t *testing.T) {
 		}
 
 		w.AddRule(r1)
-		require.Equal(t, tc.expectedErr, w.Run())
+		require.Equal(t, tc.expectedErr, w.Run(syms))
 	}
 }

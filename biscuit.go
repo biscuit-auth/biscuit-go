@@ -3,6 +3,7 @@ package biscuit
 import (
 	"bytes"
 	"crypto/rand"
+
 	//"crypto/sha256"
 	"crypto/ed25519"
 	"errors"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
+
 	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
@@ -358,7 +360,7 @@ func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, e
 		}
 	}
 
-	if err := world.Run(); err != nil {
+	if err := world.Run(symbols); err != nil {
 		return nil, err
 	}
 
