@@ -29,12 +29,12 @@ func TestVerifierDefaultPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	v.AddPolicy(DefaultDenyPolicy)
-	err = v.Verify()
+	err = v.Authorize()
 	require.Equal(t, err, ErrPolicyDenied)
 
 	v.Reset()
 	v.AddPolicy(DefaultAllowPolicy)
-	require.NoError(t, v.Verify())
+	require.NoError(t, v.Authorize())
 }
 
 func TestVerifierPolicies(t *testing.T) {
@@ -83,7 +83,7 @@ func TestVerifierPolicies(t *testing.T) {
 		IDs:  []Term{String("some_file.txt")},
 	}})
 
-	require.NoError(t, v.Verify())
+	require.NoError(t, v.Authorize())
 
 	v, err = b.Verify(publicRoot)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestVerifierPolicies(t *testing.T) {
 		Name: "resource",
 		IDs:  []Term{String("some_file.txt")},
 	}})
-	require.Equal(t, v.Verify(), ErrNoMatchingPolicy)
+	require.Equal(t, v.Authorize(), ErrNoMatchingPolicy)
 }
 
 func TestVerifierSerializeLoad(t *testing.T) {
@@ -158,8 +158,8 @@ func TestVerifierSerializeLoad(t *testing.T) {
 
 	require.NoError(t, v2.LoadPolicies(s))
 
-	require.Equal(t, v1.(*verifier).world.Facts(), v2.(*verifier).world.Facts())
-	require.Equal(t, v1.(*verifier).world.Rules(), v2.(*verifier).world.Rules())
-	require.Equal(t, v1.(*verifier).checks, v2.(*verifier).checks)
-	require.Equal(t, v1.(*verifier).policies, v2.(*verifier).policies)
+	require.Equal(t, v1.(*authorizer).world.Facts(), v2.(*authorizer).world.Facts())
+	require.Equal(t, v1.(*authorizer).world.Rules(), v2.(*authorizer).world.Rules())
+	require.Equal(t, v1.(*authorizer).checks, v2.(*authorizer).checks)
+	require.Equal(t, v1.(*authorizer).policies, v2.(*authorizer).policies)
 }

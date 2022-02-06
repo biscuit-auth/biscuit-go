@@ -88,21 +88,21 @@ func TestBiscuit(t *testing.T) {
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
-	require.NoError(t, v3.Verify())
+	require.NoError(t, v3.Authorize())
 
 	v3, err = b3deser.Verify(publicRoot)
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
-	require.Error(t, v3.Verify())
+	require.Error(t, v3.Authorize())
 
 	v3, err = b3deser.Verify(publicRoot)
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("write")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
-	require.Error(t, v3.Verify())
+	require.Error(t, v3.Authorize())
 }
 
 func TestBiscuitRules(t *testing.T) {
@@ -204,9 +204,9 @@ func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners m
 			v.AddPolicy(DefaultAllowPolicy)
 
 			if valid {
-				require.NoError(t, v.Verify())
+				require.NoError(t, v.Authorize())
 			} else {
-				require.Error(t, v.Verify())
+				require.Error(t, v.Authorize())
 			}
 		})
 	}
@@ -522,7 +522,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 		IDs:  []Term{String("write")},
 	}})
 
-	err = verifier.Verify()
+	err = verifier.Authorize()
 	t.Log(verifier.PrintWorld())
 	require.Error(t, err)
 }
