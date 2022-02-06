@@ -3,6 +3,7 @@ package biscuit
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 
 	//"crypto/sha256"
 	"crypto/ed25519"
@@ -48,6 +49,8 @@ var (
 	ErrInvalidSignatureSize = errors.New("biscuit: invalid signature size")
 
 	ErrInvalidKeySize = errors.New("biscuit: invalid key size")
+
+	UnsupportedAlgorithm = errors.New("biscuit: unsupported signature algorithm")
 )
 
 func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
@@ -74,12 +77,21 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 		return nil, err
 	}
 
-	toSign := append(marshalledAuthority[:], nextPublicKey[:]...)
+	algorithm := pb.PublicKey_Ed25519
+	toSignAlgorithm := make([]byte, 4)
+	binary.LittleEndian.PutUint32(toSignAlgorithm[0:], uint32(pb.PublicKey_Ed25519))
+	toSign := append(marshalledAuthority[:], toSignAlgorithm...)
+	toSign = append(toSign, nextPublicKey[:]...)
+
 	signature := ed25519.Sign(root, toSign)
+	nextKey := &pb.PublicKey{
+		Algorithm: &algorithm,
+		Key:       nextPublicKey,
+	}
 
 	signedBlock := &pb.SignedBlock{
 		Block:     marshalledAuthority,
-		NextKey:   nextPublicKey,
+		NextKey:   nextKey,
 		Signature: signature,
 	}
 
@@ -151,12 +163,21 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 		return nil, err
 	}
 
-	toSign := append(marshalledBlock[:], nextPublicKey[:]...)
+	algorithm := pb.PublicKey_Ed25519
+	toSignAlgorithm := make([]byte, 4)
+	binary.LittleEndian.PutUint32(toSignAlgorithm[0:], uint32(pb.PublicKey_Ed25519))
+	toSign := append(marshalledBlock[:], toSignAlgorithm...)
+	toSign = append(toSign, nextPublicKey[:]...)
+
 	signature := ed25519.Sign(privateKey, toSign)
+	nextKey := &pb.PublicKey{
+		Algorithm: &algorithm,
+		Key:       nextPublicKey,
+	}
 
 	signedBlock := &pb.SignedBlock{
 		Block:     marshalledBlock,
-		NextKey:   nextPublicKey,
+		NextKey:   nextKey,
 		Signature: signature,
 	}
 
@@ -186,25 +207,41 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
 	currentKey := root
 
-	toVerify := append(b.container.Authority.Block[:], b.container.Authority.NextKey[:]...)
+	// for now we only support Ed25519,
+	if *b.container.Authority.NextKey.Algorithm != pb.PublicKey_Ed25519 {
+		return nil, UnsupportedAlgorithm
+	}
+
+	algorithm := make([]byte, 4)
+	binary.LittleEndian.PutUint32(algorithm[0:], uint32(b.container.Authority.NextKey.Algorithm.Number()))
+
+	toVerify := append(b.container.Authority.Block[:], algorithm...)
+	toVerify = append(toVerify, b.container.Authority.NextKey.Key[:]...)
 
 	if ok := ed25519.Verify(currentKey, toVerify, b.container.Authority.Signature); !ok {
 		return nil, ErrInvalidSignature
 	}
 
-	currentKey = b.container.Authority.NextKey
+	currentKey = b.container.Authority.NextKey.Key
 	if len(currentKey) != 32 {
 		return nil, ErrInvalidKeySize
 	}
 
 	for _, block := range b.container.Blocks {
-		toVerify := append(block.Block[:], block.NextKey[:]...)
+		if *block.NextKey.Algorithm != pb.PublicKey_Ed25519 {
+			return nil, UnsupportedAlgorithm
+		}
+
+		algorithm := make([]byte, 4)
+		binary.LittleEndian.PutUint32(algorithm[0:], uint32(block.NextKey.Algorithm.Number()))
+		toVerify := append(block.Block[:], algorithm...)
+		toVerify = append(toVerify, block.NextKey.Key[:]...)
 
 		if ok := ed25519.Verify(currentKey, toVerify, block.Signature); !ok {
 			return nil, ErrInvalidSignature
 		}
 
-		currentKey = block.NextKey
+		currentKey = block.NextKey.Key
 		if len(currentKey) != 32 {
 			return nil, ErrInvalidKeySize
 		}

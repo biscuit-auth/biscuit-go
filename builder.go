@@ -8,6 +8,7 @@ import (
 
 	"github.com/biscuit-auth/biscuit-go/datalog"
 	"github.com/biscuit-auth/biscuit-go/pb"
+
 	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"
 )
@@ -118,7 +119,7 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	if len(container.Authority.NextKey) != 32 {
+	if len(container.Authority.NextKey.Key) != 32 {
 		return nil, ErrInvalidKeySize
 	}
 	if len(container.Authority.Signature) != 64 {
@@ -139,7 +140,7 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
-		if len(sb.NextKey) != 32 {
+		if len(sb.NextKey.Key) != 32 {
 			return nil, ErrInvalidKeySize
 		}
 		if len(sb.Signature) != 64 {
