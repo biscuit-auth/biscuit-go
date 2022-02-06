@@ -204,7 +204,7 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	}, nil
 }
 
-func (b *Biscuit) Verify(root ed25519.PublicKey) (Verifier, error) {
+func (b *Biscuit) Verify(root ed25519.PublicKey) (Authorizer, error) {
 	currentKey := root
 
 	// for now we only support Ed25519,

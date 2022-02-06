@@ -16,12 +16,12 @@ var (
 	ErrNoMatchingPolicy = errors.New("biscuit: denied by no matching policies")
 )
 
-type Verifier interface {
+type Authorizer interface {
 	AddFact(fact Fact)
 	AddRule(rule Rule)
 	AddCheck(check Check)
 	AddPolicy(policy Policy)
-	Verify() error
+	Authorize() error
 	Query(rule Rule) (FactSet, error)
 	Biscuit() *Biscuit
 	Reset()
@@ -30,7 +30,7 @@ type Verifier interface {
 	SerializePolicies() ([]byte, error)
 }
 
-type verifier struct {
+type authorizer struct {
 	biscuit     *Biscuit
 	baseWorld   *datalog.World
 	world       *datalog.World
@@ -43,12 +43,12 @@ type verifier struct {
 	dirty bool
 }
 
-var _ Verifier = (*verifier)(nil)
+var _ Authorizer = (*authorizer)(nil)
 
-func NewVerifier(b *Biscuit) (Verifier, error) {
+func NewVerifier(b *Biscuit) (Authorizer, error) {
 	baseWorld := datalog.NewWorld()
 
-	return &verifier{
+	return &authorizer{
 		biscuit:     b,
 		baseWorld:   baseWorld,
 		world:       baseWorld.Clone(),
@@ -58,23 +58,23 @@ func NewVerifier(b *Biscuit) (Verifier, error) {
 	}, nil
 }
 
-func (v *verifier) AddFact(fact Fact) {
+func (v *authorizer) AddFact(fact Fact) {
 	v.world.AddFact(fact.convert(v.symbols))
 }
 
-func (v *verifier) AddRule(rule Rule) {
+func (v *authorizer) AddRule(rule Rule) {
 	v.world.AddRule(rule.convert(v.symbols))
 }
 
-func (v *verifier) AddCheck(check Check) {
+func (v *authorizer) AddCheck(check Check) {
 	v.checks = append(v.checks, check)
 }
 
-func (v *verifier) AddPolicy(policy Policy) {
+func (v *authorizer) AddPolicy(policy Policy) {
 	v.policies = append(v.policies, policy)
 }
 
-func (v *verifier) Verify() error {
+func (v *authorizer) Authorize() error {
 	debug := datalog.SymbolDebugger{
 		SymbolTable: v.symbols,
 	}
@@ -240,7 +240,7 @@ func (v *verifier) Verify() error {
 	}
 }
 
-func (v *verifier) Query(rule Rule) (FactSet, error) {
+func (v *authorizer) Query(rule Rule) (FactSet, error) {
 	if err := v.world.Run(v.symbols); err != nil {
 		return nil, err
 	}
@@ -261,11 +261,11 @@ func (v *verifier) Query(rule Rule) (FactSet, error) {
 	return result, nil
 }
 
-func (v *verifier) Biscuit() *Biscuit {
+func (v *authorizer) Biscuit() *Biscuit {
 	return v.biscuit
 }
 
-func (v *verifier) PrintWorld() string {
+func (v *authorizer) PrintWorld() string {
 	debug := datalog.SymbolDebugger{
 		SymbolTable: v.symbols,
 	}
@@ -273,7 +273,7 @@ func (v *verifier) PrintWorld() string {
 	return debug.World(v.world)
 }
 
-func (v *verifier) Reset() {
+func (v *authorizer) Reset() {
 	v.world = v.baseWorld.Clone()
 	v.symbols = v.baseSymbols.Clone()
 	v.checks = []Check{}
@@ -281,7 +281,7 @@ func (v *verifier) Reset() {
 	v.dirty = false
 }
 
-func (v *verifier) LoadPolicies(verifierPolicies []byte) error {
+func (v *authorizer) LoadPolicies(verifierPolicies []byte) error {
 	pbPolicies := &pb.VerifierPolicies{}
 	if err := proto.Unmarshal(verifierPolicies, pbPolicies); err != nil {
 		return fmt.Errorf("verifier: failed to load policies: %w", err)
@@ -295,7 +295,7 @@ func (v *verifier) LoadPolicies(verifierPolicies []byte) error {
 	}
 }
 
-func (v *verifier) loadPoliciesV2(pbPolicies *pb.VerifierPolicies) error {
+func (v *authorizer) loadPoliciesV2(pbPolicies *pb.VerifierPolicies) error {
 	policySymbolTable := datalog.SymbolTable(pbPolicies.Symbols)
 	v.symbols = v.baseSymbols.Clone()
 	v.symbols.Extend(&policySymbolTable)
@@ -360,7 +360,7 @@ func (v *verifier) loadPoliciesV2(pbPolicies *pb.VerifierPolicies) error {
 	return nil
 }
 
-func (v *verifier) SerializePolicies() ([]byte, error) {
+func (v *authorizer) SerializePolicies() ([]byte, error) {
 	if v.dirty {
 		return nil, errors.New("verifier: can't serialize after world has been run")
 	}

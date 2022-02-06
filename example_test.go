@@ -131,7 +131,7 @@ func ExampleBiscuit() {
 			},
 		},
 	}})
-	if err := v1.Verify(); err != nil {
+	if err := v1.Authorize(); err != nil {
 		fmt.Println(v1.PrintWorld())
 		fmt.Println("forbidden to read /a/file1.txt")
 	} else {
@@ -155,7 +155,7 @@ func ExampleBiscuit() {
 		},
 	}})
 
-	if err := v1.Verify(); err != nil {
+	if err := v1.Authorize(); err != nil {
 		fmt.Println("forbidden to write /a/file1.txt")
 	} else {
 		fmt.Println("allowed to write /a/file1.txt")
