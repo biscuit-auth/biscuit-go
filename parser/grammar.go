@@ -4,10 +4,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -55,10 +53,16 @@ func (b *Bool) Capture(values []string) error {
 }
 
 type Rule struct {
-	Comments    []*Comment    `@Comment*`
-	Head        *Predicate    `@@`
-	Body        []*Predicate  `"<-" @@ ("," @@)*`
-	Constraints []*Constraint `("@" @@ ("," @@)*)*`
+	Comments []*Comment     `@Comment*`
+	Head     *Predicate     `@@`
+	Body     []*RuleElement `"<-" @@ ("," @@)*`
+	//Body        []*Predicate  `"<-" @@ ("," @@)*`
+	//Constraints []*Constraint `("@" @@ ("," @@)*)*`
+}
+
+type RuleElement struct {
+	Predicate  *Predicate  `@@`
+	Expression *Expression `|@@`
 }
 
 type Predicate struct {
@@ -79,6 +83,256 @@ type Term struct {
 	Set      []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
+type Value struct {
+	Number        *float64    `  @(Float|Int)`
+	Variable      *string     `| @Ident`
+	Subexpression *Expression `| "(" @@ ")"`
+}
+
+type Operator int
+
+const (
+	OpMul Operator = iota
+	OpDiv
+	OpAdd
+	OpSub
+	OpAnd
+	OpOr
+	OpLessOrEqual
+	OpGreaterOrEqual
+	OpLessThan
+	OpGreaterThan
+	OpEqual
+	OpContains
+	OpPrefix
+	OpSuffix
+	OpMatches
+	OpIntersection
+	OpUnion
+)
+
+var operatorMap = map[string]Operator{
+	"+": OpAdd,
+	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
+	"==": OpEqual, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion}
+
+func (o *Operator) Capture(s []string) error {
+	*o = operatorMap[s[0]]
+	return nil
+}
+
+type Expression struct {
+	Left  *Expr1     `@@`
+	Right []*OpExpr1 `@@*`
+}
+
+type Expr1 struct {
+	Left  *Expr2     `@@`
+	Right []*OpExpr2 `@@*`
+}
+
+type OpExpr1 struct {
+	Operator Operator `@("&&" | "||")`
+	Expr2    *Expr2   `@@`
+}
+
+type Expr2 struct {
+	Left  *Expr3     `@@`
+	Right []*OpExpr3 `@@*`
+}
+
+type OpExpr2 struct {
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
+	Expr3    *Expr3   `@@`
+}
+
+type Expr3 struct {
+	Left  *Expr4     `@@`
+	Right []*OpExpr4 `@@*`
+}
+
+type OpExpr3 struct {
+	Operator Operator `@("+" | "-")`
+	Expr4    *Expr4   `@@`
+}
+
+type Expr4 struct {
+	Left  *Expr5     `@@`
+	Right []*OpExpr5 `@@*`
+}
+
+type OpExpr4 struct {
+	Operator Operator `@("*" | "/")`
+	Expr5    *Expr5   `@@`
+}
+
+type Expr5 struct {
+	Left  *ExprTerm  `@@`
+	Right []*OpExpr5 `@@*`
+}
+
+type OpExpr5 struct {
+	Operator   Operator    `@"." @("contains" | "starts_with" | "ends_with" | "matches" | "intersection" | "union")`
+	Expression *Expression `"("  @@ ")"`
+}
+
+type ExprTerm struct {
+	Unary *Unary `@@`
+	Term  *Term  `|@@`
+}
+
+type Unary struct {
+	Parens *Parens `@@`
+	Length *Length `@@`
+}
+
+type Parens struct {
+	Expression *Expression `"("  @@ ")"`
+}
+
+type Length struct {
+	Term *Term `@@".length()"`
+}
+
+func (e *Expression) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *Expr1) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *Expr2) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *Expr3) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *Expr4) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *Expr5) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr)
+	}
+}
+
+func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
+
+	switch {
+	case e.Unary != nil:
+		switch {
+		// FIXME
+		//case (*e.Unary).Length != nil:
+		//	*expr = append(*expr, biscuit.UnaryLength)
+
+		case (*e.Unary).Parens != nil:
+			*expr = append(*expr, biscuit.UnaryParens)
+
+		}
+	case e.Term != nil:
+		//FIXME: error management
+		term, _ := e.Term.ToBiscuit()
+		*expr = append(*expr, biscuit.Value{Term: term})
+	}
+}
+
+func (e *OpExpr1) ToExpr(expr *biscuit.Expression) {
+	e.Expr2.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr2) ToExpr(expr *biscuit.Expression) {
+	e.Expr3.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr3) ToExpr(expr *biscuit.Expression) {
+	e.Expr4.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr4) ToExpr(expr *biscuit.Expression) {
+	e.Expr5.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr5) ToExpr(expr *biscuit.Expression) {
+	e.Expression.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (op *Operator) ToExpr(expr *biscuit.Expression) {
+
+	var biscuit_op biscuit.Op
+	switch *op {
+	case OpAnd:
+		biscuit_op = biscuit.BinaryAnd
+		//*expr = append(*expr, biscuit.BinaryAnd)
+	case OpOr:
+		biscuit_op = biscuit.BinaryOr
+	case OpMul:
+		biscuit_op = biscuit.BinaryMul
+	case OpDiv:
+		biscuit_op = biscuit.BinaryDiv
+	case OpAdd:
+		biscuit_op = biscuit.BinaryAdd
+	case OpSub:
+		biscuit_op = biscuit.BinarySub
+	case OpLessOrEqual:
+		biscuit_op = biscuit.BinaryLessOrEqual
+	case OpGreaterOrEqual:
+		biscuit_op = biscuit.BinaryGreaterOrEqual
+	case OpLessThan:
+		biscuit_op = biscuit.BinaryLessThan
+	case OpGreaterThan:
+		biscuit_op = biscuit.BinaryGreaterThan
+	case OpEqual:
+		biscuit_op = biscuit.BinaryEqual
+	case OpContains:
+		biscuit_op = biscuit.BinaryContains
+	case OpPrefix:
+		biscuit_op = biscuit.BinaryPrefix
+	case OpSuffix:
+		biscuit_op = biscuit.BinarySuffix
+	case OpMatches:
+		biscuit_op = biscuit.BinaryRegex
+		/*FIXME: not implemented yet
+		case 	OpIntersection:
+				biscuit_op = biscuit.Binary
+			OpUnion*/
+	}
+
+	*expr = append(*expr, biscuit_op)
+
+}
+
+/*
 type Constraint struct {
 	VariableConstraint *VariableConstraint `@@`
 	FunctionConstraint *FunctionConstraint `| @@`
@@ -117,7 +371,7 @@ type BytesComparison struct {
 type DateComparison struct {
 	Operation *string `@("<=" | ">=")`
 	Target    *string `@String`
-}
+}*/
 
 type Set struct {
 	Not    bool        `@"not"? "in"`
@@ -209,17 +463,17 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 	return biscuitTerm, nil
 }
 
-func (c *Constraint) ToExpr() (biscuit.Expression, error) {
+/*
+func (e *Expression) ToExpr() (biscuit.Expression, error) {
 	var expr biscuit.Expression
 	var err error
 
+	e.
+	expr = append(expr, e.Left.ToExpr())
 	switch {
-	case c.VariableConstraint != nil:
-		expr, err = c.VariableConstraint.ToExpr()
-	case c.FunctionConstraint != nil:
-		expr, err = c.FunctionConstraint.ToExpr()
-	default:
-		err = errors.New("parser: unsupported constraint, must be one of variable or function")
+
+	case e.Left != nil:
+
 	}
 
 	if err != nil {
@@ -227,8 +481,9 @@ func (c *Constraint) ToExpr() (biscuit.Expression, error) {
 	}
 
 	return expr, nil
-}
+}*/
 
+/*
 func (c *VariableConstraint) ToExpr() (biscuit.Expression, error) {
 	var expr biscuit.Expression
 	switch {
@@ -381,24 +636,36 @@ func (c *FunctionConstraint) ToExpr() (biscuit.Expression, error) {
 
 	return expr, nil
 }
+*/
 
 func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
-	body := make([]biscuit.Predicate, len(r.Body))
-	for i, p := range r.Body {
-		b, err := p.ToBiscuit()
-		if err != nil {
-			return nil, err
-		}
-		body[i] = *b
-	}
+	//body := make([]biscuit.Predicate, 0)
+	body := []biscuit.Predicate{}
+	expressions := make([]biscuit.Expression, 0)
 
-	expressions := make([]biscuit.Expression, len(r.Constraints))
-	for i, c := range r.Constraints {
-		expr, err := c.ToExpr()
-		if err != nil {
-			return nil, err
+	for _, p := range r.Body {
+		switch {
+		case p.Predicate != nil:
+			{
+				predicate, err := (*p.Predicate).ToBiscuit()
+				if err != nil {
+					return nil, err
+				}
+				body = append(body, *predicate)
+			}
+		case p.Expression != nil:
+			{
+				var expr biscuit.Expression
+				(*p.Expression).ToExpr(&expr)
+
+				/*expr, err := (*p.Expression).ToExpr(&expr)
+				if err != nil {
+					return nil, err
+				}*/
+				expressions = append(expressions, expr)
+			}
 		}
-		expressions[i] = expr
+
 	}
 
 	head, err := r.Head.ToBiscuit()

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/alecthomas/participle/v2"
+	"github.com/biscuit-auth/biscuit-go"
 	"github.com/stretchr/testify/require"
 )
 
@@ -107,77 +108,62 @@ func TestGrammarPredicate(t *testing.T) {
 	}
 }
 
-func TestGrammarConstraint(t *testing.T) {
-	parser, err := participle.Build(&Constraint{}, DefaultParserOptions...)
+func TestGrammarExpression(t *testing.T) {
+	parser, err := participle.Build(&Expression{}, DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
 		Input    string
-		Expected *Constraint
+		Expected *biscuit.Expression
 	}{
 		{
 			Input: `$0 == 1`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Int: &IntComparison{
-						Operation: sptr("=="),
-						Target:    i64ptr(1),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Variable("0")},
+				biscuit.Value{biscuit.Integer(1)},
+				biscuit.BinaryEqual,
 			},
 		},
 		{
 			Input: `$1 > 2`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("1"),
-					Int: &IntComparison{
-						Operation: sptr(">"),
-						Target:    i64ptr(2),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Variable("1")},
+				biscuit.Value{biscuit.Integer(2)},
+				biscuit.BinaryGreaterThan,
 			},
 		},
 		{
 			Input: `$0 >= 1`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Int: &IntComparison{
-						Operation: sptr(">="),
-						Target:    i64ptr(1),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Variable("0")},
+				biscuit.Value{biscuit.Integer(1)},
+				biscuit.BinaryGreaterOrEqual,
 			},
 		},
 		{
 			Input: `$0 < 1`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Int: &IntComparison{
-						Operation: sptr("<"),
-						Target:    i64ptr(1),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Variable("0")},
+				biscuit.Value{biscuit.Integer(1)},
+				biscuit.BinaryLessThan,
 			},
 		},
 		{
 			Input: `$0 <= 1`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Int: &IntComparison{
-						Operation: sptr("<="),
-						Target:    i64ptr(1),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Variable("0")},
+				biscuit.Value{biscuit.Integer(1)},
+				biscuit.BinaryLessOrEqual,
 			},
 		},
 		{
-			Input: `$0 in [1, 2, 3]`,
-			Expected: &Constraint{
+			Input: `[1, 2, 3].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
+				biscuit.Value{biscuit.Variable("0")},
+				biscuit.BinaryContains,
+			},
+			/*Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
 					Variable: varptr("0"),
 					Set: &Set{
@@ -185,9 +171,9 @@ func TestGrammarConstraint(t *testing.T) {
 						Not: false,
 					},
 				},
-			},
+			},*/
 		},
-		{
+		/*{
 			Input: `$0 not in [4,5,6]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
@@ -312,20 +298,24 @@ func TestGrammarConstraint(t *testing.T) {
 					},
 				},
 			},
-		},
+		},*/
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Constraint{}
+			parsed := &Expression{}
 			err := parser.ParseString("test", testCase.Input, parsed)
 			require.NoError(t, err)
-			require.Equal(t, testCase.Expected, parsed)
+
+			var expr biscuit.Expression
+			(*parsed).ToExpr(&expr)
+			require.Equal(t, testCase.Expected, &expr)
 		})
 	}
 
 }
 
+/*
 func TestGrammarCheck(t *testing.T) {
 	parser, err := participle.Build(&Check{}, DefaultParserOptions...)
 	require.NoError(t, err)
@@ -595,7 +585,7 @@ func TestGrammarRule(t *testing.T) {
 		})
 	}
 }
-
+*/
 func varptr(s string) *Variable {
 	v := Variable(s)
 	return &v
