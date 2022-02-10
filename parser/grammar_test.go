@@ -119,24 +119,24 @@ func TestGrammarExpression(t *testing.T) {
 		{
 			Input: `$0 == 1`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Variable("0")},
-				biscuit.Value{biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
 				biscuit.BinaryEqual,
 			},
 		},
 		{
 			Input: `$1 > 2`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Variable("1")},
-				biscuit.Value{biscuit.Integer(2)},
+				biscuit.Value{Term: biscuit.Variable("1")},
+				biscuit.Value{Term: biscuit.Integer(2)},
 				biscuit.BinaryGreaterThan,
 			},
 		},
 		{
 			Input: `$0 >= 1`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Variable("0")},
-				biscuit.Value{biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
 				biscuit.BinaryGreaterOrEqual,
 			},
 		},
@@ -151,27 +151,18 @@ func TestGrammarExpression(t *testing.T) {
 		{
 			Input: `$0 <= 1`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Variable("0")},
-				biscuit.Value{biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
 				biscuit.BinaryLessOrEqual,
 			},
 		},
 		{
 			Input: `[1, 2, 3].contains($0)`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
-				biscuit.Value{biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
+				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.BinaryContains,
 			},
-			/*Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Int: []int64{1, 2, 3},
-						Not: false,
-					},
-				},
-			},*/
 		},
 		/*{
 			Input: `$0 not in [4,5,6]`,
@@ -184,62 +175,48 @@ func TestGrammarExpression(t *testing.T) {
 					},
 				},
 			},
-		},
+		},*/
 		{
 			Input: `$0 == "abc"`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					String: &StringComparison{
-						Operation: sptr("=="),
-						Target:    sptr("abc"),
-					},
-				},
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.String("abc")},
+				biscuit.BinaryEqual,
 			},
 		},
 		{
-			Input: `prefix($0, "abc")`,
-			Expected: &Constraint{
-				FunctionConstraint: &FunctionConstraint{
-					Function: sptr("prefix"),
-					Variable: varptr("0"),
-					Argument: sptr("abc"),
-				},
+			Input: `$0.starts_with("abc")`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.String("abc")},
+				biscuit.BinaryPrefix,
 			},
 		},
 		{
-			Input: `suffix($0, "abc")`,
-			Expected: &Constraint{
-				FunctionConstraint: &FunctionConstraint{
-					Function: sptr("suffix"),
-					Variable: varptr("0"),
-					Argument: sptr("abc"),
-				},
+			Input: `$0.ends_with("abc")`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.String("abc")},
+				biscuit.BinarySuffix,
 			},
 		},
+		/*{
+			Input: `$0.matches("^abc[a-z]+$") `,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.String("^abc[a-z]+$")},
+				biscuit.BinaryRegex,
+			},
+		},*/
 		{
-			Input: `match($0, "^abc[a-z]+$") `,
-			Expected: &Constraint{
-				FunctionConstraint: &FunctionConstraint{
-					Function: sptr("match"),
-					Variable: varptr("0"),
-					Argument: sptr("^abc[a-z]+$"),
-				},
+			Input: `["abc", "def"].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.String("abc"), biscuit.String("def")}},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryContains,
 			},
 		},
-		{
-			Input: `$0 in ["abc", "def"]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						String: []string{"abc", "def"},
-						Not:    false,
-					},
-				},
-			},
-		},
-		{
+		/*{
 			Input: `$0 not in ["abc", "def"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
@@ -274,20 +251,17 @@ func TestGrammarExpression(t *testing.T) {
 					},
 				},
 			},
-		},
+		},*/
 		{
-			Input: `$0 in ["hex:41", "hex:42", "hex:43"]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Bytes: []HexString{"41", "42", "43"},
-						Not:   false,
-					},
-				},
+			Input: `["hex:41", "hex:42", "hex:43"].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
+					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryContains,
 			},
 		},
-		{
+		/*{
 			Input: `$0 not in ["hex:abcdef", "hex:01234", "hex:56789"]`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
@@ -315,7 +289,6 @@ func TestGrammarExpression(t *testing.T) {
 
 }
 
-/*
 func TestGrammarCheck(t *testing.T) {
 	parser, err := participle.Build(&Check{}, DefaultParserOptions...)
 	require.NoError(t, err)
@@ -324,35 +297,43 @@ func TestGrammarCheck(t *testing.T) {
 		Input    string
 		Expected *Check
 	}{
-		{
-			Input: `[grandparent("a", "c") <- parent("a", "b"), parent("b", "c")]`,
-			Expected: &Check{[]*Rule{
-				{
-					Head: &Predicate{
-						Name: sptr("grandparent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("c")},
-						},
-					},
-					Body: []*Predicate{
-						{
-							Name: sptr("parent"),
+		/*{
+			Input: `check if grandparent("a", "c") <- parent("a", "b"), parent("b", "c")`,
+			Expected: &Check{
+				Queries: []*Rule{
+					{
+						Head: &Predicate{
+							Name: sptr("grandparent"),
 							IDs: []*Term{
 								{String: sptr("a")},
-								{String: sptr("b")},
+								{String: sptr("c")},
 							},
 						},
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
+						Body: []*RuleElement{
+							{
+								Predicate: &Predicate{
+
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("a")},
+										{String: sptr("b")},
+									},
+								},
+							},
+							{
+								Predicate: &Predicate{
+
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("b")},
+										{String: sptr("c")},
+									},
+								},
 							},
 						},
 					},
 				},
-			}},
+			},
 		},
 		{
 			Input: `[empty() <- parent("a", "b"), parent("b", "c")]`,
@@ -453,7 +434,7 @@ func TestGrammarCheck(t *testing.T) {
 					},
 				},
 			}},
-		},
+		},*/
 	}
 
 	for _, testCase := range testCases {
@@ -486,19 +467,23 @@ func TestGrammarRule(t *testing.T) {
 						{String: sptr("c")},
 					},
 				},
-				Body: []*Predicate{
+				Body: []*RuleElement{
 					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("b")},
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("a")},
+								{String: sptr("b")},
+							},
 						},
 					},
 					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("b")},
-							{String: sptr("c")},
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("b")},
+								{String: sptr("c")},
+							},
 						},
 					},
 				},
@@ -510,26 +495,30 @@ func TestGrammarRule(t *testing.T) {
 				Head: &Predicate{
 					Name: sptr("empty"),
 				},
-				Body: []*Predicate{
+				Body: []*RuleElement{
 					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("b")},
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("a")},
+								{String: sptr("b")},
+							},
 						},
 					},
 					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("b")},
-							{String: sptr("c")},
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("b")},
+								{String: sptr("c")},
+							},
 						},
 					},
 				},
 			},
 		},
 		{
-			Input: `grandparent("a", "c") <- parent("a", "b"), parent("b", "c") @ $0 > 42, prefix($1, "test")`,
+			Input: `grandparent("a", "c") <- parent("a", "b"), parent("b", "c"), $0 > 42, $1.starts_with("test")`,
 			Expected: &Rule{
 				Head: &Predicate{
 					Name: sptr("grandparent"),
@@ -538,37 +527,99 @@ func TestGrammarRule(t *testing.T) {
 						{String: sptr("c")},
 					},
 				},
-				Body: []*Predicate{
+				Body: []*RuleElement{
 					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("b")},
-						},
-					},
-					{
-						Name: sptr("parent"),
-						IDs: []*Term{
-							{String: sptr("b")},
-							{String: sptr("c")},
-						},
-					},
-				},
-				Constraints: []*Constraint{
-					{
-						VariableConstraint: &VariableConstraint{
-							Variable: varptr("0"),
-							Int: &IntComparison{
-								Operation: sptr(">"),
-								Target:    i64ptr(42),
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("a")},
+								{String: sptr("b")},
 							},
 						},
 					},
 					{
-						FunctionConstraint: &FunctionConstraint{
-							Function: sptr("prefix"),
-							Variable: varptr("1"),
-							Argument: sptr("test"),
+						Predicate: &Predicate{
+							Name: sptr("parent"),
+							IDs: []*Term{
+								{String: sptr("b")},
+								{String: sptr("c")},
+							},
+						},
+					},
+					{
+						Expression: &Expression{
+							Left: &Expr1{
+								Left: &Expr2{
+									Left: &Expr3{
+										Left: &Expr4{
+											Left: &Expr5{
+												Left: &ExprTerm{
+													Term: &Term{
+														Variable: varptr("0"),
+													},
+												},
+											},
+										},
+									},
+								},
+								Right: []*OpExpr2{
+									{
+										Operator: OpGreaterThan,
+										Expr3: &Expr3{
+											Left: &Expr4{
+												Left: &Expr5{
+													Left: &ExprTerm{
+														Term: &Term{
+															Integer: i64ptr(42),
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						Expression: &Expression{
+							Left: &Expr1{
+								Left: &Expr2{
+									Left: &Expr3{
+										Left: &Expr4{
+											Left: &Expr5{
+												Left: &ExprTerm{
+													Term: &Term{
+														Variable: varptr("1"),
+													},
+												},
+												Right: []*OpExpr5{
+													{
+														Operator: OpPrefix,
+														Expression: &Expression{
+															Left: &Expr1{
+																Left: &Expr2{
+																	Left: &Expr3{
+																		Left: &Expr4{
+																			Left: &Expr5{
+																				Left: &ExprTerm{
+																					Term: &Term{
+																						String: sptr("test"),
+																					},
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -585,7 +636,7 @@ func TestGrammarRule(t *testing.T) {
 		})
 	}
 }
-*/
+
 func varptr(s string) *Variable {
 	v := Variable(s)
 	return &v

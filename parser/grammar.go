@@ -56,8 +56,6 @@ type Rule struct {
 	Comments []*Comment     `@Comment*`
 	Head     *Predicate     `@@`
 	Body     []*RuleElement `"<-" @@ ("," @@)*`
-	//Body        []*Predicate  `"<-" @@ ("," @@)*`
-	//Constraints []*Constraint `("@" @@ ("," @@)*)*`
 }
 
 type RuleElement struct {
@@ -71,7 +69,7 @@ type Predicate struct {
 }
 
 type Check struct {
-	Queries []*Rule `"[" @@ ( "||" @@ )* "]"`
+	Queries []*Rule `"check if" @@ ( "or" @@ )*`
 }
 
 type Term struct {
