@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -76,6 +77,7 @@ type Term struct {
 	Variable *Variable  `@Variable`
 	Bytes    *HexString `| @@`
 	String   *string    `| @String`
+	Date     *string    `| @DateTime`
 	Integer  *int64     `| @Int`
 	Bool     *Bool      `| @Bool`
 	Set      []*Term    `| "[" @@ ("," @@)* "]"`
@@ -433,6 +435,13 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 		biscuitTerm = biscuit.String(*a.String)
 	case a.Variable != nil:
 		biscuitTerm = biscuit.Variable(*a.Variable)
+	case a.Date != nil:
+		date, err := time.Parse(time.RFC3339, *a.Date)
+		if err != nil {
+			return nil, fmt.Errorf("parser: failed to decode date: %v", err)
+		}
+
+		biscuitTerm = biscuit.Date(date)
 	case a.Bytes != nil:
 		b, err := a.Bytes.Decode()
 		if err != nil {

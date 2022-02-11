@@ -28,6 +28,7 @@ var BiscuitLexerRules = []stateful.Rule{
 	{Name: "Whitespace", Pattern: `[ \t]+`, Action: nil},
 	{Name: "EOL", Pattern: `[\n\r]+`, Action: nil},
 	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`, Action: nil},
+	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?([-+]\d\d:\d\d)?`},
 }
 
 var DefaultParserOptions = []participle.Option{
