@@ -216,19 +216,16 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryContains,
 			},
 		},
-		/*{
-			Input: `$0 not in ["abc", "def"]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						String: []string{"abc", "def"},
-						Not:    true,
-					},
-				},
+		{
+			Input: `!["abc", "def"].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.String("abc"), biscuit.String("def")}},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryContains,
+				biscuit.UnaryNegate,
 			},
 		},
-		{
+		/*{
 			Input: `$0 <= "2006-01-02T15:04:05Z07:00"`,
 			Expected: &Constraint{
 				VariableConstraint: &VariableConstraint{
@@ -596,15 +593,17 @@ func TestGrammarRule(t *testing.T) {
 												Right: []*OpExpr5{
 													{
 														Operator: OpPrefix,
-														Expression: &Expression{
-															Left: &Expr1{
-																Left: &Expr2{
-																	Left: &Expr3{
-																		Left: &Expr4{
-																			Left: &Expr5{
-																				Left: &ExprTerm{
-																					Term: &Term{
-																						String: sptr("test"),
+														Expression: []*Expression{
+															{
+																Left: &Expr1{
+																	Left: &Expr2{
+																		Left: &Expr3{
+																			Left: &Expr4{
+																				Left: &Expr5{
+																					Left: &ExprTerm{
+																						Term: &Term{
+																							String: sptr("test"),
+																						},
 																					},
 																				},
 																			},
