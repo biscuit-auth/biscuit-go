@@ -109,6 +109,28 @@ func TestGrammarPredicate(t *testing.T) {
 	}
 }
 
+func TestExprTerm(t *testing.T) {
+	parser, err := participle.Build(&ExprTerm{}, DefaultParserOptions...)
+	require.NoError(t, err)
+
+	parsed := &ExprTerm{}
+	err = parser.ParseString("test", "!$0", parsed)
+	require.NoError(t, err)
+	require.Equal(t, &ExprTerm{
+		Unary: &Unary{
+			Negate: &Negate{
+				Expr5: &Expr5{
+					Left: &ExprTerm{
+						Term: &Term{
+							Variable: varptr("0"),
+						},
+					},
+				},
+			},
+		},
+	}, parsed)
+}
+
 func TestGrammarExpression(t *testing.T) {
 	parser, err := participle.Build(&Expression{}, DefaultParserOptions...)
 	require.NoError(t, err)
