@@ -161,6 +161,13 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
+			Input: `!$0`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.UnaryNegate,
+			},
+		},
+		{
 			Input: `[1, 2, 3].contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
@@ -168,18 +175,15 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryContains,
 			},
 		},
-		/*{
-			Input: `$0 not in [4,5,6]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Int: []int64{4, 5, 6},
-						Not: true,
-					},
-				},
+		{
+			Input: `![4,5,6].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Integer(4), biscuit.Integer(5), biscuit.Integer(6)}},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryContains,
+				biscuit.UnaryNegate,
 			},
-		},*/
+		},
 		{
 			Input: `$0 == "abc"`,
 			Expected: &biscuit.Expression{
@@ -228,7 +232,7 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryContains,
 				biscuit.UnaryNegate,
 			},
-		},*/
+		},
 		{
 			Input: `$0 <= 2006-01-02T15:04:05Z`,
 			Expected: &biscuit.Expression{
@@ -254,18 +258,16 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryContains,
 			},
 		},
-		/*{
-			Input: `$0 not in ["hex:abcdef", "hex:01234", "hex:56789"]`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Set: &Set{
-						Bytes: []HexString{"abcdef", "01234", "56789"},
-						Not:   true,
-					},
-				},
+		{
+			Input: `!["hex:41", "hex:42", "hex:43"].contains($0)`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
+					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryContains,
+				biscuit.UnaryNegate,
 			},
-		},*/
+		},
 	}
 
 	for _, testCase := range testCases {

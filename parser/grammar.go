@@ -182,9 +182,9 @@ type ExprTerm struct {
 }
 
 type Unary struct {
-	Parens *Parens `@@`
+	Negate *Negate `@@`
+	Parens *Parens `|@@`
 	//Length *Length `|@@`
-	Negate *Negate `|@@`
 }
 
 type Parens struct {
@@ -252,11 +252,16 @@ func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
 	switch {
 	case e.Unary != nil:
 		switch {
+		case (*e.Unary).Negate != nil:
+			(*e.Unary).Negate.Expr5.ToExpr(expr)
+			*expr = append(*expr, biscuit.UnaryNegate)
+
 		// FIXME
 		//case (*e.Unary).Length != nil:
 		//	*expr = append(*expr, biscuit.UnaryLength)
 
 		case (*e.Unary).Parens != nil:
+			(*e.Unary).Negate.Expr5.ToExpr(expr)
 			*expr = append(*expr, biscuit.UnaryParens)
 
 		}
