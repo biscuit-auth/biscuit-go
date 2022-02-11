@@ -77,6 +77,19 @@ type CheckQuery struct {
 	Body []*RuleElement `@@ ("," @@)*`
 }
 
+type Policy struct {
+	Allow *Allow `@@`
+	Deny  *Deny  `|@@`
+}
+
+type Allow struct {
+	Queries []*CheckQuery `"allow if" @@ ( "or" @@ )*`
+}
+
+type Deny struct {
+	Queries []*CheckQuery `"deny if" @@ ( "or" @@ )*`
+}
+
 type Term struct {
 	Variable *Variable  `@Variable`
 	Bytes    *HexString `| @@`
@@ -746,5 +759,38 @@ func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+	}, nil
+}
+
+func (p *Policy) ToBiscuit() (*biscuit.Policy, error) {
+	var parsedQueries []*CheckQuery
+	var kind biscuit.PolicyKind
+	switch {
+	case p.Allow != nil:
+		{
+			parsedQueries = p.Allow.Queries
+			kind = biscuit.PolicyKindAllow
+			break
+		}
+	case p.Deny != nil:
+		{
+			parsedQueries = p.Allow.Queries
+			kind = biscuit.PolicyKindDeny
+			break
+		}
+	}
+	queries := make([]biscuit.Rule, 0, len(parsedQueries))
+	for _, q := range parsedQueries {
+		r, err := q.ToBiscuit()
+		if err != nil {
+			return nil, err
+		}
+
+		queries = append(queries, *r)
+	}
+
+	return &biscuit.Policy{
+		Queries: queries,
+		Kind:    kind,
 	}, nil
 }
