@@ -56,7 +56,7 @@ func getFactTestCases() []testCase {
 
 func getRuleTestCases() []testCase {
 	t1, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-	//t2, _ := time.Parse(time.RFC3339, time.Now().Add(2*time.Second).Format(time.RFC3339))
+	t2, _ := time.Parse(time.RFC3339, time.Now().Add(2*time.Second).Format(time.RFC3339))
 
 	return []testCase{
 		{
@@ -147,14 +147,14 @@ func getRuleTestCases() []testCase {
 						biscuit.BinaryGreaterThan,
 					},
 					{
-						biscuit.Value{Term: biscuit.Variable("1")},
+						biscuit.Value{Term: biscuit.Variable("0")},
 						biscuit.Value{Term: biscuit.Date(t2)},
 						biscuit.BinaryLessThan,
 					},
 				},
 			},
 		},
-		{
+		/*{
 			Input:         fmt.Sprintf(`rule1("a") <- body1("b"), $0 > %s`, t1.Format(time.RFC1123)),
 			ExpectFailure: true,
 		},
@@ -208,7 +208,7 @@ func getRuleTestCases() []testCase {
 					},
 				},
 			},
-		}, /*
+		},
 			{
 				Input: `rule1(#a) <- body1(#b) @ $0 == "abc", prefix($1, "def"), suffix($2, "ghi"), match($3, "file[0-9]+.txt"), $4 in ["a","b"], $5 not in ["c", "d"]`,
 				Expected: biscuit.Rule{

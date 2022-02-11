@@ -2,6 +2,7 @@ package parser
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/biscuit-auth/biscuit-go"
@@ -111,6 +112,9 @@ func TestGrammarPredicate(t *testing.T) {
 func TestGrammarExpression(t *testing.T) {
 	parser, err := participle.Build(&Expression{}, DefaultParserOptions...)
 	require.NoError(t, err)
+
+	t1, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+	t2, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
 
 	testCases := []struct {
 		Input    string
@@ -224,31 +228,23 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryContains,
 				biscuit.UnaryNegate,
 			},
-		},
-		/*{
-			Input: `$0 <= "2006-01-02T15:04:05Z07:00"`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Date: &DateComparison{
-						Operation: sptr("<="),
-						Target:    sptr("2006-01-02T15:04:05Z07:00"),
-					},
-				},
+		},*/
+		{
+			Input: `$0 <= 2006-01-02T15:04:05Z`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Date(t1)},
+				biscuit.BinaryLessOrEqual,
 			},
 		},
 		{
-			Input: `$0 >= "2006-01-02T15:04:05Z07:00"`,
-			Expected: &Constraint{
-				VariableConstraint: &VariableConstraint{
-					Variable: varptr("0"),
-					Date: &DateComparison{
-						Operation: sptr(">="),
-						Target:    sptr("2006-01-02T15:04:05Z07:00"),
-					},
-				},
+			Input: `$0 >= 2006-01-02T15:04:05+07:00`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Date(t2)},
+				biscuit.BinaryGreaterOrEqual,
 			},
-		},*/
+		},
 		{
 			Input: `["hex:41", "hex:42", "hex:43"].contains($0)`,
 			Expected: &biscuit.Expression{
