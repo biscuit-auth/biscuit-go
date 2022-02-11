@@ -169,8 +169,8 @@ func TestGrammarExpression(t *testing.T) {
 		{
 			Input: `$0 < 1`,
 			Expected: &biscuit.Expression{
-				biscuit.Value{biscuit.Variable("0")},
-				biscuit.Value{biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
 				biscuit.BinaryLessThan,
 			},
 		},
