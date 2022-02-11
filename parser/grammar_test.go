@@ -292,18 +292,11 @@ func TestGrammarCheck(t *testing.T) {
 		Input    string
 		Expected *Check
 	}{
-		/*{
-			Input: `check if grandparent("a", "c") <- parent("a", "b"), parent("b", "c")`,
+		{
+			Input: `check if parent("a", "b"), parent("b", "c")`,
 			Expected: &Check{
-				Queries: []*Rule{
+				Queries: []*CheckQuery{
 					{
-						Head: &Predicate{
-							Name: sptr("grandparent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("c")},
-							},
-						},
 						Body: []*RuleElement{
 							{
 								Predicate: &Predicate{
@@ -331,33 +324,35 @@ func TestGrammarCheck(t *testing.T) {
 			},
 		},
 		{
-			Input: `[empty() <- parent("a", "b"), parent("b", "c")]`,
-			Expected: &Check{[]*Rule{
-				{
-					Head: &Predicate{
-						Name: sptr("empty"),
-						IDs:  nil,
-					},
-					Body: []*Predicate{
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
+			Input: `check if parent("a", "b"), parent("b", "c")`,
+			Expected: &Check{
+				Queries: []*CheckQuery{
+					{
+						Body: []*RuleElement{
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("a")},
+										{String: sptr("b")},
+									},
+								},
 							},
-						},
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("b")},
+										{String: sptr("c")},
+									},
+								},
 							},
 						},
 					},
 				},
-			}},
+			},
 		},
-		{
+		/*{
 			Input: `[grandparent("a", "c") <- parent("a", "b"), parent("b", "c") || grandparent("a", "c") <- parent("a", "b"), parent("b", "c") @ $0 > 42, prefix($1, "test")]`,
 			Expected: &Check{[]*Rule{
 				{
