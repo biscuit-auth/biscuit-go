@@ -70,7 +70,11 @@ type Predicate struct {
 }
 
 type Check struct {
-	Queries []*Rule `"check if" @@ ( "or" @@ )*`
+	Queries []*CheckQuery `"check if" @@ ( "or" @@ )*`
+}
+
+type CheckQuery struct {
+	Body []*RuleElement `@@ ("," @@)*`
 }
 
 type Term struct {
@@ -658,7 +662,6 @@ func (c *FunctionConstraint) ToExpr() (biscuit.Expression, error) {
 */
 
 func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
-	//body := make([]biscuit.Predicate, 0)
 	body := []biscuit.Predicate{}
 	expressions := make([]biscuit.Expression, 0)
 
@@ -677,14 +680,9 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 				var expr biscuit.Expression
 				(*p.Expression).ToExpr(&expr)
 
-				/*expr, err := (*p.Expression).ToExpr(&expr)
-				if err != nil {
-					return nil, err
-				}*/
 				expressions = append(expressions, expr)
 			}
 		}
-
 	}
 
 	head, err := r.Head.ToBiscuit()
@@ -712,5 +710,41 @@ func (c *Check) ToBiscuit() (*biscuit.Check, error) {
 
 	return &biscuit.Check{
 		Queries: queries,
+	}, nil
+}
+
+func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
+	body := []biscuit.Predicate{}
+	expressions := make([]biscuit.Expression, 0)
+
+	for _, p := range r.Body {
+		switch {
+		case p.Predicate != nil:
+			{
+				predicate, err := (*p.Predicate).ToBiscuit()
+				if err != nil {
+					return nil, err
+				}
+				body = append(body, *predicate)
+			}
+		case p.Expression != nil:
+			{
+				var expr biscuit.Expression
+				(*p.Expression).ToExpr(&expr)
+
+				expressions = append(expressions, expr)
+			}
+		}
+	}
+
+	head := &biscuit.Predicate{
+		Name: "query",
+		IDs:  []biscuit.Term{},
+	}
+
+	return &biscuit.Rule{
+		Head:        *head,
+		Body:        body,
+		Expressions: expressions,
 	}, nil
 }
