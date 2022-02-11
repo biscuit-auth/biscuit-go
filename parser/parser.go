@@ -15,7 +15,8 @@ var (
 
 var BiscuitLexerRules = []stateful.Rule{
 	{Name: "Keyword", Pattern: `rules|checks`, Action: nil},
-	{Name: "Function", Pattern: `prefix|suffix|match`, Action: nil},
+	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`, Action: nil},
+	{Name: "Dot", Pattern: `\.`, Action: nil},
 	{Name: "Arrow", Pattern: `<-`, Action: nil},
 	{Name: "Or", Pattern: `\|\|`, Action: nil},
 	{Name: "Operator", Pattern: `==|>=|<=|>|<|not|in`, Action: nil},

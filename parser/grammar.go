@@ -172,8 +172,8 @@ type Expr5 struct {
 }
 
 type OpExpr5 struct {
-	Operator   Operator    `@"." @("contains" | "starts_with" | "ends_with" | "matches" | "intersection" | "union")`
-	Expression *Expression `"("  @@ ")"`
+	Operator   Operator      `Dot @("contains" | "starts_with" | "ends_with" | "matches" | "intersection" | "union" | "length")`
+	Expression []*Expression `"("  @@* ")"`
 }
 
 type ExprTerm struct {
@@ -183,7 +183,8 @@ type ExprTerm struct {
 
 type Unary struct {
 	Parens *Parens `@@`
-	Length *Length `@@`
+	//Length *Length `|@@`
+	Negate *Negate `|@@`
 }
 
 type Parens struct {
@@ -191,7 +192,11 @@ type Parens struct {
 }
 
 type Length struct {
-	Term *Term `@@".length()"`
+	Term *Term `@@ Dot "length()"`
+}
+
+type Negate struct {
+	Expr5 *Expr5 `"!" @@`
 }
 
 func (e *Expression) ToExpr(expr *biscuit.Expression) {
@@ -283,7 +288,9 @@ func (e *OpExpr4) ToExpr(expr *biscuit.Expression) {
 }
 
 func (e *OpExpr5) ToExpr(expr *biscuit.Expression) {
-	e.Expression.ToExpr(expr)
+	for _, argument := range e.Expression {
+		argument.ToExpr(expr)
+	}
 	e.Operator.ToExpr(expr)
 }
 
