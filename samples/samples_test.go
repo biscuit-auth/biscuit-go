@@ -592,6 +592,29 @@ func TestSample19_GeneratingAmbientFromVariables(t *testing.T) {
 	}
 }
 
+func TestSample20_Sealed(t *testing.T) {
+	for _, v := range versions {
+		t.Run(v, func(t *testing.T) {
+			token := loadSampleToken(t, v, "test20_sealed.bc")
+
+			b, err := biscuit.Unmarshal(token)
+			require.NoError(t, err)
+
+			t.Log(b.String())
+
+			ve, err := b.Verify(loadRootPublicKey(t, v))
+			require.NoError(t, err)
+
+			v := &sampleVerifier{ve}
+
+			v.AddOperation("red")
+			v.AddResource("file1")
+
+			require.Error(t, v.Authorize())
+		})
+	}
+}
+
 func loadSampleToken(t *testing.T, version string, path string) []byte {
 	token, err := ioutil.ReadFile(fmt.Sprintf("data/%s/%s", version, path))
 	require.NoError(t, err)

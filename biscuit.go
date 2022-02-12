@@ -204,10 +204,74 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	}, nil
 }
 
+func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
+	if b.container == nil {
+		return nil, errors.New("biscuit: token is already sealed")
+	}
+
+	privateKey := b.container.Proof.GetNextSecret()
+	if privateKey == nil {
+		return nil, errors.New("biscuit: token is already sealed")
+	}
+
+	if len(privateKey) != 32 {
+		return nil, ErrInvalidKeySize
+	}
+
+	privateKey = ed25519.NewKeyFromSeed(privateKey)
+
+	// clone biscuit fields and append new block
+	authority := new(Block)
+	*authority = *b.authority
+
+	blocks := make([]*Block, len(b.blocks))
+	for i, oldBlock := range b.blocks {
+		blocks[i] = new(Block)
+		*blocks[i] = *oldBlock
+	}
+
+	var lastBlock *pb.SignedBlock
+	if len(b.blocks) == 0 {
+		lastBlock = b.container.Authority
+	} else {
+		lastBlock = b.container.Blocks[len(b.blocks)-1]
+	}
+
+	toSignAlgorithm := make([]byte, 4)
+	binary.LittleEndian.PutUint32(toSignAlgorithm[0:], uint32(lastBlock.NextKey.Algorithm.Number()))
+	toSign := append(lastBlock.Block[:], toSignAlgorithm...)
+	toSign = append(toSign, lastBlock.NextKey.Key[:]...)
+	toSign = append(toSign, lastBlock.Signature[:]...)
+
+	signature := ed25519.Sign(privateKey, toSign)
+
+	proof := &pb.Proof{
+		Content: &pb.Proof_FinalSignature{
+			FinalSignature: signature,
+		},
+	}
+
+	// clone container and append new marshalled block and public key
+	container := &pb.Biscuit{
+		Authority: b.container.Authority,
+		Blocks:    append([]*pb.SignedBlock{}, b.container.Blocks...),
+		Proof:     proof,
+	}
+
+	symbols := b.symbols.Clone()
+
+	return &Biscuit{
+		authority: authority,
+		blocks:    blocks,
+		symbols:   symbols,
+		container: container,
+	}, nil
+}
+
 func (b *Biscuit) Verify(root ed25519.PublicKey) (Authorizer, error) {
 	currentKey := root
 
-	// for now we only support Ed25519,
+	// for now we only support Ed25519
 	if *b.container.Authority.NextKey.Algorithm != pb.PublicKey_Ed25519 {
 		return nil, UnsupportedAlgorithm
 	}
@@ -247,23 +311,42 @@ func (b *Biscuit) Verify(root ed25519.PublicKey) (Authorizer, error) {
 		}
 	}
 
-	privateKey := b.container.Proof.GetNextSecret()
-	if privateKey == nil {
-		return nil, errors.New("biscuit: sealed token verification not implemented")
-	}
+	switch {
+	case b.container.Proof.GetNextSecret() != nil:
+		{
+			privateKey := b.container.Proof.GetNextSecret()
+			if privateKey == nil {
+				return nil, errors.New("biscuit: sealed token verification not implemented")
+			}
 
-	publicKey := ed25519.NewKeyFromSeed(privateKey).Public()
-	if !bytes.Equal(currentKey, publicKey.(ed25519.PublicKey)) {
-		return nil, errors.New("biscuit: invalid last signature")
+			publicKey := ed25519.NewKeyFromSeed(privateKey).Public()
+			if !bytes.Equal(currentKey, publicKey.(ed25519.PublicKey)) {
+				return nil, errors.New("biscuit: invalid last signature")
+			}
+		}
+	case b.container.Proof.GetFinalSignature() != nil:
+		{
+			signature := b.container.Proof.GetFinalSignature()
+			var lastBlock *pb.SignedBlock
+			if len(b.blocks) == 0 {
+				lastBlock = b.container.Authority
+			} else {
+				lastBlock = b.container.Blocks[len(b.blocks)-1]
+			}
+
+			algorithm := make([]byte, 4)
+			binary.LittleEndian.PutUint32(algorithm[0:], uint32(lastBlock.NextKey.Algorithm.Number()))
+			toVerify := append(lastBlock.Block[:], algorithm...)
+			toVerify = append(toVerify, lastBlock.NextKey.Key[:]...)
+			toVerify = append(toVerify, lastBlock.Signature[:]...)
+
+			if ok := ed25519.Verify(currentKey, toVerify, signature); !ok {
+				return nil, errors.New("biscuit: invalid last signature")
+			}
+		}
+	default:
+		return nil, errors.New("biscuit: cannot find proof")
 	}
-	//if b.p
-	/*FIXME: sealed token
-	if b.blocks.Len() == 0 {
-		toVerify := append(b.Authority.Block[:], b.Authority.nextKey[:], b.			Authority.Signature[:]...)
-	} else {
-		block := b.blocks[b.blocks.Len() - 1]
-		toVerify := append(block.Block[:], block.nextKey[:], block.Signature[:]...)
-	}*/
 
 	return NewVerifier(b)
 }
