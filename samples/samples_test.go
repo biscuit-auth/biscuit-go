@@ -229,10 +229,10 @@ func TestSample9_ExpiredToken(t *testing.T) {
 	}
 }
 
-func TestSample10_VerifierScope(t *testing.T) {
+func TestSample10_AuthorizerScope(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
-			token := loadSampleToken(t, v, "test10_verifier_scope.bc")
+			token := loadSampleToken(t, v, "test10_authorizer_scope.bc")
 
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
@@ -271,10 +271,10 @@ func TestSample10_VerifierScope(t *testing.T) {
 	}
 }
 
-func TestSample11_VerifierAuthorityChecks(t *testing.T) {
+func TestSample11_Authorizer_AuthorityChecks(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
-			token := loadSampleToken(t, v, "test11_verifier_authority_caveats.bc")
+			token := loadSampleToken(t, v, "test11_authorizer_authority_caveats.bc")
 
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
