@@ -25,7 +25,7 @@ func TestVerifierDefaultPolicy(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v, err := b.Verify(publicRoot)
+	v, err := b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	v.AddPolicy(DefaultDenyPolicy)
@@ -54,7 +54,7 @@ func TestVerifierPolicies(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v, err := b.Verify(publicRoot)
+	v, err := b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	policy := Policy{Kind: PolicyKindAllow, Queries: []Rule{
@@ -85,7 +85,7 @@ func TestVerifierPolicies(t *testing.T) {
 
 	require.NoError(t, v.Authorize())
 
-	v, err = b.Verify(publicRoot)
+	v, err = b.Authorizer(publicRoot)
 	require.NoError(t, err)
 	v.AddPolicy(policy)
 	v.AddFact(Fact{Predicate: Predicate{
@@ -107,7 +107,7 @@ func TestVerifierSerializeLoad(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	v1, err := b.Verify(publicRoot)
+	v1, err := b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	policy := Policy{Kind: PolicyKindAllow, Queries: []Rule{
@@ -153,7 +153,7 @@ func TestVerifierSerializeLoad(t *testing.T) {
 	s, err := v1.SerializePolicies()
 	require.NoError(t, err)
 
-	v2, err := b.Verify(publicRoot)
+	v2, err := b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	require.NoError(t, v2.LoadPolicies(s))

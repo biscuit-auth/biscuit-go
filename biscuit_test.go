@@ -82,7 +82,7 @@ func TestBiscuit(t *testing.T) {
 	b3deser, err := Unmarshal(b3ser)
 	require.NoError(t, err)
 
-	v3, err := b3deser.Verify(publicRoot)
+	v3, err := b3deser.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
@@ -90,14 +90,14 @@ func TestBiscuit(t *testing.T) {
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Authorize())
 
-	v3, err = b3deser.Verify(publicRoot)
+	v3, err = b3deser.Authorizer(publicRoot)
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Authorize())
 
-	v3, err = b3deser.Verify(publicRoot)
+	v3, err = b3deser.Authorizer(publicRoot)
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("write")}}})
@@ -158,7 +158,7 @@ func TestSealedBiscuit(t *testing.T) {
 	b2deser, err := Unmarshal(b2ser)
 	require.NoError(t, err)
 
-	_, err = b2deser.Verify(publicRoot)
+	_, err = b2deser.Authorizer(publicRoot)
 	require.NoError(t, err)
 }
 
@@ -243,7 +243,7 @@ func TestBiscuitRules(t *testing.T) {
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
 
 	for user, valid := range owners {
-		v, err := b.Verify(publicRoot)
+		v, err := b.Authorizer(publicRoot)
 		require.NoError(t, err)
 
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
@@ -278,11 +278,11 @@ func TestCheckRootKey(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.Verify(publicRoot)
+	_, err = b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	publicNotRoot, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.Verify(publicNotRoot)
+	_, err = b.Authorizer(publicNotRoot)
 	require.Equal(t, ErrInvalidSignature, err)
 }
 
@@ -414,11 +414,11 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.Verify(publicRoot)
+	_, err = b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	publicTest, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.Verify(publicTest)
+	_, err = b.Authorizer(publicTest)
 	require.Error(t, err)
 }
 
@@ -571,7 +571,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(b.String())
 
-	verifier, err := b.Verify(publicRoot)
+	verifier, err := b.Authorizer(publicRoot)
 	require.NoError(t, err)
 
 	verifier.AddFact(Fact{Predicate: Predicate{
