@@ -208,170 +208,139 @@ func getRuleTestCases() []testCase {
 					},
 				},
 			},
-		}, /*
-			{
-					Input: `rule1(#a) <- body1(#b) @ $0 == "abc", prefix($1, "def"), suffix($2, "ghi"), match($3, "file[0-9]+.txt"), $4 in ["a","b"], $5 not in ["c", "d"]`,
-					Expected: biscuit.Rule{
-						Head: biscuit.Predicate{
-							Name: "rule1",
-							IDs:  []biscuit.Term{biscuit.String("a")},
-						},
-						Body: []biscuit.Predicate{{
-							Name: "body1",
-							IDs:  []biscuit.Term{biscuit.String("b")},
-						}},
-						Constraints: []biscuit.Constraint{
-							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.StringComparisonChecker{
-									Comparison: datalog.StringComparisonEqual,
-									Str:        "abc",
-								},
-							},
-							{
-								Name: biscuit.Variable("1"),
-								Checker: biscuit.StringComparisonChecker{
-									Comparison: datalog.StringComparisonPrefix,
-									Str:        "def",
-								},
-							},
-							{
-								Name: biscuit.Variable("2"),
-								Checker: biscuit.StringComparisonChecker{
-									Comparison: datalog.StringComparisonSuffix,
-									Str:        "ghi",
-								},
-							},
-							{
-								Name:    biscuit.Variable("3"),
-								Checker: biscuit.StringRegexpChecker(*regexp.MustCompile(`file[0-9]+.txt`)),
-							},
-							{
-								Name: biscuit.Variable("4"),
-								Checker: biscuit.StringInChecker{
-									Set: map[biscuit.String]struct{}{"a": {}, "b": {}},
-									Not: false,
-								},
-							},
-							{
-								Name: biscuit.Variable("5"),
-								Checker: biscuit.StringInChecker{
-									Set: map[biscuit.String]struct{}{"c": {}, "d": {}},
-									Not: true,
-								},
-							},
-						},
+		},
+		{
+			Input: `rule1("a") <- body1("b"), $0 == "abc", $1.starts_with("def"), $2.ends_with("ghi"), $3.matches("file[0-9]+.txt"), ["a","b"].contains($4), !["c", "d"].contains($5)`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Term{biscuit.String("b")},
+				}},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Variable("0")},
+						biscuit.Value{Term: biscuit.String("abc")},
+						biscuit.BinaryEqual,
+					},
+					{
+						biscuit.Value{Term: biscuit.Variable("1")},
+						biscuit.Value{Term: biscuit.String("def")},
+						biscuit.BinaryPrefix,
+					},
+					{
+						biscuit.Value{Term: biscuit.Variable("2")},
+						biscuit.Value{Term: biscuit.String("ghi")},
+						biscuit.BinarySuffix,
+					},
+					{
+						biscuit.Value{Term: biscuit.Variable("3")},
+						biscuit.Value{Term: biscuit.String("file[0-9]+.txt")},
+						biscuit.BinaryRegex,
+					},
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.String("a"), biscuit.String("b")}},
+						biscuit.Value{Term: biscuit.Variable("4")},
+						biscuit.BinaryContains,
+					},
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.String("c"), biscuit.String("d")}},
+						biscuit.Value{Term: biscuit.Variable("5")},
+						biscuit.BinaryContains,
+						biscuit.UnaryNegate,
 					},
 				},
-				{
-					Input: `rule1(#a) <- body1(#b) @ $0 in [#a, #b], $1 not in [#c, #d]`,
-					Expected: biscuit.Rule{
-						Head: biscuit.Predicate{
-							Name: "rule1",
-							IDs:  []biscuit.Term{biscuit.String("a")},
-						},
-						Body: []biscuit.Predicate{{
-							Name: "body1",
-							IDs:  []biscuit.Term{biscuit.String("b")},
-						}},
-						Constraints: []biscuit.Constraint{
-							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.StringInChecker{
-									Set: map[biscuit.String]struct{}{"a": {}, "b": {}},
-									Not: false,
-								},
-							},
-							{
-								Name: biscuit.Variable("1"),
-								Checker: biscuit.StringInChecker{
-									Set: map[biscuit.String]struct{}{"c": {}, "d": {}},
-									Not: true,
-								},
-							},
-						},
+			},
+		},
+		{
+			Input: `rule1("a") <- body1("b"), ["a", "b"].contains($0), !["c", "d"].contains($1)`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Term{biscuit.String("b")},
+				}},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.String("a"), biscuit.String("b")}},
+						biscuit.Value{Term: biscuit.Variable("0")},
+						biscuit.BinaryContains,
+					},
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.String("c"), biscuit.String("d")}},
+						biscuit.Value{Term: biscuit.Variable("1")},
+						biscuit.BinaryContains,
+						biscuit.UnaryNegate,
 					},
 				},
-				{
-					Input: `rule1(#a) <- body1("hex:41414141") @ $0 in ["hex:41414141", "hex:42424242"], $1 not in ["hex:0000" "hex:ffff"]`,
-					Expected: biscuit.Rule{
-						Head: biscuit.Predicate{
-							Name: "rule1",
-							IDs:  []biscuit.Term{biscuit.String("a")},
-						},
-						Body: []biscuit.Predicate{{
-							Name: "body1",
-							IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
-						}},
-						Constraints: []biscuit.Constraint{
-							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.BytesInChecker{
-									Set: map[string]struct{}{"AAAA": {}, "BBBB": {}},
-									Not: false,
-								},
-							},
-							{
-								Name: biscuit.Variable("1"),
-								Checker: biscuit.BytesInChecker{
-									Set: map[string]struct{}{string([]byte{0x00, 0x00}): {}, string([]byte{0xFF, 0xFF}): {}},
-									Not: true,
-								},
-							},
-						},
+			},
+		},
+		{
+			Input: `rule1("a") <- body1("hex:41414141")`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+				}},
+				Expressions: []biscuit.Expression{},
+			},
+		},
+		{
+			Input: `rule1("a") <- body1("hex:41414141"), $0 == "hex:41414141"`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+				}},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Variable("0")},
+						biscuit.Value{Term: biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
+						biscuit.BinaryEqual,
 					},
 				},
-				{
-					Input: `rule1(#a) <- body1("hex:41414141") @ $0 == "hex:41414141"`,
-					Expected: biscuit.Rule{
-						Head: biscuit.Predicate{
-							Name: "rule1",
-							IDs:  []biscuit.Term{biscuit.String("a")},
-						},
-						Body: []biscuit.Predicate{{
-							Name: "body1",
-							IDs:  []biscuit.Term{biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
-						}},
-						Constraints: []biscuit.Constraint{
-							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.BytesComparisonChecker{
-									Comparison: datalog.BytesComparisonEqual,
-									Bytes:      []byte("AAAA"),
-								},
-							},
-						},
+			},
+		},
+		{
+			Input: `rule1("a") <- body1($0, $1), ["abc", "def"].contains($0), ! [41, 42].contains($1)`,
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{{
+					Name: "body1",
+					IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
+				}},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.String("abc"), biscuit.String("def")}},
+						biscuit.Value{Term: biscuit.Variable("0")},
+						biscuit.BinaryContains,
+					},
+					{
+						biscuit.Value{Term: biscuit.Set{biscuit.Integer(41), biscuit.Integer(42)}},
+						biscuit.Value{Term: biscuit.Variable("1")},
+						biscuit.BinaryContains,
+						biscuit.UnaryNegate,
 					},
 				},
-				{
-					Input: `rule1(#a) <- body1($0, $1) @ $0 in ["abc", "def"], $1 not in [41, 42]`,
-					Expected: biscuit.Rule{
-						Head: biscuit.Predicate{
-							Name: "rule1",
-							IDs:  []biscuit.Term{biscuit.String("a")},
-						},
-						Body: []biscuit.Predicate{{
-							Name: "body1",
-							IDs:  []biscuit.Term{biscuit.Variable("0"), biscuit.Variable("1")},
-						}},
-						Constraints: []biscuit.Constraint{
-							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.StringInChecker{
-									Set: map[biscuit.String]struct{}{biscuit.String("abc"): {}, biscuit.String("def"): {}},
-									Not: false,
-								},
-							},
-							{
-								Name: biscuit.Variable("1"),
-								Checker: biscuit.IntegerInChecker{
-									Set: map[biscuit.Integer]struct{}{biscuit.Integer(41): {}, biscuit.Integer(42): {}},
-									Not: true,
-								},
-							},
-						},
-					},
-				},*/
+			},
+		},
 
 		{
 			Input: `empty() <- body1($0, $1)`,
@@ -402,17 +371,16 @@ func getRuleTestCases() []testCase {
 	}
 }
 
-/*
-func getCaveatTestCases() []testCase {
+func getCheckTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `[ caveat0($0) <- parent(#a, #b), parent(#b, #c) @ $0 in [1,2,3] || caveat1() <- right(#read, "/a/file1.txt") ]`,
+			Input: `check if parent("a", "b"), parent("b", "c"), [1,2,3].contains($0) or right("read", "/a/file1.txt")`,
 			Expected: biscuit.Check{
 				Queries: []biscuit.Rule{
 					{
 						Head: biscuit.Predicate{
-							Name: "caveat0",
-							IDs:  []biscuit.Term{biscuit.Variable("0")},
+							Name: "query",
+							IDs:  []biscuit.Term{},
 						},
 						Body: []biscuit.Predicate{
 							{
@@ -430,18 +398,17 @@ func getCaveatTestCases() []testCase {
 								},
 							},
 						},
-						Constraints: []biscuit.Constraint{
+						Expressions: []biscuit.Expression{
 							{
-								Name: biscuit.Variable("0"),
-								Checker: biscuit.IntegerInChecker{
-									Set: map[biscuit.Integer]struct{}{1: {}, 2: {}, 3: {}},
-								},
+								biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
+								biscuit.Value{Term: biscuit.Variable("0")},
+								biscuit.BinaryContains,
 							},
 						},
 					},
 					{
 						Head: biscuit.Predicate{
-							Name: "caveat1",
+							Name: "query",
 							IDs:  []biscuit.Term{},
 						},
 						Body: []biscuit.Predicate{
@@ -453,7 +420,7 @@ func getCaveatTestCases() []testCase {
 								},
 							},
 						},
-						Constraints: []biscuit.Constraint{},
+						Expressions: []biscuit.Expression{},
 					},
 				},
 			},
@@ -463,7 +430,7 @@ func getCaveatTestCases() []testCase {
 			ExpectFailure: true,
 		},
 	}
-}*/
+}
 
 func TestParserFact(t *testing.T) {
 	p := New()
@@ -503,24 +470,24 @@ func TestParseRule(t *testing.T) {
 	}
 }
 
-// func TestParserCaveat(t *testing.T) {
-// 	p := New()
-// 	for _, testCase := range getCaveatTestCases() {
-// 		t.Run(testCase.Input, func(t *testing.T) {
-// 			caveat, err := p.Caveat(testCase.Input)
-// 			if testCase.ExpectFailure {
-// 				if testCase.ExpectErr != nil {
-// 					require.Equal(t, testCase.ExpectErr, err)
-// 				} else {
-// 					require.Error(t, err)
-// 				}
-// 			} else {
-// 				require.NoError(t, err)
-// 				require.Equal(t, testCase.Expected, caveat)
-// 			}
-// 		})
-// 	}
-// }
+func TestParserCheck(t *testing.T) {
+	p := New()
+	for _, testCase := range getCheckTestCases() {
+		t.Run(testCase.Input, func(t *testing.T) {
+			caveat, err := p.Check(testCase.Input)
+			if testCase.ExpectFailure {
+				if testCase.ExpectErr != nil {
+					require.Equal(t, testCase.ExpectErr, err)
+				} else {
+					require.Error(t, err)
+				}
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, testCase.Expected, caveat)
+			}
+		})
+	}
+}
 
 func TestMustParserFact(t *testing.T) {
 	p := New()
