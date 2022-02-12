@@ -323,6 +323,8 @@ func (LessThan) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 	switch left.Type() {
 	case TermTypeInteger:
 		out = Bool(left.(Integer) < right.(Integer))
+	case TermTypeDate:
+		out = Bool(left.(Date) < right.(Date))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected LessThan value type: %d", left.Type())
 	}
@@ -373,6 +375,8 @@ func (GreaterThan) Eval(left Term, right Term, symbols *SymbolTable) (Term, erro
 	switch left.Type() {
 	case TermTypeInteger:
 		out = Bool(left.(Integer) > right.(Integer))
+	case TermTypeDate:
+		out = Bool(left.(Date) > right.(Date))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected GreaterThan value type: %d", left.Type())
 	}
@@ -423,6 +427,10 @@ func (Equal) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
 	case TermTypeInteger:
 	case TermTypeBytes:
 	case TermTypeString:
+	case TermTypeDate:
+	case TermTypeBool:
+	case TermTypeSet:
+
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Equal value type: %d", left.Type())
 	}
@@ -443,6 +451,9 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 	case TermTypeInteger:
 	case TermTypeBytes:
 	case TermTypeString:
+	case TermTypeDate:
+	case TermTypeBool:
+
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Contains right value type: %d", right.Type())
 	}
