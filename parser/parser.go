@@ -204,3 +204,36 @@ func (m *mustParser) Check(check string) biscuit.Check {
 
 	return c
 }
+
+func (m *mustParser) Policy(policy string) biscuit.Policy {
+	c, err := m.parser.Policy(policy)
+	if err != nil {
+		panic(err)
+	}
+
+	return c
+}
+
+func fromStringFact(input string) (biscuit.Fact, error) {
+	p := New()
+
+	return p.Fact(input)
+}
+
+func fromStringRule(input string) (biscuit.Rule, error) {
+	p := New()
+
+	return p.Rule(input)
+}
+
+func fromStringCheck(input string) (biscuit.Check, error) {
+	p := New()
+
+	return p.Check(input)
+}
+
+func fromStringPolicy(input string) (biscuit.Policy, error) {
+	p := New()
+
+	return p.Policy(input)
+}
