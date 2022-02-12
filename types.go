@@ -285,6 +285,7 @@ const (
 	UnaryUndefined UnaryOp = iota
 	UnaryNegate
 	UnaryParens
+	UnaryLength
 )
 
 func (UnaryOp) Type() OpType {
@@ -296,6 +297,8 @@ func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Negate{}}
 	case UnaryParens:
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Parens{}}
+	case UnaryLength:
+		return datalog.UnaryOp{UnaryOpFunc: datalog.Length{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
 	}
@@ -307,6 +310,8 @@ func fromDatalogUnaryOp(symbols *datalog.SymbolTable, dlUnary datalog.UnaryOp) (
 		return UnaryNegate, nil
 	case datalog.UnaryParens:
 		return UnaryParens, nil
+	case datalog.UnaryLength:
+		return UnaryLength, nil
 	default:
 		return UnaryUndefined, fmt.Errorf("unsupported datalog unary op: %v", dlUnary.UnaryOpFunc.Type())
 	}
