@@ -126,12 +126,13 @@ const (
 	OpMatches
 	OpIntersection
 	OpUnion
+	OpLength
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion}
+	"==": OpEqual, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -273,10 +274,6 @@ func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
 			(*e.Unary).Negate.Expr5.ToExpr(expr)
 			*expr = append(*expr, biscuit.UnaryNegate)
 
-		// FIXME
-		//case (*e.Unary).Length != nil:
-		//	*expr = append(*expr, biscuit.UnaryLength)
-
 		case (*e.Unary).Parens != nil:
 			(*e.Unary).Negate.Expr5.ToExpr(expr)
 			*expr = append(*expr, biscuit.UnaryParens)
@@ -322,7 +319,6 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 	switch *op {
 	case OpAnd:
 		biscuit_op = biscuit.BinaryAnd
-		//*expr = append(*expr, biscuit.BinaryAnd)
 	case OpOr:
 		biscuit_op = biscuit.BinaryOr
 	case OpMul:
@@ -351,6 +347,8 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinarySuffix
 	case OpMatches:
 		biscuit_op = biscuit.BinaryRegex
+	case OpLength:
+		biscuit_op = biscuit.UnaryLength
 		/*FIXME: not implemented yet
 		case 	OpIntersection:
 				biscuit_op = biscuit.Binary

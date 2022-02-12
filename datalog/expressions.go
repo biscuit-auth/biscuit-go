@@ -41,7 +41,7 @@ func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (
 				return nil, fmt.Errorf("datalog: expressions: failed to pop unary value: %w", err)
 			}
 
-			res, err := op.(UnaryOp).Eval(v)
+			res, err := op.(UnaryOp).Eval(v, symbols)
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: unary eval failed: %w", err)
 			}
@@ -168,7 +168,7 @@ func (op UnaryOp) Print(value string) string {
 
 type UnaryOpFunc interface {
 	Type() UnaryOpType
-	Eval(value Term) (Term, error)
+	Eval(value Term, symbols *SymbolTable) (Term, error)
 }
 
 type UnaryOpType byte
@@ -176,6 +176,7 @@ type UnaryOpType byte
 const (
 	UnaryNegate UnaryOpType = iota
 	UnaryParens
+	UnaryLength
 )
 
 // Negate returns the negation of a value.
@@ -185,7 +186,7 @@ type Negate struct{}
 func (Negate) Type() UnaryOpType {
 	return UnaryNegate
 }
-func (Negate) Eval(value Term) (Term, error) {
+func (Negate) Eval(value Term, symbols *SymbolTable) (Term, error) {
 	var out Term
 	switch value.Type() {
 	case TermTypeBool:
@@ -205,8 +206,31 @@ type Parens struct{}
 func (Parens) Type() UnaryOpType {
 	return UnaryParens
 }
-func (Parens) Eval(value Term) (Term, error) {
+func (Parens) Eval(value Term, symbols *SymbolTable) (Term, error) {
 	return value, nil
+}
+
+// Length returns the length of a value.
+// It accepts String, Bytes and Set
+type Length struct{}
+
+func (Length) Type() UnaryOpType {
+	return UnaryLength
+}
+func (Length) Eval(value Term, symbols *SymbolTable) (Term, error) {
+	var out Term
+	switch value.Type() {
+	case TermTypeString:
+		str := symbols.Str(value.(String))
+		out = Integer(len(str))
+	case TermTypeBytes:
+		out = Integer(len(value.(Bytes)))
+	case TermTypeSet:
+		out = Integer(len(value.(Set)))
+	default:
+		return nil, fmt.Errorf("datalog: unexpected Negate value type: %d", value.Type())
+	}
+	return out, nil
 }
 
 type BinaryOp struct {
