@@ -230,14 +230,14 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinarySuffix,
 			},
 		},
-		/*{
+		{
 			Input: `$0.matches("^abc[a-z]+$") `,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.String("^abc[a-z]+$")},
 				biscuit.BinaryRegex,
 			},
-		},*/
+		},
 		{
 			Input: `["abc", "def"].contains($0)`,
 			Expected: &biscuit.Expression{
@@ -374,79 +374,134 @@ func TestGrammarCheck(t *testing.T) {
 				},
 			},
 		},
-		/*{
-			Input: `[grandparent("a", "c") <- parent("a", "b"), parent("b", "c") || grandparent("a", "c") <- parent("a", "b"), parent("b", "c") @ $0 > 42, prefix($1, "test")]`,
-			Expected: &Check{[]*Rule{
-				{
-					Head: &Predicate{
-						Name: sptr("grandparent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("c")},
-						},
-					},
-					Body: []*Predicate{
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
+		{
+			Input: `check if parent("a", "b"), parent("b", "c") or parent("a", "b"), parent("b", "c"), $0 > 42, $1.starts_with("test")`,
+			Expected: &Check{
+				Queries: []*CheckQuery{
+					{
+						Body: []*RuleElement{
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("a")},
+										{String: sptr("b")},
+									},
+								},
 							},
-						},
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
-							},
-						},
-					},
-				},
-				{
-					Head: &Predicate{
-						Name: sptr("grandparent"),
-						IDs: []*Term{
-							{String: sptr("a")},
-							{String: sptr("c")},
-						},
-					},
-					Body: []*Predicate{
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
-							},
-						},
-						{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
-							},
-						},
-					},
-					Constraints: []*Constraint{
-						{
-							VariableConstraint: &VariableConstraint{
-								Variable: varptr("0"),
-								Int: &IntComparison{
-									Operation: sptr(">"),
-									Target:    i64ptr(42),
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("b")},
+										{String: sptr("c")},
+									},
 								},
 							},
 						},
-						{
-							FunctionConstraint: &FunctionConstraint{
-								Function: sptr("prefix"),
-								Variable: varptr("1"),
-								Argument: sptr("test"),
+					},
+					{
+						Body: []*RuleElement{
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("a")},
+										{String: sptr("b")},
+									},
+								},
+							},
+							{
+								Predicate: &Predicate{
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("b")},
+										{String: sptr("c")},
+									},
+								},
+							},
+							{
+								Expression: &Expression{
+									Left: &Expr1{
+										Left: &Expr2{
+											Left: &Expr3{
+												Left: &Expr4{
+													Left: &Expr5{
+														Left: &ExprTerm{
+															Term: &Term{
+																Variable: varptr("0"),
+															},
+														},
+													},
+												},
+											},
+										},
+										Right: []*OpExpr2{
+											{
+												Operator: OpGreaterThan,
+												Expr3: &Expr3{
+													Left: &Expr4{
+														Left: &Expr5{
+															Left: &ExprTerm{
+																Term: &Term{
+																	Integer: i64ptr(42),
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+							{
+								Expression: &Expression{
+									Left: &Expr1{
+										Left: &Expr2{
+											Left: &Expr3{
+												Left: &Expr4{
+													Left: &Expr5{
+														Left: &ExprTerm{
+															Term: &Term{
+																Variable: varptr("1"),
+															},
+														},
+														Right: []*OpExpr5{
+															{
+																Operator: OpPrefix,
+																Expression: []*Expression{
+																	{
+																		Left: &Expr1{
+																			Left: &Expr2{
+																				Left: &Expr3{
+																					Left: &Expr4{
+																						Left: &Expr5{
+																							Left: &ExprTerm{
+																								Term: &Term{
+																									String: sptr("test"),
+																								},
+																							},
+																						},
+																					},
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
 							},
 						},
 					},
-				},
-			}},
-		},*/
+				}},
+		},
 	}
 
 	for _, testCase := range testCases {
