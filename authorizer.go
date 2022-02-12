@@ -265,6 +265,9 @@ func (v *authorizer) Biscuit() *Biscuit {
 	return v.biscuit
 }
 
+// Returns the content of the Datalog environment
+// This will be empty until the call to Authorize(), where
+// facts, rules and checks will be evaluated
 func (v *authorizer) PrintWorld() string {
 	debug := datalog.SymbolDebugger{
 		SymbolTable: v.symbols,
