@@ -277,7 +277,6 @@ func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
 		case (*e.Unary).Parens != nil:
 			(*e.Unary).Negate.Expr5.ToExpr(expr)
 			*expr = append(*expr, biscuit.UnaryParens)
-
 		}
 	case e.Term != nil:
 		//FIXME: error management
@@ -373,16 +372,20 @@ func (h *HexString) Parse(lex *lexer.PeekingLexer) error {
 		return err
 	}
 
-	if !strings.HasPrefix(token.Value, "hex:") {
+	if token.Value != "hex:" {
 		return participle.NextMatch
 	}
-
 	_, err = lex.Next()
 	if err != nil {
 		return err
 	}
 
-	*h = HexString(strings.TrimPrefix(token.Value, "hex:"))
+	content, err := lex.Next()
+	if err != nil {
+		return err
+	}
+
+	*h = HexString(content.Value)
 
 	return nil
 }
