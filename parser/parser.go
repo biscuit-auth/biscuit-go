@@ -44,6 +44,8 @@ type Parser interface {
 	Fact(fact string) (biscuit.Fact, error)
 	Rule(rule string) (biscuit.Rule, error)
 	Check(check string) (biscuit.Check, error)
+	Policy(policy string) (biscuit.Policy, error)
+
 	Must() MustParser
 }
 
@@ -51,12 +53,14 @@ type MustParser interface {
 	Fact(fact string) biscuit.Fact
 	Rule(rule string) biscuit.Rule
 	Check(check string) biscuit.Check
+	Policy(policy string) biscuit.Policy
 }
 
 type parser struct {
-	factParser  *participle.Parser
-	ruleParser  *participle.Parser
-	checkParser *participle.Parser
+	factParser   *participle.Parser
+	ruleParser   *participle.Parser
+	checkParser  *participle.Parser
+	policyParser *participle.Parser
 }
 
 var _ Parser = (*parser)(nil)
@@ -69,9 +73,10 @@ var _ MustParser = (*mustParser)(nil)
 
 func New() Parser {
 	return &parser{
-		factParser:  participle.MustBuild(&Predicate{}, DefaultParserOptions...),
-		ruleParser:  participle.MustBuild(&Rule{}, DefaultParserOptions...),
-		checkParser: participle.MustBuild(&Check{}, DefaultParserOptions...),
+		factParser:   participle.MustBuild(&Predicate{}, DefaultParserOptions...),
+		ruleParser:   participle.MustBuild(&Rule{}, DefaultParserOptions...),
+		checkParser:  participle.MustBuild(&Check{}, DefaultParserOptions...),
+		policyParser: participle.MustBuild(&Policy{}, DefaultParserOptions...),
 	}
 }
 
@@ -126,6 +131,45 @@ func (p *parser) Check(check string) (biscuit.Check, error) {
 	}
 
 	return biscuit.Check{
+		Queries: queries,
+	}, nil
+}
+
+func (p *parser) Policy(policy string) (biscuit.Policy, error) {
+	parsed := &Policy{}
+	if err := p.policyParser.ParseString("policy", policy, parsed); err != nil {
+		return biscuit.Policy{}, err
+	}
+
+	var parsedQueries []*CheckQuery
+	var kind biscuit.PolicyKind
+	switch {
+	case parsed.Allow != nil:
+		{
+			parsedQueries = parsed.Allow.Queries
+			kind = biscuit.PolicyKindAllow
+			break
+		}
+	case parsed.Deny != nil:
+		{
+			parsedQueries = parsed.Allow.Queries
+			kind = biscuit.PolicyKindDeny
+			break
+		}
+	}
+
+	queries := make([]biscuit.Rule, len(parsedQueries))
+	for i, q := range parsedQueries {
+		query, err := q.ToBiscuit()
+		if err != nil {
+			return biscuit.Policy{}, err
+		}
+
+		queries[i] = *query
+	}
+
+	return biscuit.Policy{
+		Kind:    kind,
 		Queries: queries,
 	}, nil
 }
