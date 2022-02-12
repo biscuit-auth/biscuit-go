@@ -49,7 +49,7 @@ func TestSample1_Basic(t *testing.T) {
 
 			pubkey := loadRootPublicKey(t, v)
 
-			ve, err := b.Verify(pubkey)
+			ve, err := b.Authorizer(pubkey)
 			require.NoError(t, err)
 
 			verifier := &sampleVerifier{ve}
@@ -59,7 +59,7 @@ func TestSample1_Basic(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("read")
@@ -67,7 +67,7 @@ func TestSample1_Basic(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("write")
@@ -90,7 +90,7 @@ func TestSample2_DifferentRootKey(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.Equal(t, biscuit.ErrInvalidSignature, err)
 			require.Nil(t, v)
 		})
@@ -131,7 +131,7 @@ func TestSample5_InvalidSignature(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			verifier, err := b.Verify(loadRootPublicKey(t, v))
+			verifier, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.Equal(t, biscuit.ErrInvalidSignature, err)
 			require.Nil(t, verifier)
 		})
@@ -146,7 +146,7 @@ func TestSample6_ReorderedBlocks(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			verifier, err := b.Verify(loadRootPublicKey(t, v))
+			verifier, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.Equal(t, biscuit.ErrInvalidSignature, err)
 			require.Nil(t, verifier)
 		})
@@ -161,7 +161,7 @@ func TestSample7_ScopedRules(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier := &sampleVerifier{v}
 
@@ -183,7 +183,7 @@ func TestSample8_ScopedChecks(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier := &sampleVerifier{v}
 
@@ -205,7 +205,7 @@ func TestSample9_ExpiredToken(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			verifier := &sampleVerifier{v}
@@ -237,7 +237,7 @@ func TestSample10_AuthorizerScope(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			verifier := &sampleVerifier{v}
@@ -279,7 +279,7 @@ func TestSample11_Authorizer_AuthorityChecks(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			ve, err := b.Verify(loadRootPublicKey(t, v))
+			ve, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			verifierCheck := biscuit.Check{
@@ -306,7 +306,7 @@ func TestSample11_Authorizer_AuthorityChecks(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("write")
@@ -315,7 +315,7 @@ func TestSample11_Authorizer_AuthorityChecks(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddOperation("read")
@@ -335,7 +335,7 @@ func TestSample12_AuthorityChecks(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			ve, err := b.Verify(loadRootPublicKey(t, v))
+			ve, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier := &sampleVerifier{ve}
 
@@ -343,7 +343,7 @@ func TestSample12_AuthorityChecks(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file1")
@@ -351,7 +351,7 @@ func TestSample12_AuthorityChecks(t *testing.T) {
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, err = b.Verify(loadRootPublicKey(t, v))
+			ve, err = b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file2")
@@ -369,7 +369,7 @@ func TestSample13_BlockRules(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			ve, err := b.Verify(loadRootPublicKey(t, v))
+			ve, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			verifier := &sampleVerifier{ve}
 
@@ -381,21 +381,21 @@ func TestSample13_BlockRules(t *testing.T) {
 			file1ValidTime, err := time.Parse(time.RFC3339, "2030-12-31T12:59:59+00:00")
 			require.NoError(t, err)
 
-			ve, _ = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Authorizer(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime)
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.NoError(t, verifier.Authorize())
 
-			ve, _ = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Authorizer(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file1")
 			verifier.SetTime(file1ValidTime.Add(1 * time.Second))
 			verifier.AddPolicy(biscuit.DefaultAllowPolicy)
 			require.Error(t, verifier.Authorize())
 
-			ve, _ = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Authorizer(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file2")
 			verifier.SetTime(time.Now())
@@ -405,7 +405,7 @@ func TestSample13_BlockRules(t *testing.T) {
 			otherFileValidTime, err := time.Parse(time.RFC3339, "1999-12-31T12:59:59+00:00")
 			require.NoError(t, err)
 
-			ve, _ = b.Verify(loadRootPublicKey(t, v))
+			ve, _ = b.Authorizer(loadRootPublicKey(t, v))
 			verifier = &sampleVerifier{ve}
 			verifier.AddResource("file2")
 			verifier.SetTime(otherFileValidTime)
@@ -432,7 +432,7 @@ func TestSample14_RegexConstraint(t *testing.T) {
 			}
 
 			for _, validFile := range validFiles {
-				v, err := b.Verify(loadRootPublicKey(t, v))
+				v, err := b.Authorizer(loadRootPublicKey(t, v))
 				require.NoError(t, err)
 
 				verifier := &sampleVerifier{v}
@@ -451,7 +451,7 @@ func TestSample14_RegexConstraint(t *testing.T) {
 			}
 
 			for _, invalidFile := range invalidFiles {
-				v, err := b.Verify(loadRootPublicKey(t, v))
+				v, err := b.Authorizer(loadRootPublicKey(t, v))
 				require.NoError(t, err)
 
 				verifier := &sampleVerifier{v}
@@ -473,7 +473,7 @@ func TestSample15_MultiQueriesChecks(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			rule1 := biscuit.Rule{
@@ -521,7 +521,7 @@ func TestSample16_CheckHeadName(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			v.AddPolicy(biscuit.DefaultAllowPolicy)
@@ -543,7 +543,7 @@ func TestSample17_Expressions(t *testing.T) {
 		b, err := biscuit.Unmarshal(token)
 		require.NoError(t, err)
 
-		v, err := b.Verify(loadRootPublicKey(t, "v2"))
+		v, err := b.Authorizer(loadRootPublicKey(t, "v2"))
 		require.NoError(t, err)
 
 		v.AddPolicy(biscuit.DefaultAllowPolicy)
@@ -559,7 +559,7 @@ func TestSample18_UnboundVariables(t *testing.T) {
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
 				Name: "operation",
@@ -580,7 +580,7 @@ func TestSample19_GeneratingAmbientFromVariables(t *testing.T) {
 
 			t.Log(b.String())
 
-			v, err := b.Verify(loadRootPublicKey(t, v))
+			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			v.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
@@ -602,7 +602,7 @@ func TestSample20_Sealed(t *testing.T) {
 
 			t.Log(b.String())
 
-			ve, err := b.Verify(loadRootPublicKey(t, v))
+			ve, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
 			v := &sampleVerifier{ve}

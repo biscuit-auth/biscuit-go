@@ -268,7 +268,10 @@ func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
 	}, nil
 }
 
-func (b *Biscuit) Verify(root ed25519.PublicKey) (Authorizer, error) {
+// Checks the signature and creates an Authorizer
+// The Authorizer can then test the authorizaion policies and
+// accept or refuse the request
+func (b *Biscuit) Authorizer(root ed25519.PublicKey) (Authorizer, error) {
 	currentKey := root
 
 	// for now we only support Ed25519
