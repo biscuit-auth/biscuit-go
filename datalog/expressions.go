@@ -302,6 +302,8 @@ const (
 	BinaryDiv
 	BinaryAnd
 	BinaryOr
+	BinaryIntersection
+	BinaryUnion
 )
 
 // LessThan returns true when left is less than right.
@@ -460,6 +462,46 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 	}
 
 	return Bool(false), nil
+}
+
+// Intersection returns the intersection of two sets
+type Intersection struct{}
+
+func (Intersection) Type() BinaryOpType {
+	return BinaryIntersection
+}
+func (Intersection) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	set, ok := left.(Set)
+	if !ok {
+		return nil, errors.New("datalog: Intersection left value must be a Set")
+	}
+
+	set2, ok := right.(Set)
+	if !ok {
+		return nil, errors.New("datalog: Intersection rightt value must be a Set")
+	}
+
+	return set.Intersect(set2), nil
+}
+
+// Intersection returns the intersection of two sets
+type Union struct{}
+
+func (Union) Type() BinaryOpType {
+	return BinaryUnion
+}
+func (Union) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	set, ok := left.(Set)
+	if !ok {
+		return nil, errors.New("datalog: Union left value must be a Set")
+	}
+
+	set2, ok := right.(Set)
+	if !ok {
+		return nil, errors.New("datalog: Union rightt value must be a Set")
+	}
+
+	return set.Union(set2), nil
 }
 
 // Prefix returns true when the left string starts with the right string.

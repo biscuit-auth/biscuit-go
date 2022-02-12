@@ -58,6 +58,40 @@ func (s Set) String() string {
 	sort.Strings(eltStr)
 	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
 }
+func (s Set) Intersect(t Set) Set {
+	other := make(map[Term]struct{}, len(t))
+	for _, v := range t {
+		other[v] = struct{}{}
+	}
+
+	result := Set{}
+
+	for _, id := range s {
+		if _, ok := other[id]; ok {
+			result = append(result, id)
+		}
+	}
+	return result
+}
+func (s Set) Union(t Set) Set {
+	this := make(map[Term]struct{}, len(s))
+	for _, v := range s {
+		this[v] = struct{}{}
+	}
+
+	result := Set{}
+	for _, id := range s {
+		result = append(result, id)
+	}
+
+	for _, id := range t {
+		if _, ok := this[id]; !ok {
+			result = append(result, id)
+		}
+	}
+
+	return result
+}
 
 type Variable uint32
 

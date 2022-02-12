@@ -349,10 +349,10 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryRegex
 	case OpLength:
 		biscuit_op = biscuit.UnaryLength
-		/*FIXME: not implemented yet
-		case 	OpIntersection:
-				biscuit_op = biscuit.Binary
-			OpUnion*/
+	case OpIntersection:
+		biscuit_op = biscuit.BinaryIntersection
+	case OpUnion:
+		biscuit_op = biscuit.BinaryUnion
 	}
 
 	*expr = append(*expr, biscuit_op)
