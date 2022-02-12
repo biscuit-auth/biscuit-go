@@ -80,9 +80,7 @@ func (s Set) Union(t Set) Set {
 	}
 
 	result := Set{}
-	for _, id := range s {
-		result = append(result, id)
-	}
+	result = append(result, s...)
 
 	for _, id := range t {
 		if _, ok := this[id]; !ok {
