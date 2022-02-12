@@ -130,7 +130,7 @@ type Bytes []byte
 func (Bytes) Type() TermType      { return TermTypeBytes }
 func (b Bytes) Equal(t Term) bool { c, ok := t.(Bytes); return ok && bytes.Equal(b, c) }
 func (b Bytes) String() string {
-	return fmt.Sprintf("\"hex:%s\"", hex.EncodeToString(b))
+	return fmt.Sprintf("hex:%s", hex.EncodeToString(b))
 }
 
 type Bool bool

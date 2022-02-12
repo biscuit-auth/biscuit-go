@@ -282,7 +282,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `rule1("a") <- body1("hex:41414141")`,
+			Input: `rule1("a") <- body1(hex:41414141)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -296,7 +296,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `rule1("a") <- body1("hex:41414141"), $0 == "hex:41414141"`,
+			Input: `rule1("a") <- body1(hex:41414141), $0 == hex:41414141`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",

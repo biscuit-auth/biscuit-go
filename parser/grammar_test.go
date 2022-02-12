@@ -67,7 +67,7 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
-			Input: `right($1, "hex:41414141")`,
+			Input: `right($1, hex:41414141)`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
@@ -77,7 +77,7 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
-			Input: `right($1, ["hex:41414141", "sym"])`,
+			Input: `right($1, [hex:41414141, "sym"])`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
@@ -272,7 +272,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `["hex:41", "hex:42", "hex:43"].contains($0)`,
+			Input: `[hex:41, hex:42, hex:43].contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
 					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
@@ -281,7 +281,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `!["hex:41", "hex:42", "hex:43"].contains($0)`,
+			Input: `![hex:41, hex:42, hex:43].contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
 					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
