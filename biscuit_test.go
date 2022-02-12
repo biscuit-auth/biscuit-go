@@ -105,6 +105,63 @@ func TestBiscuit(t *testing.T) {
 	require.Error(t, v3.Authorize())
 }
 
+func TestSealedBiscuit(t *testing.T) {
+	rng := rand.Reader
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
+
+	builder := NewBuilder(privateRoot)
+
+	builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "right", IDs: []Term{String("/a/file1"), String("read")}},
+	})
+	builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "right", IDs: []Term{String("/a/file1"), String("write")}},
+	})
+	builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "right", IDs: []Term{String("/a/file2"), String("read")}},
+	})
+
+	b1, err := builder.Build()
+	require.NoError(t, err)
+
+	b1ser, err := b1.Serialize()
+	require.NoError(t, err)
+	require.NotEmpty(t, b1ser)
+
+	b1deser, err := Unmarshal(b1ser)
+	require.NoError(t, err)
+
+	block2 := b1deser.CreateBlock()
+	block2.AddCheck(Check{
+		Queries: []Rule{
+			{
+				Head: Predicate{Name: "caveat", IDs: []Term{Variable("0")}},
+				Body: []Predicate{
+					{Name: "resource", IDs: []Term{Variable("0")}},
+					{Name: "operation", IDs: []Term{String("read")}},
+					{Name: "right", IDs: []Term{Variable("0"), String("read")}},
+				},
+			},
+		},
+	})
+
+	b2, err := b1deser.Append(rng, block2.Build())
+	require.NoError(t, err)
+
+	b2Seal, err := b2.Seal(rng)
+	require.NoError(t, err)
+
+	b2ser, err := b2Seal.Serialize()
+	require.NoError(t, err)
+	require.NotEmpty(t, b2ser)
+
+	b2deser, err := Unmarshal(b2ser)
+	require.NoError(t, err)
+
+	_, err = b2deser.Verify(publicRoot)
+	require.NoError(t, err)
+}
+
 func TestBiscuitRules(t *testing.T) {
 	rng := rand.Reader
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
