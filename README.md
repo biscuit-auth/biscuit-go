@@ -1,12 +1,13 @@
 
 # biscuit-go
 
-biscuit-go is an implementation of [Biscuit](https://github.com/clevercloud/biscuit) in Go. It aims to be fully compatible with other existing implementations, so that tokens issued by, for example, the Rust version, could be validated by this library and vice versa.
+biscuit-go is an implementation of [Biscuit](https://github.com/biscuit-auth/biscuit) in Go. It aims to be fully compatible with other existing implementations, so that tokens issued by, for example, the Rust version, could be validated by this library and vice versa.
 
 ## Documentation and specifications
 
-- [CleverCloud/biscuit repository](https://github.com/CleverCloud/biscuit), for the latest documentation and specifications.
-- [CleverCloud/biscuit-rust](https://github.com/clevercloud/biscuit-rust) for some more technical details.
+- [biscuit website](https://www.biscuitsec.org) for documentation and examples
+- [biscuit specification](https://github.com/biscuit-auth/biscuit)
+- [biscuit-rust](https://github.com/biscuit-auth/biscuit-rust) for some more technical details.
 
 ## Usage
 
