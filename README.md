@@ -13,21 +13,15 @@ biscuit-go is an implementation of [Biscuit](https://github.com/clevercloud/bisc
 #### Create a biscuit
 ```go
 rng := rand.Reader
-root := sig.GenerateKeypair(rng)
+publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
+builder := biscuit.NewBuilder(privateRoot)
 
-// retrieve public key with root.Public()
-// and share or expose it to verifiers
+fact1, err := parser.FromStringFact(`right("/a/file1.txt", "read")`)
+if err != nil {
+    panic(fmt.Errorf("failed to parse authority facts: %v", err))
+}
 
-builder := biscuit.NewBuilder(root)
-
-err := builder.AddAuthorityFact(biscuit.Fact{biscuit.Predicate{
-    Name: "right",
-    IDs: []biscuit.Term{
-        biscuit.Symbol("authority"),
-        biscuit.String("/a/file1.txt"),
-        biscuit.Symbol("read"),
-    },
-}})
+err := builder.AddAuthorityFact(fact1)
 if err != nil {
     panic(fmt.Errorf("failed to add authority facts: %v", err))
 }
@@ -59,8 +53,7 @@ blockBuilder.AddFact(biscuit.Fact{/* ... */})
 
 // ... add more facts, rules, caveats...
 
-newKeyPair := sig.GenerateKeypair(rng)
-attenuatedBiscuit, err := b.Append(rng, newKeyPair, blockBuilder.Build())
+attenuatedBiscuit, err := b.Append(rng, blockBuilder.Build())
 if err != nil {
     panic(fmt.Errorf("failed to append: %v", err))
 }
@@ -80,29 +73,26 @@ if err != nil {
     panic(fmt.Errorf("failed to deserialize token: %v", err))
 }
 
-rootPubKey := sig.NewPublicKey([]byte{/* root public key used in create step*/})
-
-verifier, err := b.Verify(rootPubKey)
+authorizer, err := b.Authorizer(publicRoot)
 if err != nil {
-    panic(fmt.Errorf("failed to create verifier: %v", err))
+    panic(fmt.Errorf("failed to verify token and create authorizer: %v", err))
 }
 
-verifier.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{
-    Name: "resource", 
-    IDs: []biscuit.Term{
-        biscuit.SymbolAmbient, 
-        biscuit.String("/a/file1.txt")
-    }
-}})
+fact1, err := parser.FromStringFact(`resource("/a/file1.txt")`)
+if err != nil {
+    panic(fmt.Errorf("failed to parse authority facts: %v", err))
+}
+
+auhorizer.AddFact(fact1)
 
 // ... add more ambient facts, rules, caveats...
 
-verifier.AddPolicy(biscuit.DefaultAllowPolicy)
+authorizer.AddPolicy(biscuit.DefaultAllowPolicy)
 
-if err := verifier.Verify(); err != nil {
-    fmt.Printf("failed to verify token: %v\n", err)
+if err := authorizer.Authorize(); err != nil {
+    fmt.Printf("failed authorizing token: %v\n", err)
 } else {
-    fmt.Println("success verifying token")
+    fmt.Println("success authorizing token")
 }
 ```
 
@@ -112,11 +102,11 @@ To ease adding facts, rules, or caveats, a simple grammar and a parser are avail
 
 ```go
 p := parser.New()
-b.AddFact(p.Must().Fact(`resource(#ambient, "/a/file1.txt")`))
+b.AddFact(p.Must().Fact(`resource("/a/file1.txt")`))
 b.AddRule(p.Must().Rule(`
     can_read($file) 
-        <- resource(#ambient, $file) 
-        @ prefix($file, "/a/")
+        <- resource($file)
+        $file.starts_with("/a/")
 `))
 ```
 
