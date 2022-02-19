@@ -39,7 +39,7 @@ type builder struct {
 
 type builderOption func(b *builder)
 
-func WihtRandom(rng io.Reader) builderOption {
+func WithRandom(rng io.Reader) builderOption {
 	return func(b *builder) {
 		b.rng = rng
 	}
