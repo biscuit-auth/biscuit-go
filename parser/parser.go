@@ -152,7 +152,7 @@ func (p *parser) Policy(policy string) (biscuit.Policy, error) {
 		}
 	case parsed.Deny != nil:
 		{
-			parsedQueries = parsed.Allow.Queries
+			parsedQueries = parsed.Deny.Queries
 			kind = biscuit.PolicyKindDeny
 			break
 		}
