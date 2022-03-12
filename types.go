@@ -20,7 +20,7 @@ var defaultSymbolTable = &datalog.SymbolTable{
 	"resource",
 	"operation",
 	"right",
-	"current_time",
+	"time",
 	"revocation_id",
 }
 
