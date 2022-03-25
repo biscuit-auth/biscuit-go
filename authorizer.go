@@ -284,9 +284,9 @@ func (v *authorizer) Reset() {
 	v.dirty = false
 }
 
-func (v *authorizer) LoadPolicies(verifierPolicies []byte) error {
-	pbPolicies := &pb.VerifierPolicies{}
-	if err := proto.Unmarshal(verifierPolicies, pbPolicies); err != nil {
+func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
+	pbPolicies := &pb.AuthorizerPolicies{}
+	if err := proto.Unmarshal(authorizerPolicies, pbPolicies); err != nil {
 		return fmt.Errorf("verifier: failed to load policies: %w", err)
 	}
 
@@ -298,7 +298,7 @@ func (v *authorizer) LoadPolicies(verifierPolicies []byte) error {
 	}
 }
 
-func (v *authorizer) loadPoliciesV2(pbPolicies *pb.VerifierPolicies) error {
+func (v *authorizer) loadPoliciesV2(pbPolicies *pb.AuthorizerPolicies) error {
 	policySymbolTable := datalog.SymbolTable(pbPolicies.Symbols)
 	v.symbols = v.baseSymbols.Clone()
 	v.symbols.Extend(&policySymbolTable)
@@ -422,7 +422,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 	}
 
 	version := MaxSchemaVersion
-	return proto.Marshal(&pb.VerifierPolicies{
+	return proto.Marshal(&pb.AuthorizerPolicies{
 		Symbols:  *v.symbols.Clone(),
 		Version:  proto.Uint32(version),
 		Facts:    protoFacts,
