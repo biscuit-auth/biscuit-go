@@ -397,21 +397,21 @@ func TestSymbolTable(t *testing.T) {
 
 func TestSymbolTableInsertAndSym(t *testing.T) {
 	s := new(SymbolTable)
-	require.Equal(t, String(0), s.Insert("a"))
-	require.Equal(t, String(1), s.Insert("b"))
-	require.Equal(t, String(2), s.Insert("c"))
+	require.Equal(t, String(1024), s.Insert("a"))
+	require.Equal(t, String(1025), s.Insert("b"))
+	require.Equal(t, String(1026), s.Insert("c"))
 
 	require.Equal(t, &SymbolTable{"a", "b", "c"}, s)
 
-	require.Equal(t, String(0), s.Insert("a"))
-	require.Equal(t, String(3), s.Insert("d"))
+	require.Equal(t, String(1024), s.Insert("a"))
+	require.Equal(t, String(1027), s.Insert("d"))
 
 	require.Equal(t, &SymbolTable{"a", "b", "c", "d"}, s)
 
-	require.Equal(t, String(0), s.Sym("a"))
-	require.Equal(t, String(1), s.Sym("b"))
-	require.Equal(t, String(2), s.Sym("c"))
-	require.Equal(t, String(3), s.Sym("d"))
+	require.Equal(t, String(1024), s.Sym("a"))
+	require.Equal(t, String(1025), s.Sym("b"))
+	require.Equal(t, String(1026), s.Sym("c"))
+	require.Equal(t, String(1027), s.Sym("d"))
 	require.Equal(t, nil, s.Sym("e"))
 }
 

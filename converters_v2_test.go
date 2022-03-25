@@ -701,7 +701,7 @@ func TestBlockConvertV2(t *testing.T) {
 		Body: []datalog.Predicate{predicate},
 		Expressions: []datalog.Expression{
 			{
-				datalog.Value{ID: datalog.Variable(13)},
+				datalog.Value{ID: datalog.Variable(datalog.OFFSET + 13)},
 				datalog.Value{ID: datalog.Integer(1234)},
 				datalog.BinaryOp{BinaryOpFunc: datalog.Equal{}},
 			},
@@ -713,7 +713,7 @@ func TestBlockConvertV2(t *testing.T) {
 		Body: []*pb.PredicateV2{pbPredicate},
 		Expressions: []*pb.ExpressionV2{
 			{Ops: []*pb.Op{
-				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 13}}}},
+				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: uint32(datalog.OFFSET + 13)}}}},
 				{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 1234}}}},
 				{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
 			}},

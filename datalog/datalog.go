@@ -600,48 +600,114 @@ func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*Term, error) {
 	return variables, nil
 }
 
+var DEFAULT_SYMBOLS = [...]string{
+	"read",
+	"write",
+	"resource",
+	"operation",
+	"right",
+	"time",
+	"role",
+	"owner",
+	"tenant",
+	"namespace",
+	"user",
+	"team",
+	"service",
+	"admin",
+	"email",
+	"group",
+	"member",
+	"ip_address",
+	"client",
+	"client_ip",
+	"domain",
+	"path",
+	"version",
+	"cluster",
+	"node",
+	"hostname",
+	"nonce",
+	"query",
+}
+
+var OFFSET = 1024
+
 type SymbolTable []string
 
 func (t *SymbolTable) Insert(s string) String {
-	for i, v := range *t {
+	for i, v := range DEFAULT_SYMBOLS {
 		if string(v) == s {
 			return String(i)
 		}
 	}
+
+	for i, v := range *t {
+		if string(v) == s {
+			return String(OFFSET + i)
+		}
+	}
 	*t = append(*t, s)
-	return String(len(*t) - 1)
+
+	return String(OFFSET + len(*t) - 1)
 }
 
 func (t *SymbolTable) Sym(s string) Term {
-	for i, v := range *t {
+	for i, v := range DEFAULT_SYMBOLS {
 		if string(v) == s {
 			return String(i)
+		}
+	}
+
+	for i, v := range *t {
+		if string(v) == s {
+			return String(OFFSET + i)
 		}
 	}
 	return nil
 }
 
 func (t *SymbolTable) Index(s string) uint64 {
-	for i, v := range *t {
+	for i, v := range DEFAULT_SYMBOLS {
 		if string(v) == s {
 			return uint64(i)
+		}
+	}
+
+	for i, v := range *t {
+		if string(v) == s {
+			return uint64(OFFSET + i)
 		}
 	}
 	panic("index not found")
 }
 
 func (t *SymbolTable) Str(sym String) string {
-	if int(sym) > len(*t)-1 {
+	if int(sym) < 1024 {
+		if int(sym) > len(DEFAULT_SYMBOLS)-1 {
+			return fmt.Sprintf("<invalid symbol %d>", sym)
+		} else {
+			return DEFAULT_SYMBOLS[int(sym)]
+		}
+	}
+	if int(sym)-1024 > len(*t)-1 {
 		return fmt.Sprintf("<invalid symbol %d>", sym)
 	}
-	return (*t)[int(sym)]
+	return (*t)[int(sym)-1024]
 }
 
 func (t *SymbolTable) Var(v Variable) string {
-	if int(v) > len(*t)-1 {
+	if int(v) < 1024 {
+		if int(v) > len(DEFAULT_SYMBOLS)-1 {
+			return fmt.Sprintf("<invalid variable %d>", v)
+		} else {
+			return DEFAULT_SYMBOLS[int(v)]
+		}
+	}
+	if int(v)-1024 > len(*t)-1 {
 		return fmt.Sprintf("<invalid variable %d>", v)
 	}
-	return (*t)[int(v)]
+	return (*t)[int(v)-1024]
 }
 
 func (t *SymbolTable) Clone() *SymbolTable {

@@ -365,13 +365,16 @@ func TestAppendErrors(t *testing.T) {
 	rng := rand.Reader
 	_, privateRoot, _ := ed25519.GenerateKey(rng)
 	builder := NewBuilder(privateRoot)
+	builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "newfact", IDs: []Term{String("/a/file1"), String("read")}},
+	})
 
 	t.Run("Strings overlap", func(t *testing.T) {
 		b, err := builder.Build()
 		require.NoError(t, err)
 
 		_, err = b.Append(rng, &Block{
-			symbols: &datalog.SymbolTable{"authority"},
+			symbols: &datalog.SymbolTable{"newfact"},
 		})
 		require.Equal(t, ErrSymbolTableOverlap, err)
 	})

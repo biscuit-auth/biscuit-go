@@ -15,15 +15,7 @@ const MaxSchemaVersion uint32 = 3
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
-var defaultSymbolTable = &datalog.SymbolTable{
-	"authority",
-	"ambient",
-	"resource",
-	"operation",
-	"right",
-	"current_time",
-	"revocation_id",
-}
+var defaultSymbolTable = &datalog.SymbolTable{}
 
 type Block struct {
 	symbols *datalog.SymbolTable
