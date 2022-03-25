@@ -61,6 +61,13 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	var rules []datalog.Rule
 	var checks []datalog.Check
 
+	if input.GetVersion() < MinSchemaVersion {
+		return nil, fmt.Errorf(
+			"biscuit: failed to convert proto block to token block: block version: %d < library version %d",
+			input.GetVersion(),
+			MinSchemaVersion,
+		)
+	}
 	if input.GetVersion() > MaxSchemaVersion {
 		return nil, fmt.Errorf(
 			"biscuit: failed to convert proto block to token block: block version: %d > library version %d",
@@ -70,7 +77,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	}
 
 	switch input.GetVersion() {
-	case 2:
+	case 3:
 		facts = make(datalog.FactSet, len(input.FactsV2))
 		rules = make([]datalog.Rule, len(input.RulesV2))
 		checks = make([]datalog.Check, len(input.ChecksV2))

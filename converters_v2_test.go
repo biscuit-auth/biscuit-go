@@ -726,11 +726,11 @@ func TestBlockConvertV2(t *testing.T) {
 		rules:   []datalog.Rule{*rule},
 		checks:  []datalog.Check{{Queries: []datalog.Rule{*rule}}},
 		context: "context",
-		version: 2,
+		version: 3,
 	}
 
 	ctx := "context"
-	version := uint32(2)
+	version := uint32(3)
 	expectedPbBlock := &pb.Block{
 		Symbols: []string{"a", "b", "c", "d"},
 		FactsV2: []*pb.FactV2{

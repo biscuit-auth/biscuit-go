@@ -10,7 +10,8 @@ import (
 	"github.com/biscuit-auth/biscuit-go/datalog"
 )
 
-const MaxSchemaVersion uint32 = 2
+const MinSchemaVersion uint32 = 3
+const MaxSchemaVersion uint32 = 3
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
