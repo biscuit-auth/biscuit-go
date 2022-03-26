@@ -27,7 +27,7 @@ var BiscuitLexerRules = []stateful.Rule{
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},
 	{Name: "Int", Pattern: `[0-9]+`, Action: nil},
 	{Name: "Bool", Pattern: `true|false`, Action: nil},
-	{Name: "Ident", Pattern: `[a-zA-Z0-9_]+`, Action: nil},
+	{Name: "Ident", Pattern: `[a-zA-Z0-9_:]+`, Action: nil},
 	{Name: "Whitespace", Pattern: `[ \t]+`, Action: nil},
 	{Name: "EOL", Pattern: `[\n\r]+`, Action: nil},
 	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`, Action: nil},
