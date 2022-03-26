@@ -31,11 +31,12 @@ type Authorizer interface {
 }
 
 type authorizer struct {
-	biscuit     *Biscuit
-	baseWorld   *datalog.World
-	world       *datalog.World
-	baseSymbols *datalog.SymbolTable
-	symbols     *datalog.SymbolTable
+	biscuit      *Biscuit
+	baseWorld    *datalog.World
+	world        *datalog.World
+	baseSymbols  *datalog.SymbolTable
+	symbols      *datalog.SymbolTable
+	block_worlds []*datalog.World
 
 	checks   []Check
 	policies []Policy
@@ -49,12 +50,14 @@ func NewVerifier(b *Biscuit) (Authorizer, error) {
 	baseWorld := datalog.NewWorld()
 
 	return &authorizer{
-		biscuit:     b,
-		baseWorld:   baseWorld,
-		world:       baseWorld.Clone(),
-		symbols:     defaultSymbolTable.Clone(),
-		baseSymbols: defaultSymbolTable.Clone(),
-		checks:      []Check{},
+		biscuit:      b,
+		baseWorld:    baseWorld,
+		world:        baseWorld.Clone(),
+		symbols:      defaultSymbolTable.Clone(),
+		baseSymbols:  defaultSymbolTable.Clone(),
+		checks:       []Check{},
+		policies:     []Policy{},
+		block_worlds: []*datalog.World{},
 	}, nil
 }
 
@@ -175,12 +178,14 @@ func (v *authorizer) Authorize() error {
 	v.world.ResetRules()
 
 	for i, block := range v.biscuit.blocks {
+		block_world := v.world.Clone()
+
 		for _, fact := range *block.facts {
 			f, err := fromDatalogFact(v.biscuit.symbols, fact)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
-			v.world.AddFact(f.convert(v.symbols))
+			block_world.AddFact(f.convert(v.symbols))
 		}
 
 		for _, rule := range block.rules {
@@ -188,10 +193,10 @@ func (v *authorizer) Authorize() error {
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
-			v.world.AddRule(r.convert(v.symbols))
+			block_world.AddRule(r.convert(v.symbols))
 		}
 
-		if err := v.world.Run(v.symbols); err != nil {
+		if err := block_world.Run(v.symbols); err != nil {
 			return err
 		}
 
@@ -204,7 +209,8 @@ func (v *authorizer) Authorize() error {
 
 			successful := false
 			for _, query := range c.Queries {
-				res := v.world.QueryRule(query, v.symbols)
+				res := block_world.QueryRule(query, v.symbols)
+
 				if len(*res) != 0 {
 					successful = true
 					break
@@ -218,7 +224,8 @@ func (v *authorizer) Authorize() error {
 			}
 		}
 
-		v.world.ResetRules()
+		block_world.ResetRules()
+		v.block_worlds = append(v.block_worlds, block_world)
 	}
 
 	if len(errs) > 0 {

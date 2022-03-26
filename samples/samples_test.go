@@ -674,7 +674,7 @@ func TestSample22_DefaultSymbols(t *testing.T) {
 func TestSample23_ExecutionScope(t *testing.T) {
 	for _, v := range versions {
 		t.Run(v, func(t *testing.T) {
-			token := loadSampleToken(t, v, "test22_default_symbols.bc")
+			token := loadSampleToken(t, v, "test23_execution_scope.bc")
 
 			b, err := biscuit.Unmarshal(token)
 			require.NoError(t, err)
@@ -684,17 +684,10 @@ func TestSample23_ExecutionScope(t *testing.T) {
 			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
-			check1, err := parser.FromStringCheck(`check if authority_fact($var)`)
-			require.NoError(t, err)
-			v.AddCheck(check1)
-
-			check2, err := parser.FromStringCheck(`check if block1_fact($var)`)
-			require.NoError(t, err)
-			v.AddCheck(check2)
-
 			v.AddPolicy(biscuit.DefaultAllowPolicy)
 
 			require.Error(t, v.Authorize())
+
 		})
 	}
 }
