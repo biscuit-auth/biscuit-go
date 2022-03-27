@@ -447,6 +447,16 @@ func (Contains) Type() BinaryOpType {
 	return BinaryContains
 }
 func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	sleft, ok := left.(String)
+	if ok {
+		sright, ok := right.(String)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Contains requires right value to be a String, got %T", right)
+		}
+
+		return Bool(strings.Contains(symbols.Str(sleft), symbols.Str(sright))), nil
+	}
+
 	switch right.Type() {
 	case TermTypeInteger:
 	case TermTypeBytes:
@@ -587,6 +597,17 @@ func (Add) Type() BinaryOpType {
 	return BinaryAdd
 }
 func (Add) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	sleft, ok := left.(String)
+	if ok {
+		sright, ok := right.(String)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Add requires right value to be a String, got %T", right)
+		}
+
+		s := symbols.Insert(symbols.Str(sleft) + symbols.Str(sright))
+		return s, nil
+	}
+
 	ileft, ok := left.(Integer)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Add requires left value to be an Integer, got %T", left)
