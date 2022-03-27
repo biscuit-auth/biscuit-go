@@ -83,9 +83,9 @@ func (e *Expression) Print(symbols *SymbolTable) string {
 			id := op.(Value).ID
 			switch id.Type() {
 			case TermTypeString:
-				s.Push(symbols.Str(id.(String)))
+				s.Push(fmt.Sprintf("\"%s\"", symbols.Str(id.(String))))
 			case TermTypeVariable:
-				s.Push(symbols.Var(id.(Variable)))
+				s.Push(fmt.Sprintf("$%s", symbols.Var(id.(Variable))))
 			default:
 				s.Push(id.String())
 			}
