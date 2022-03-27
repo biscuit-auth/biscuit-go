@@ -45,14 +45,14 @@ func (b *Block) String(symbols *datalog.SymbolTable) string {
 		context: %q
 		facts: %v
 		rules: %v
-		checks: %v
+		checks: [%s]
 		version: %d
 	}`,
 		*b.symbols,
 		b.context,
 		debug.FactSet(b.facts),
 		rules,
-		checks,
+		strings.Join(checks, ", "),
 		b.version,
 	)
 }
