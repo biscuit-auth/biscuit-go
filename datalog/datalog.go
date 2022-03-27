@@ -807,7 +807,7 @@ func (d SymbolDebugger) Rule(r Rule) string {
 	}
 
 	var expressionsStart string
-	if len(expressions) > 0 {
+	if len(preds) > 0 && len(expressions) > 0 {
 		expressionsStart = ", "
 	}
 
@@ -825,7 +825,7 @@ func (d SymbolDebugger) CheckQuery(r Rule) string {
 	}
 
 	var expressionsStart string
-	if len(preds) > 0 {
+	if len(preds) > 0 && len(expressions) > 0 {
 		expressionsStart = ", "
 	}
 
