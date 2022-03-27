@@ -525,10 +525,25 @@ func NewCombinator(variables MatchedVariables, predicates []Predicate, expressio
 
 func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*Term, error) {
 	var variables []map[Variable]*Term
+
 	// Stop when no more predicates are available
 	if len(c.predicates) == 0 {
 		if vars := c.variables.Complete(); vars != nil {
-			variables = append(variables, vars)
+			valid := true
+			for _, e := range c.expressions {
+				res, err := e.Evaluate(vars, syms)
+				if err != nil {
+					return nil, err
+				}
+				if !res.Equal(Bool(true)) {
+					valid = false
+					break
+				}
+			}
+
+			if valid {
+				variables = append(variables, vars)
+			}
 		}
 		return variables, nil
 	}
