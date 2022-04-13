@@ -167,6 +167,7 @@ func (p Predicate) Match(p2 Predicate) bool {
 		if v1 || v2 {
 			continue
 		}
+		// if both of the predicates are not a Variable, compare
 		if !id.Equal(p2.Terms[i]) {
 			return false
 		}
@@ -214,7 +215,8 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error 
 		}
 	}
 
-	combined, err := NewCombinator(variables, r.Body, r.Expressions, facts).Combine(syms)
+	comb := NewCombinator(variables, r.Body, r.Expressions, facts)
+	combined, err := comb.Combine(syms)
 	if err != nil {
 		return err
 	}
@@ -382,9 +384,11 @@ func (w *World) Run(syms *SymbolTable) error {
 					case <-ctx.Done():
 						return
 					default:
-						if err := r.Apply(w.facts, &newFacts, syms); err != nil {
-							done <- err
-							return
+						if err := r.Apply2(w.facts, &newFacts, syms); err != nil {
+							if !errors.Is(SolvSafeForWorldError{}, err) {
+								done <- err
+								return
+							}
 						}
 					}
 				}
@@ -555,7 +559,7 @@ func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*Term, error) {
 			// minLen is the smallest number of IDs
 			// between the predicate and the current fact
 			minLen := len(pred.Terms)
-			if l := len(currentFact.Predicate.Terms); l < minLen {
+			if l := len(currentFact.Terms); l < minLen {
 				minLen = l
 			}
 
@@ -565,16 +569,22 @@ func (c *Combinator) Combine(syms *SymbolTable) ([]map[Variable]*Term, error) {
 				if !ok {
 					continue
 				}
-				v := currentFact.Predicate.Terms[j]
+				v := currentFact.Terms[j]
 				if !vars.Insert(k, v) {
 					matchIDs = false
 				}
 				if !matchIDs {
+					// do not try to match pred's vars to fact's terms
+					// further, if the facts's term is different from the
+					// already found value for the var
+					// TODO: why??
 					break
 				}
 			}
 
 			if !matchIDs {
+				// continue to check current facts
+				// possibly not all vars of the current pred are matched
 				continue
 			}
 
