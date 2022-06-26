@@ -568,10 +568,10 @@ const (
 )
 
 var (
-	// DefaultAllowPolicy allows the biscuit to verify sucessfully as long as all its rules generate some facts.
-	DefaultAllowPolicy = Policy{Kind: PolicyKindAllow, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+	// DefaultAllowPolicy allows the biscuit to verify sucessfully as long as all its checks generate some facts.
+	DefaultAllowPolicy = Policy{Kind: PolicyKindAllow, Queries: []Rule{{Head: Predicate{Name: "allow"}}}}
 	// DefaultDenyPolicy makes the biscuit verification fail in all cases.
-	DefaultDenyPolicy = Policy{Kind: PolicyKindDeny, Queries: []Rule{{Head: Predicate{Name: "true"}}}}
+	DefaultDenyPolicy = Policy{Kind: PolicyKindDeny, Queries: []Rule{{Head: Predicate{Name: "deny"}}}}
 )
 
 type Policy struct {
