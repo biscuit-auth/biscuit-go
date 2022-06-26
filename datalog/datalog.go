@@ -529,20 +529,8 @@ func combine(variables MatchedVariables, predicates []Predicate, expressions []E
 					} else {
 						// did not match, we either increase the current index or the previous one
 						// then we check again for a match
-						for i := current; i >= 0; i-- {
-							if indexes[i] < len(*facts)-1 {
-								indexes[i] += 1
-								break
-							} else {
-								if i > 0 {
-									indexes[i] = 0
-									current -= 1
-								} else {
-									// we reached the first predicate, we cannot generate more
-									// combinations, so we stop the task
-									return
-								}
-							}
+						if !advanceIndexes(&current, &indexes, facts) {
+							return
 						}
 					}
 				}
@@ -616,23 +604,30 @@ func combine(variables MatchedVariables, predicates []Predicate, expressions []E
 			}
 
 			// next index
-			for i := current; i >= 0; i-- {
-				if indexes[i] < len(*facts)-1 {
-					indexes[i] += 1
-					break
-				} else {
-					if i > 0 {
-						indexes[i] = 0
-						current -= 1
-					} else {
-						// we reached the first predicate, we cannot generate more
-						// combinations, so we stop the task
-						return
-					}
-				}
+			if !advanceIndexes(&current, &indexes, facts) {
+				return
 			}
 		}
 
 	}(c)
 	return c
+}
+
+func advanceIndexes(current *int, indexes *[]int, facts *FactSet) bool {
+	for i := *current; i >= 0; i-- {
+		if (*indexes)[i] < len(*facts)-1 {
+			(*indexes)[i] += 1
+			break
+		} else {
+			if i > 0 {
+				(*indexes)[i] = 0
+				*current -= 1
+			} else {
+				// we reached the first predicate, we cannot generate more
+				// combinations, so we stop the task
+				return false
+			}
+		}
+	}
+	return true
 }
