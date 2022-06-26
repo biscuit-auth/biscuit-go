@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/alecthomas/participle/v2/lexer"
+	"github.com/alecthomas/participle/v2/lexer/stateful"
 	"github.com/biscuit-auth/biscuit-go"
 )
 
@@ -13,7 +13,7 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var BiscuitLexerRules = []lexer.Rule{
+var BiscuitLexerRules = []stateful.Rule{
 	{Name: "Keyword", Pattern: `check if|allow if|deny if`, Action: nil},
 	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`, Action: nil},
 	{Name: "Hex", Pattern: `hex:`, Action: nil},
@@ -34,7 +34,7 @@ var BiscuitLexerRules = []lexer.Rule{
 }
 
 var DefaultParserOptions = []participle.Option{
-	participle.Lexer(lexer.MustSimple(BiscuitLexerRules)),
+	participle.Lexer(stateful.MustSimple(BiscuitLexerRules)),
 	participle.UseLookahead(1),
 	participle.Elide("Whitespace", "EOL"),
 	participle.Unquote("String"),

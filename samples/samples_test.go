@@ -653,20 +653,17 @@ func TestSample22_DefaultSymbols(t *testing.T) {
 			v, err := b.Authorizer(loadRootPublicKey(t, v))
 			require.NoError(t, err)
 
-			check1, err := parser.FromStringCheck(`check if 
-			read(0), write(1), resource(2), operation(3), right(4), time(5), role(6), owner(7), tenant(8), namespace(9), 
-			user(10), team(11), service(12), admin(13), email(14), group(15), member(16), ip_address(17), client(18), client_ip(19),
-			domain(20), path(21), version(22), cluster(23), node(24),hostname(25), nonce(26), query(27)`)
+			check1, err := parser.FromStringCheck(`check if read(0), write(1), resource(2), operation(3), right(4), time(5), role(6), owner(7), tenant(8), namespace(9), user(10), team(11), service(12), admin(13), email(14), group(15), member(16)`)
 			require.NoError(t, err)
 			v.AddCheck(check1)
 
 			// separate in two checks because the parser gest slow at more than 20 facts
-			/*			check2, err := parser.FromStringCheck(`check if
-						ip_address(17), client(18), client_ip(19), domain(20), path(21), version(22),
-						cluster(23), node(24), hostname(25), nonce(26), query(27)`)
-						require.NoError(t, err)
-						v.AddCheck(check2)
-			*/
+			check2, err := parser.FromStringCheck(`check if
+			ip_address(17), client(18), client_ip(19), domain(20), path(21), version(22),
+			cluster(23), node(24), hostname(25), nonce(26), query(27)`)
+			require.NoError(t, err)
+			v.AddCheck(check2)
+
 			v.AddPolicy(biscuit.DefaultAllowPolicy)
 
 			require.NoError(t, v.Authorize())

@@ -114,9 +114,8 @@ func (v *authorizer) Authorize() error {
 		c := check.convert(v.symbols)
 		successful := false
 		for _, query := range c.Queries {
-			// for checks that verify Preds with no Vars, len(res) is 0, there are no new facts!
-			res, err := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 || err == nil {
+			res := v.world.QueryRule(query, v.symbols)
+			if len(*res) != 0 {
 				successful = true
 				break
 			}
@@ -138,8 +137,8 @@ func (v *authorizer) Authorize() error {
 
 		successful := false
 		for _, query := range c.Queries {
-			res, err := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 || err == nil {
+			res := v.world.QueryRule(query, v.symbols)
+			if len(*res) != 0 {
 				successful = true
 				break
 			}
@@ -159,9 +158,8 @@ func (v *authorizer) Authorize() error {
 			break
 		}
 		for _, query := range policy.Queries {
-			// TODO: how to deal with err? len(res) can be 0 for checks with pred that don't have Vars
-			res, err := v.world.QueryRule(query.convert(v.symbols), v.symbols)
-			if len(*res) != 0 || err == nil {
+			res := v.world.QueryRule(query.convert(v.symbols), v.symbols)
+			if len(*res) != 0 {
 				switch policy.Kind {
 				case PolicyKindAllow:
 					policyResult = nil
@@ -211,9 +209,9 @@ func (v *authorizer) Authorize() error {
 
 			successful := false
 			for _, query := range c.Queries {
-				res, err := block_world.QueryRule(query, v.symbols)
+				res := block_world.QueryRule(query, v.symbols)
 
-				if len(*res) != 0 || err == nil {
+				if len(*res) != 0 {
 					successful = true
 					break
 				}
@@ -255,10 +253,7 @@ func (v *authorizer) Query(rule Rule) (FactSet, error) {
 	}
 	v.dirty = true
 
-	facts, err := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
-	if err != nil {
-		return nil, err
-	}
+	facts := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
 
 	result := make([]Fact, 0, len(*facts))
 	for _, fact := range *facts {
