@@ -3,7 +3,7 @@ module github.com/biscuit-auth/biscuit-go
 go 1.17
 
 require (
-	github.com/alecthomas/participle/v2 v2.0.0-alpha7
+	github.com/alecthomas/participle/v2 v2.0.0-beta.3
 	github.com/stretchr/testify v1.7.1
 	google.golang.org/protobuf v1.28.0
 )
