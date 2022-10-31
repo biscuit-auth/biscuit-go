@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/biscuit-auth/biscuit-go"
-	"github.com/biscuit-auth/biscuit-go/parser"
+	"github.com/biscuit-auth/biscuit-go/v2"
+	"github.com/biscuit-auth/biscuit-go/v2/parser"
 )
 
 // code examples for the documentation at https://www.biscuitsec.org

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/biscuit-auth/biscuit-go/datalog"
-	"github.com/biscuit-auth/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/v2/datalog"
+	"github.com/biscuit-auth/biscuit-go/v2/pb"
 
 	//"github.com/biscuit-auth/biscuit-go/sig"
 	"google.golang.org/protobuf/proto"

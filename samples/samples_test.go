@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/biscuit-auth/biscuit-go"
-	"github.com/biscuit-auth/biscuit-go/parser"
+	"github.com/biscuit-auth/biscuit-go/v2"
+	"github.com/biscuit-auth/biscuit-go/v2/parser"
 	"github.com/stretchr/testify/require"
 )
 
