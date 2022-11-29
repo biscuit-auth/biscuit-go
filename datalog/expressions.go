@@ -273,6 +273,10 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s && %s", left, right)
 	case BinaryOr:
 		out = fmt.Sprintf("%s || %s", left, right)
+	case BinaryIntersection:
+		out = fmt.Sprintf("%s.intersection(%s)", left, right)
+	case BinaryUnion:
+		out = fmt.Sprintf("%s.union(%s)", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
