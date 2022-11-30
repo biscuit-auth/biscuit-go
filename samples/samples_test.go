@@ -4,7 +4,7 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -689,14 +689,14 @@ func TestSample23_ExecutionScope(t *testing.T) {
 }
 
 func loadSampleToken(t *testing.T, version string, path string) []byte {
-	token, err := ioutil.ReadFile(fmt.Sprintf("data/%s/%s", version, path))
+	token, err := os.ReadFile(fmt.Sprintf("data/%s/%s", version, path))
 	require.NoError(t, err)
 
 	return token
 }
 
 func loadRootPublicKey(t *testing.T, version string) ed25519.PublicKey {
-	pubkey, err := ioutil.ReadFile(fmt.Sprintf("data/%s/root_key.pub", version))
+	pubkey, err := os.ReadFile(fmt.Sprintf("data/%s/root_key.pub", version))
 	require.NoError(t, err)
 
 	return pubkey
