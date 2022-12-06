@@ -48,15 +48,9 @@ var _ Authorizer = (*authorizer)(nil)
 
 type AuthorizerOption func(w *authorizer)
 
-func WithBaseWorld(baseWorld *datalog.World) AuthorizerOption {
+func WithWorldOptions(opts ...datalog.WorldOption) AuthorizerOption {
 	return func(a *authorizer) {
-		a.baseWorld = baseWorld
-	}
-}
-
-func WithBaseSymbolTable(syms *datalog.SymbolTable) AuthorizerOption {
-	return func(a *authorizer) {
-		a.baseSymbols = syms.Clone()
+		a.baseWorld = datalog.NewWorld(opts...)
 	}
 }
 
