@@ -46,19 +46,32 @@ type authorizer struct {
 
 var _ Authorizer = (*authorizer)(nil)
 
-func NewVerifier(b *Biscuit) (Authorizer, error) {
-	baseWorld := datalog.NewWorld()
+type AuthorizerOption func(w *authorizer)
 
-	return &authorizer{
+func WithWorldOptions(opts ...datalog.WorldOption) AuthorizerOption {
+	return func(a *authorizer) {
+		a.baseWorld = datalog.NewWorld(opts...)
+	}
+}
+
+func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
+	a := &authorizer{
 		biscuit:      b,
-		baseWorld:    baseWorld,
-		world:        baseWorld.Clone(),
-		symbols:      defaultSymbolTable.Clone(),
+		baseWorld:    datalog.NewWorld(),
 		baseSymbols:  defaultSymbolTable.Clone(),
 		checks:       []Check{},
 		policies:     []Policy{},
 		block_worlds: []*datalog.World{},
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(a)
+	}
+
+	a.world = a.baseWorld.Clone()
+	a.symbols = a.baseSymbols.Clone()
+
+	return a, nil
 }
 
 func (v *authorizer) AddFact(fact Fact) {
