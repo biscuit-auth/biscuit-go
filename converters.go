@@ -3,8 +3,8 @@ package biscuit
 import (
 	"fmt"
 
-	"github.com/biscuit-auth/biscuit-go/datalog"
-	"github.com/biscuit-auth/biscuit-go/pb"
+	"github.com/biscuit-auth/biscuit-go/v2/datalog"
+	"github.com/biscuit-auth/biscuit-go/v2/pb"
 	"google.golang.org/protobuf/proto"
 )
 
