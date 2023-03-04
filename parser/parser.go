@@ -13,24 +13,24 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var BiscuitLexerRules = []lexer.Rule{
-	{Name: "Keyword", Pattern: `check if|allow if|deny if`, Action: nil},
-	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`, Action: nil},
-	{Name: "Hex", Pattern: `hex:`, Action: nil},
-	{Name: "Dot", Pattern: `\.`, Action: nil},
-	{Name: "Arrow", Pattern: `<-`, Action: nil},
-	{Name: "Or", Pattern: `\|\|`, Action: nil},
-	{Name: "Operator", Pattern: `==|>=|<=|>|<|not|in`, Action: nil},
-	{Name: "Comment", Pattern: `//[^\n]*`, Action: nil},
-	{Name: "String", Pattern: `\"[^\"]*\"`, Action: nil},
-	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_]+`, Action: nil},
+var BiscuitLexerRules = []lexer.SimpleRule{
+	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
+	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
+	{Name: "Hex", Pattern: `hex:`},
+	{Name: "Dot", Pattern: `\.`},
+	{Name: "Arrow", Pattern: `<-`},
+	{Name: "Or", Pattern: `\|\|`},
+	{Name: "Operator", Pattern: `==|>=|<=|>|<|not|in`},
+	{Name: "Comment", Pattern: `//[^\n]*`},
+	{Name: "String", Pattern: `\"[^\"]*\"`},
+	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_]+`},
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},
-	{Name: "Int", Pattern: `[0-9]+`, Action: nil},
-	{Name: "Bool", Pattern: `true|false`, Action: nil},
-	{Name: "Ident", Pattern: `[a-zA-Z0-9_:]+`, Action: nil},
-	{Name: "Whitespace", Pattern: `[ \t]+`, Action: nil},
-	{Name: "EOL", Pattern: `[\n\r]+`, Action: nil},
-	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`, Action: nil},
+	{Name: "Int", Pattern: `[0-9]+`},
+	{Name: "Bool", Pattern: `true|false`},
+	{Name: "Ident", Pattern: `[a-zA-Z0-9_:]+`},
+	{Name: "Whitespace", Pattern: `[ \t]+`},
+	{Name: "EOL", Pattern: `[\n\r]+`},
+	{Name: "Punct", Pattern: `[-[!@%^&#$*()+_={}\|:;"'<,>.?/]|]`},
 }
 
 var DefaultParserOptions = []participle.Option{
