@@ -13,7 +13,7 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var BiscuitLexerRules = []lexer.SimpleRule{
+var BiscuitLexerRules = []lexer.Rule{
 	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
 	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
 	{Name: "Hex", Pattern: `hex:`},
