@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/participle/v2 v2.0.0-alpha7
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	google.golang.org/protobuf v1.28.1
 )
 
