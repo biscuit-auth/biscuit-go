@@ -10,7 +10,7 @@ import (
 )
 
 func TestGrammarPredicate(t *testing.T) {
-	parser, err := participle.Build(&Predicate{}, DefaultParserOptions...)
+	parser, err := participle.Build[Predicate](DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -101,8 +101,7 @@ func TestGrammarPredicate(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Predicate{}
-			err := parser.ParseString("test", testCase.Input, parsed)
+			parsed, err := parser.ParseString("test", testCase.Input)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
@@ -110,11 +109,10 @@ func TestGrammarPredicate(t *testing.T) {
 }
 
 func TestExprTerm(t *testing.T) {
-	parser, err := participle.Build(&ExprTerm{}, DefaultParserOptions...)
+	parser, err := participle.Build[ExprTerm](DefaultParserOptions...)
 	require.NoError(t, err)
 
-	parsed := &ExprTerm{}
-	err = parser.ParseString("test", "!$0", parsed)
+	parsed, err := parser.ParseString("test", "!$0")
 	require.NoError(t, err)
 	require.Equal(t, &ExprTerm{
 		Unary: &Unary{
@@ -132,7 +130,7 @@ func TestExprTerm(t *testing.T) {
 }
 
 func TestGrammarExpression(t *testing.T) {
-	parser, err := participle.Build(&Expression{}, DefaultParserOptions...)
+	parser, err := participle.Build[Expression](DefaultParserOptions...)
 	require.NoError(t, err)
 
 	t1, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
@@ -294,8 +292,7 @@ func TestGrammarExpression(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Expression{}
-			err := parser.ParseString("test", testCase.Input, parsed)
+			parsed, err := parser.ParseString("test", testCase.Input)
 			require.NoError(t, err)
 
 			var expr biscuit.Expression
@@ -307,7 +304,7 @@ func TestGrammarExpression(t *testing.T) {
 }
 
 func TestGrammarCheck(t *testing.T) {
-	parser, err := participle.Build(&Check{}, DefaultParserOptions...)
+	parser, err := participle.Build[Check](DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -506,8 +503,7 @@ func TestGrammarCheck(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Check{}
-			err := parser.ParseString("test", testCase.Input, parsed)
+			parsed, err := parser.ParseString("test", testCase.Input)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})
@@ -515,7 +511,7 @@ func TestGrammarCheck(t *testing.T) {
 }
 
 func TestGrammarRule(t *testing.T) {
-	parser, err := participle.Build(&Rule{}, DefaultParserOptions...)
+	parser, err := participle.Build[Rule](DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -698,8 +694,7 @@ func TestGrammarRule(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			parsed := &Rule{}
-			err := parser.ParseString("test", testCase.Input, parsed)
+			parsed, err := parser.ParseString("test", testCase.Input)
 			require.NoError(t, err)
 			require.Equal(t, testCase.Expected, parsed)
 		})

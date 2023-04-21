@@ -13,7 +13,7 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
-var BiscuitLexerRules = []lexer.Rule{
+var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
 	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
 	{Name: "Hex", Pattern: `hex:`},
@@ -57,10 +57,10 @@ type MustParser interface {
 }
 
 type parser struct {
-	factParser   *participle.Parser
-	ruleParser   *participle.Parser
-	checkParser  *participle.Parser
-	policyParser *participle.Parser
+	factParser   *participle.Parser[Predicate]
+	ruleParser   *participle.Parser[Rule]
+	checkParser  *participle.Parser[Check]
+	policyParser *participle.Parser[Policy]
 }
 
 var _ Parser = (*parser)(nil)
@@ -73,16 +73,16 @@ var _ MustParser = (*mustParser)(nil)
 
 func New() Parser {
 	return &parser{
-		factParser:   participle.MustBuild(&Predicate{}, DefaultParserOptions...),
-		ruleParser:   participle.MustBuild(&Rule{}, DefaultParserOptions...),
-		checkParser:  participle.MustBuild(&Check{}, DefaultParserOptions...),
-		policyParser: participle.MustBuild(&Policy{}, DefaultParserOptions...),
+		factParser:   participle.MustBuild[Predicate](DefaultParserOptions...),
+		ruleParser:   participle.MustBuild[Rule](DefaultParserOptions...),
+		checkParser:  participle.MustBuild[Check](DefaultParserOptions...),
+		policyParser: participle.MustBuild[Policy](DefaultParserOptions...),
 	}
 }
 
 func (p *parser) Fact(fact string) (biscuit.Fact, error) {
-	parsed := &Predicate{}
-	if err := p.factParser.ParseString("fact", fact, parsed); err != nil {
+	parsed, err := p.factParser.ParseString("fact", fact)
+	if err != nil {
 		return biscuit.Fact{}, err
 	}
 
@@ -101,8 +101,8 @@ func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 }
 
 func (p *parser) Rule(rule string) (biscuit.Rule, error) {
-	parsed := &Rule{}
-	if err := p.ruleParser.ParseString("rule", rule, parsed); err != nil {
+	parsed, err := p.ruleParser.ParseString("rule", rule)
+	if err != nil {
 		return biscuit.Rule{}, err
 	}
 
@@ -115,8 +115,8 @@ func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 }
 
 func (p *parser) Check(check string) (biscuit.Check, error) {
-	parsed := &Check{}
-	if err := p.checkParser.ParseString("check", check, parsed); err != nil {
+	parsed, err := p.checkParser.ParseString("check", check)
+	if err != nil {
 		return biscuit.Check{}, err
 	}
 
@@ -136,8 +136,8 @@ func (p *parser) Check(check string) (biscuit.Check, error) {
 }
 
 func (p *parser) Policy(policy string) (biscuit.Policy, error) {
-	parsed := &Policy{}
-	if err := p.policyParser.ParseString("policy", policy, parsed); err != nil {
+	parsed, err := p.policyParser.ParseString("policy", policy)
+	if err != nil {
 		return biscuit.Policy{}, err
 	}
 
