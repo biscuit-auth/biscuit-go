@@ -91,10 +91,6 @@ func (v *authorizer) AddPolicy(policy Policy) {
 }
 
 func (v *authorizer) Authorize() error {
-	debug := datalog.SymbolDebugger{
-		SymbolTable: v.symbols,
-	}
-
 	// if we load facts from the verifier before
 	// the token's fact and rules, we might get inconsistent symbols
 	// token ements should first be converted to builder elements
@@ -134,7 +130,7 @@ func (v *authorizer) Authorize() error {
 			}
 		}
 		if !successful {
-			debug = datalog.SymbolDebugger{
+			debug := datalog.SymbolDebugger{
 				SymbolTable: v.symbols,
 			}
 			errs = append(errs, fmt.Errorf("failed to verify check #%d: %s", i, debug.Check(c)))
@@ -157,7 +153,7 @@ func (v *authorizer) Authorize() error {
 			}
 		}
 		if !successful {
-			debug = datalog.SymbolDebugger{
+			debug := datalog.SymbolDebugger{
 				SymbolTable: v.symbols,
 			}
 			errs = append(errs, fmt.Errorf("failed to verify block 0 check #%d: %s", i, debug.Check(c)))
@@ -230,7 +226,7 @@ func (v *authorizer) Authorize() error {
 				}
 			}
 			if !successful {
-				debug = datalog.SymbolDebugger{
+				debug := datalog.SymbolDebugger{
 					SymbolTable: v.symbols,
 				}
 				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", i+1, j, debug.Check(c)))
