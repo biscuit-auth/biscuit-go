@@ -367,26 +367,14 @@ type Set struct {
 type HexString string
 
 func (h *HexString) Parse(lex *lexer.PeekingLexer) error {
-	token, err := lex.Peek(0)
-	if err != nil {
-		return err
-	}
-
+	token := lex.Peek()
 	if token.Value != "hex:" {
 		return participle.NextMatch
 	}
-	_, err = lex.Next()
-	if err != nil {
-		return err
-	}
+	lex.Next()
 
-	content, err := lex.Next()
-	if err != nil {
-		return err
-	}
-
+	content := lex.Next()
 	*h = HexString(content.Value)
-
 	return nil
 }
 
