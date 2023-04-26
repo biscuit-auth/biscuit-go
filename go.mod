@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/stretchr/testify v1.8.2
-	google.golang.org/protobuf v1.29.0
+	google.golang.org/protobuf v1.30.0
 )
 
 require (
