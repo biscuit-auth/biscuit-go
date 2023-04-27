@@ -1,4 +1,4 @@
-FROM golang:1.16-buster
+FROM golang:1.19-buster
 
 ADD go.mod go.sum /app/
 RUN cd /app && go mod download
