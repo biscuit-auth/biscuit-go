@@ -39,6 +39,8 @@ if err != nil {
 }
 
 // token is now a []byte, ready to be shared
+// If you want a base64 encoded token, do it like this
+fmt.Println(base64.URLEncoding.EncodeToString(token))
 ```
 
 #### Attenuate a biscuit
