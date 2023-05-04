@@ -26,6 +26,35 @@ type Block struct {
 	version uint32
 }
 
+func (b *Block) Code(symbols *datalog.SymbolTable) string {
+	debug := &datalog.SymbolDebugger{
+		SymbolTable: symbols,
+	}
+	facts := make([]string, len(*b.facts))
+	for i, f := range *b.facts {
+		facts[i] = debug.Predicate(f.Predicate)
+	}
+	rules := make([]string, len(b.rules))
+	for i, r := range b.rules {
+		rules[i] = debug.Rule(r)
+	}
+
+	checks := make([]string, len(b.checks))
+	for i, c := range b.checks {
+		checks[i] = debug.Check(c)
+	}
+
+	return fmt.Sprintf(`Block {
+		%v
+		%s
+		%s
+	}`,
+		strings.Join(facts, ";\n"),
+		strings.Join(rules, ";\n"),
+		strings.Join(checks, ";\n"),
+	)
+}
+
 func (b *Block) String(symbols *datalog.SymbolTable) string {
 	debug := &datalog.SymbolDebugger{
 		SymbolTable: symbols,

@@ -1,12 +1,15 @@
 package biscuittest
 
 import (
-	"os"
-	"fmt"
-	"testing"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
+	"fmt"
+	"os"
+	"testing"
 
 	"github.com/biscuit-auth/biscuit-go/v2"
+	"github.com/biscuit-auth/biscuit-go/v2/parser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -66,16 +69,52 @@ func CheckSample(c TestCase, t *testing.T) {
 	fmt.Printf("Checking sample %s\n", c.Filename)
 	b, err := os.ReadFile("./data/current/" + c.Filename)
 	require.NoError(t, err)
-	_, err = biscuit.Unmarshal(b)
+	token, err := biscuit.Unmarshal(b)
 
 	if err == nil {
-	    fmt.Printf("  Parsed file %s\n", c.Filename)
+		fmt.Printf("  Parsed file %s\n", c.Filename)
+		// this sample uses a tampered biscuit file on purpose
+		if c.Filename != "test006_reordered_blocks.bc" {
+			CompareBlocks(*token, c.Token, t)
+		}
+
 	} else {
-	    fmt.Println("  Parsing failed, all validations must be errors")
+		fmt.Println("  Parsing failed, all validations must be errors")
 		for _, v := range c.Validations {
 			require.Nil(t, v.Result.Ok)
 		}
 	}
+}
+
+func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
+	sample := token.Code()
+	p := parser.New()
+
+	rng := rand.Reader
+	_, privateRoot, _ := ed25519.GenerateKey(rng)
+	authority, err := p.Block(blocks[0].Code)
+	require.NoError(t, err)
+	builder := biscuit.NewBuilder(privateRoot)
+	builder.AddBlock(authority)
+	r, err := builder.Build()
+	require.NoError(t, err)
+	rebuilt := *r
+
+	for _, b := range blocks[1:] {
+		parsed, err := p.Block(b.Code)
+		require.NoError(t, err)
+		builder := rebuilt.CreateBlock()
+		builder.AddBlock(parsed)
+		r, err := rebuilt.Append(rng, builder.Build())
+		require.NoError(t, err)
+		rebuilt = *r
+	}
+
+	require.Equal(t, sample, rebuilt.Code())
+}
+
+func CompareErrors(v Validation, t *testing.T) {
+
 }
 
 func TestReadSamples(t *testing.T) {
@@ -85,18 +124,18 @@ func TestReadSamples(t *testing.T) {
 	err = json.Unmarshal(b, &samples)
 
 	if err == nil {
-	fmt.Printf("Checking %d samples\n", len(samples.TestCases))
-	for _, v := range samples.TestCases {
-		if v.Filename == "test017_expressions.bc" ||
-		   v.Filename == "test024_third_party.bc" ||
-		   v.Filename == "test025_check_all.bc" ||
-		   v.Filename == "test026_public_keys_interning.bc" {
-	        fmt.Printf("Skipping sample %s\n", v.Filename)
-			//continue
+		fmt.Printf("Checking %d samples\n", len(samples.TestCases))
+		for _, v := range samples.TestCases {
+			if v.Filename == "test017_expressions.bc" ||
+				v.Filename == "test024_third_party.bc" ||
+				v.Filename == "test025_check_all.bc" ||
+				v.Filename == "test026_public_keys_interning.bc" {
+				fmt.Printf("Skipping sample %s\n", v.Filename)
+				continue
+			}
+			t.Run(v.Filename, func(t *testing.T) { CheckSample(v, t) })
 		}
-		t.Run(v.Filename, func (t *testing.T) { CheckSample(v, t) })
-	} 
-		
+
 	} else {
 		require.Fail(t, "parsing test cases failed")
 	}
