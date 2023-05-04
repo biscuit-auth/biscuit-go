@@ -45,6 +45,8 @@ type Parser interface {
 	Rule(rule string) (biscuit.Rule, error)
 	Check(check string) (biscuit.Check, error)
 	Policy(policy string) (biscuit.Policy, error)
+	Block(block string) (biscuit.ParsedBlock, error)
+	Authorizer(authorizer string) (biscuit.ParsedAuthorizer, error)
 
 	Must() MustParser
 }
@@ -54,13 +56,17 @@ type MustParser interface {
 	Rule(rule string) biscuit.Rule
 	Check(check string) biscuit.Check
 	Policy(policy string) biscuit.Policy
+	Block(block string) biscuit.ParsedBlock
+	Authorizer(authorizer string) biscuit.ParsedAuthorizer
 }
 
 type parser struct {
-	factParser   *participle.Parser[Predicate]
-	ruleParser   *participle.Parser[Rule]
-	checkParser  *participle.Parser[Check]
-	policyParser *participle.Parser[Policy]
+	factParser       *participle.Parser[Predicate]
+	ruleParser       *participle.Parser[Rule]
+	checkParser      *participle.Parser[Check]
+	policyParser     *participle.Parser[Policy]
+	blockParser      *participle.Parser[Block]
+	authorizerParser *participle.Parser[Authorizer]
 }
 
 var _ Parser = (*parser)(nil)
@@ -73,10 +79,12 @@ var _ MustParser = (*mustParser)(nil)
 
 func New() Parser {
 	return &parser{
-		factParser:   participle.MustBuild[Predicate](DefaultParserOptions...),
-		ruleParser:   participle.MustBuild[Rule](DefaultParserOptions...),
-		checkParser:  participle.MustBuild[Check](DefaultParserOptions...),
-		policyParser: participle.MustBuild[Policy](DefaultParserOptions...),
+		factParser:       participle.MustBuild[Predicate](DefaultParserOptions...),
+		ruleParser:       participle.MustBuild[Rule](DefaultParserOptions...),
+		checkParser:      participle.MustBuild[Check](DefaultParserOptions...),
+		policyParser:     participle.MustBuild[Policy](DefaultParserOptions...),
+		blockParser:      participle.MustBuild[Block](DefaultParserOptions...),
+		authorizerParser: participle.MustBuild[Authorizer](DefaultParserOptions...),
 	}
 }
 
@@ -174,6 +182,32 @@ func (p *parser) Policy(policy string) (biscuit.Policy, error) {
 	}, nil
 }
 
+func (p *parser) Block(block string) (biscuit.ParsedBlock, error) {
+	parsed, err := p.blockParser.ParseString("block", block)
+	if err != nil {
+		return biscuit.ParsedBlock{}, err
+	}
+	b, err := parsed.ToBiscuit()
+
+	if err != nil {
+		return biscuit.ParsedBlock{}, err
+	}
+	return *b, nil
+}
+
+func (p *parser) Authorizer(authorizer string) (biscuit.ParsedAuthorizer, error) {
+	parsed, err := p.authorizerParser.ParseString("authorizer", authorizer)
+	if err != nil {
+		return biscuit.ParsedAuthorizer{}, err
+	}
+	a, err := parsed.ToBiscuit()
+
+	if err != nil {
+		return biscuit.ParsedAuthorizer{}, err
+	}
+	return *a, nil
+}
+
 func (p *parser) Must() MustParser {
 	return &mustParser{parser: p}
 }
@@ -207,6 +241,24 @@ func (m *mustParser) Check(check string) biscuit.Check {
 
 func (m *mustParser) Policy(policy string) biscuit.Policy {
 	c, err := m.parser.Policy(policy)
+	if err != nil {
+		panic(err)
+	}
+
+	return c
+}
+
+func (m *mustParser) Block(block string) biscuit.ParsedBlock {
+	c, err := m.parser.Block(block)
+	if err != nil {
+		panic(err)
+	}
+
+	return c
+}
+
+func (m *mustParser) Authorizer(authorizer string) biscuit.ParsedAuthorizer {
+	c, err := m.parser.Authorizer(authorizer)
 	if err != nil {
 		panic(err)
 	}

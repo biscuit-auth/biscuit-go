@@ -510,131 +510,138 @@ func TestGrammarCheck(t *testing.T) {
 	}
 }
 
-func TestGrammarRule(t *testing.T) {
-	parser, err := participle.Build[Rule](DefaultParserOptions...)
+func TestGrammarBlock(t *testing.T) {
+	parser, err := participle.Build[Block](DefaultParserOptions...)
 	require.NoError(t, err)
 
 	testCases := []struct {
 		Input    string
-		Expected *Rule
+		Expected *Block
 	}{
 		{
 			Input: `// some comment
-	grandparent("a", "c") <- parent("a", "b"), parent("b", "c")`,
-			Expected: &Rule{
+    fact(true);
+    head($var) <- body($var);
+	check if fact(true);`,
+			Expected: &Block{
 				Comments: []*Comment{commentptr("some comment")},
-				Head: &Predicate{
-					Name: sptr("grandparent"),
-					IDs: []*Term{
-						{String: sptr("a")},
-						{String: sptr("c")},
-					},
-				},
-				Body: []*RuleElement{
+				Body: []*BlockElement{
 					{
 						Predicate: &Predicate{
-							Name: sptr("parent"),
+							Name: sptr("fact"),
 							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
+								{Bool: boolptr(true)},
 							},
 						},
 					},
 					{
 						Predicate: &Predicate{
-							Name: sptr("parent"),
+							Name: sptr("head"),
 							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
+								{Variable: varptr("var")},
 							},
 						},
-					},
-				},
-			},
-		},
-		{
-			Input: `empty() <- parent("a", "b"), parent("b", "c")`,
-			Expected: &Rule{
-				Head: &Predicate{
-					Name: sptr("empty"),
-				},
-				Body: []*RuleElement{
-					{
-						Predicate: &Predicate{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
+						RuleBody: []*RuleElement{
+							{
+								Predicate: &Predicate{
+									Name: sptr("body"),
+									IDs: []*Term{
+										{Variable: varptr("var")},
+									},
+								},
 							},
 						},
 					},
 					{
-						Predicate: &Predicate{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Input: `grandparent("a", "c") <- parent("a", "b"), parent("b", "c"), $0 > 42, $1.starts_with("test")`,
-			Expected: &Rule{
-				Head: &Predicate{
-					Name: sptr("grandparent"),
-					IDs: []*Term{
-						{String: sptr("a")},
-						{String: sptr("c")},
-					},
-				},
-				Body: []*RuleElement{
-					{
-						Predicate: &Predicate{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("a")},
-								{String: sptr("b")},
-							},
-						},
-					},
-					{
-						Predicate: &Predicate{
-							Name: sptr("parent"),
-							IDs: []*Term{
-								{String: sptr("b")},
-								{String: sptr("c")},
-							},
-						},
-					},
-					{
-						Expression: &Expression{
-							Left: &Expr1{
-								Left: &Expr2{
-									Left: &Expr3{
-										Left: &Expr4{
-											Left: &Expr5{
-												Left: &ExprTerm{
-													Term: &Term{
-														Variable: varptr("0"),
-													},
+						Check: &Check{
+							Queries: []*CheckQuery{
+								{
+									Body: []*RuleElement{
+										{
+											Predicate: &Predicate{
+												Name: sptr("fact"),
+												IDs: []*Term{
+													{Bool: boolptr(true)},
 												},
 											},
 										},
 									},
 								},
-								Right: []*OpExpr2{
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Input, func(t *testing.T) {
+			parsed, err := parser.ParseString("test", testCase.Input)
+			require.NoError(t, err)
+			require.Equal(t, testCase.Expected, parsed)
+		})
+	}
+}
+
+func TestGrammarAuthorizer(t *testing.T) {
+	parser, err := participle.Build[Authorizer](DefaultParserOptions...)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Input    string
+		Expected *Authorizer
+	}{
+		{
+			Input: `// some comment
+    fact(true);
+    head($var) <- body($var);
+	check if fact(true);
+    allow if fact(true);`,
+			Expected: &Authorizer{
+				Comments: []*Comment{commentptr("some comment")},
+				Body: []*AuthorizerElement{
+					{
+						BlockElement: &BlockElement{
+							Predicate: &Predicate{
+								Name: sptr("fact"),
+								IDs: []*Term{
+									{Bool: boolptr(true)},
+								},
+							},
+						},
+					},
+					{
+						BlockElement: &BlockElement{
+							Predicate: &Predicate{
+								Name: sptr("head"),
+								IDs: []*Term{
+									{Variable: varptr("var")},
+								},
+							},
+							RuleBody: []*RuleElement{
+								{
+									Predicate: &Predicate{
+										Name: sptr("body"),
+										IDs: []*Term{
+											{Variable: varptr("var")},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						BlockElement: &BlockElement{
+							Check: &Check{
+								Queries: []*CheckQuery{
 									{
-										Operator: OpGreaterThan,
-										Expr3: &Expr3{
-											Left: &Expr4{
-												Left: &Expr5{
-													Left: &ExprTerm{
-														Term: &Term{
-															Integer: i64ptr(42),
-														},
+										Body: []*RuleElement{
+											{
+												Predicate: &Predicate{
+													Name: sptr("fact"),
+													IDs: []*Term{
+														{Bool: boolptr(true)},
 													},
 												},
 											},
@@ -645,39 +652,16 @@ func TestGrammarRule(t *testing.T) {
 						},
 					},
 					{
-						Expression: &Expression{
-							Left: &Expr1{
-								Left: &Expr2{
-									Left: &Expr3{
-										Left: &Expr4{
-											Left: &Expr5{
-												Left: &ExprTerm{
-													Term: &Term{
-														Variable: varptr("1"),
-													},
-												},
-												Right: []*OpExpr5{
-													{
-														Operator: OpPrefix,
-														Expression: []*Expression{
-															{
-																Left: &Expr1{
-																	Left: &Expr2{
-																		Left: &Expr3{
-																			Left: &Expr4{
-																				Left: &Expr5{
-																					Left: &ExprTerm{
-																						Term: &Term{
-																							String: sptr("test"),
-																						},
-																					},
-																				},
-																			},
-																		},
-																	},
-																},
-															},
-														},
+						Policy: &Policy{
+							Allow: &Allow{
+								Queries: []*CheckQuery{
+									{
+										Body: []*RuleElement{
+											{
+												Predicate: &Predicate{
+													Name: sptr("fact"),
+													IDs: []*Term{
+														{Bool: boolptr(true)},
 													},
 												},
 											},

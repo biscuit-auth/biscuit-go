@@ -73,6 +73,17 @@ func (fs FactSet) String() string {
 	return fmt.Sprintf("[%s]", outStr)
 }
 
+type ParsedBlock struct {
+	Facts  FactSet
+	Rules  []Rule
+	Checks []Check
+}
+
+type ParsedAuthorizer struct {
+	Policies []Policy
+	Block    ParsedBlock
+}
+
 type Fact struct {
 	Predicate
 }
