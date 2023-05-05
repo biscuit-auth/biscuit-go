@@ -3,9 +3,11 @@ package biscuittest
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/biscuit-auth/biscuit-go/v2"
@@ -34,38 +36,57 @@ type Block struct {
 }
 
 type Result struct {
-	Ok  *int `json:"Ok"`
-	Err struct {
-		FailedLogic struct {
-			Unauthorized struct {
-				Policy struct {
-					Allow int `json:"Allow"`
-				} `json:"policy"`
-				Checks []struct {
-					Block struct {
-						BlockID int    `json:"block_id"`
-						CheckID int    `json:"check_id"`
-						Rule    string `json:"rule"`
-					} `json:"Block"`
-				} `json:"checks"`
-			} `json:"Unauthorized"`
-		} `json:"FailedLogic"`
-	} `json:"Err"`
+	Ok  *int          `json:"Ok"`
+	Err *BiscuitError `json:"Err"`
+}
+
+type BiscuitError struct {
+	FailedLogic *struct {
+		Unauthorized *struct {
+			Policy struct {
+				Allow int `json:"Allow"`
+			} `json:"policy"`
+			Checks []struct {
+				Block struct {
+					BlockID int    `json:"block_id"`
+					CheckID int    `json:"check_id"`
+					Rule    string `json:"rule"`
+				} `json:"Block"`
+			} `json:"checks"`
+		} `json:"Unauthorized"`
+		InvalidBlockRule []any `json:"InvalidBlockRule"`
+	} `json:"FailedLogic"`
+	Format *struct {
+		Signature *struct {
+			InvalidSignature string `json:"InvalidSignature"`
+		} `json:"Signature"`
+	} `json:"Format"`
+}
+
+type World struct {
+	Facts    []string `json:"facts"`
+	Rules    []string `json:"rules"`
+	Checks   []string `json:"checks"`
+	Policies []string `json:"policies"`
+}
+
+func (w World) String() string {
+	facts := w.Facts
+	sort.Strings(facts)
+	rules := w.Rules
+	sort.Strings(rules)
+
+	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
 }
 
 type Validation struct {
-	World struct {
-		Facts    []string `json:"facts"`
-		Rules    []any    `json:"rules"`
-		Checks   []string `json:"checks"`
-		Policies []string `json:"policies"`
-	} `json:"world"`
+	World          World    `json:"world"`
 	Result         Result   `json:"result"`
 	AuthorizerCode string   `json:"authorizer_code"`
 	RevocationIds  []string `json:"revocation_ids"`
 }
 
-func CheckSample(c TestCase, t *testing.T) {
+func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	fmt.Printf("Checking sample %s\n", c.Filename)
 	b, err := os.ReadFile("./data/current/" + c.Filename)
 	require.NoError(t, err)
@@ -76,6 +97,10 @@ func CheckSample(c TestCase, t *testing.T) {
 		// this sample uses a tampered biscuit file on purpose
 		if c.Filename != "test006_reordered_blocks.bc" {
 			CompareBlocks(*token, c.Token, t)
+		}
+
+		for _, v := range c.Validations {
+			CompareResult(root_key, *token, v, t)
 		}
 
 	} else {
@@ -113,8 +138,47 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	require.Equal(t, sample, rebuilt.Code())
 }
 
-func CompareErrors(v Validation, t *testing.T) {
+func CompareResult(root_key ed25519.PublicKey, token biscuit.Biscuit, v Validation, t *testing.T) {
+	p := parser.New()
+	authorizer_code, err := p.Authorizer(v.AuthorizerCode)
+	require.NoError(t, err)
+	authorizer, err := token.Authorizer(root_key)
 
+	if err != nil {
+		CompareError(err, v.Result.Err, t)
+	} else {
+		authorizer.AddAuthorizer(authorizer_code)
+		err = authorizer.Authorize()
+		if err != nil {
+			CompareError(err, v.Result.Err, t)
+		} else {
+			require.NotNil(t, v.Result.Ok)
+		}
+		// todo scoping changes means that world contents are different even though the result is the same
+		// the world contained in the samples files contains more facts, but those facts are not considered during
+		// rules / checks / policies evaluation
+		//require.Equal(t, v.World.String(), authorizer.PrintWorld())
+	}
+}
+
+func CompareError(authorization_error error, sample_error *BiscuitError, t *testing.T) {
+	error_string := authorization_error.Error()
+	if sample_error.Format != nil {
+		require.Equal(t, error_string, "biscuit: invalid signature")
+	} else if sample_error.FailedLogic != nil {
+		if sample_error.FailedLogic.Unauthorized != nil {
+			// todo check the block and check ids (if there is a single failed check, because the lib only reports one)
+			require.Regexp(t, "^biscuit: verification failed: failed to verify", error_string)
+		} else if sample_error.FailedLogic.InvalidBlockRule != nil {
+			// todo extract the block number
+			require.Regexp(t, "^biscuit: verification failed: failed to verify", error_string)
+		} else {
+			require.Fail(t, error_string)
+		}
+	} else {
+		fmt.Println(sample_error)
+		require.Fail(t, error_string)
+	}
 }
 
 func TestReadSamples(t *testing.T) {
@@ -122,21 +186,20 @@ func TestReadSamples(t *testing.T) {
 	require.NoError(t, err)
 	var samples Samples
 	err = json.Unmarshal(b, &samples)
+	require.NoError(t, err)
 
-	if err == nil {
-		fmt.Printf("Checking %d samples\n", len(samples.TestCases))
-		for _, v := range samples.TestCases {
-			if v.Filename == "test017_expressions.bc" ||
-				v.Filename == "test024_third_party.bc" ||
-				v.Filename == "test025_check_all.bc" ||
-				v.Filename == "test026_public_keys_interning.bc" {
-				fmt.Printf("Skipping sample %s\n", v.Filename)
-				continue
-			}
-			t.Run(v.Filename, func(t *testing.T) { CheckSample(v, t) })
+	root_key, err := hex.DecodeString(samples.RootPublicKey)
+	require.NoError(t, err)
+	fmt.Printf("Checking %d samples\n", len(samples.TestCases))
+	for _, v := range samples.TestCases {
+		if v.Filename == "test017_expressions.bc" ||
+			v.Filename == "test024_third_party.bc" ||
+			v.Filename == "test025_check_all.bc" ||
+			v.Filename == "test026_public_keys_interning.bc" {
+			fmt.Printf("Skipping sample %s\n", v.Filename)
+			continue
 		}
-
-	} else {
-		require.Fail(t, "parsing test cases failed")
+		t.Run(v.Filename, func(t *testing.T) { CheckSample(root_key, v, t) })
 	}
+
 }
