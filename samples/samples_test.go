@@ -87,6 +87,13 @@ type Validation struct {
 }
 
 func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
+	// all these contain v4 blocks, which are not supported yet
+	if c.Filename == "test017_expressions.bc" ||
+		c.Filename == "test024_third_party.bc" ||
+		c.Filename == "test025_check_all.bc" ||
+		c.Filename == "test026_public_keys_interning.bc" {
+		t.SkipNow()
+	}
 	fmt.Printf("Checking sample %s\n", c.Filename)
 	b, err := os.ReadFile("./data/current/" + c.Filename)
 	require.NoError(t, err)
@@ -100,7 +107,7 @@ func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 		}
 
 		for _, v := range c.Validations {
-			CompareResult(root_key, *token, v, t)
+			CompareResult(root_key, c.Filename, *token, v, t)
 		}
 
 	} else {
@@ -138,7 +145,7 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	require.Equal(t, sample, rebuilt.Code())
 }
 
-func CompareResult(root_key ed25519.PublicKey, token biscuit.Biscuit, v Validation, t *testing.T) {
+func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Biscuit, v Validation, t *testing.T) {
 	p := parser.New()
 	authorizer_code, err := p.Authorizer(v.AuthorizerCode)
 	require.NoError(t, err)
@@ -154,10 +161,19 @@ func CompareResult(root_key ed25519.PublicKey, token biscuit.Biscuit, v Validati
 		} else {
 			require.NotNil(t, v.Result.Ok)
 		}
-		// todo scoping changes means that world contents are different even though the result is the same
-		// the world contained in the samples files contains more facts, but those facts are not considered during
-		// rules / checks / policies evaluation
-		//require.Equal(t, v.World.String(), authorizer.PrintWorld())
+		if filename == "test007_scoped_rules.bc" ||
+			filename == "test008_scoped_checks.bc" ||
+			filename == "test010_authorizer_scope.bc" ||
+			filename == "test013_block_rules.bc" ||
+			filename == "test016_caveat_head_name.bc" || // related to an old implementation detail
+			filename == "test019_generating_ambient_from_variables.bc" || // related to an old implementation issue
+			filename == "test023_execution_scope.bc" {
+			// todo scoping changes means that world contents are different even though the result is the same
+			// the world contained in the samples files contains more facts, but those facts are not considered during
+			// rules / checks / policies evaluation
+			t.SkipNow()
+		}
+		require.Equal(t, v.World.String(), authorizer.PrintWorld())
 	}
 }
 
@@ -192,13 +208,6 @@ func TestReadSamples(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Printf("Checking %d samples\n", len(samples.TestCases))
 	for _, v := range samples.TestCases {
-		if v.Filename == "test017_expressions.bc" ||
-			v.Filename == "test024_third_party.bc" ||
-			v.Filename == "test025_check_all.bc" ||
-			v.Filename == "test026_public_keys_interning.bc" {
-			fmt.Printf("Skipping sample %s\n", v.Filename)
-			continue
-		}
 		t.Run(v.Filename, func(t *testing.T) { CheckSample(root_key, v, t) })
 	}
 
