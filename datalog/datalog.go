@@ -120,7 +120,7 @@ type Date uint64
 func (Date) Type() TermType      { return TermTypeDate }
 func (d Date) Equal(t Term) bool { c, ok := t.(Date); return ok && d == c }
 func (d Date) String() string {
-	return time.Unix(int64(d), 0).Format(time.RFC3339)
+	return time.Unix(int64(d), 0).UTC().Format(time.RFC3339)
 }
 
 type Bytes []byte
