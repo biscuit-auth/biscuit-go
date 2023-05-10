@@ -64,16 +64,69 @@ type BiscuitError struct {
 }
 
 type World struct {
-	Facts    []string `json:"facts"`
-	Rules    []string `json:"rules"`
-	Checks   []string `json:"checks"`
-	Policies []string `json:"policies"`
+	Facts    []ScopedFact `json:"facts"`
+	Rules    []ScopedRule `json:"rules"`
+	Checks   []string     `json:"checks"`
+	Policies []string     `json:"policies"`
+}
+
+type ScopedFact struct {
+	Fact  string
+	Scope [](*int32)
+}
+
+func (sf *ScopedFact) UnmarshalJSON(buf []byte) error {
+	tmp := []interface{}{&sf.Fact, &sf.Scope}
+	wantLen := len(tmp)
+	if err := json.Unmarshal(buf, &tmp); err != nil {
+		return err
+	}
+	if g, e := len(tmp), wantLen; g != e {
+		return fmt.Errorf("wrong number of fields in ScopedFact: %d != %d", g, e)
+	}
+	return nil
+}
+
+type ScopedRule struct {
+	Rule  string
+	Scope *int32
+}
+
+func (sr *ScopedRule) UnmarshalJSON(buf []byte) error {
+	tmp := []interface{}{&sr.Rule, &sr.Scope}
+	wantLen := len(tmp)
+	if err := json.Unmarshal(buf, &tmp); err != nil {
+		return err
+	}
+	if g, e := len(tmp), wantLen; g != e {
+		return fmt.Errorf("wrong number of fields in ScopedRule: %d != %d", g, e)
+	}
+	return nil
 }
 
 func (w World) String() string {
-	facts := w.Facts
+	facts := []string{}
+	for _, f := range w.Facts {
+		visible := true
+		for _, s := range f.Scope {
+
+			if s != nil && *s != 0 {
+				visible = false
+				break
+			}
+		}
+
+		if visible {
+			facts = append(facts, f.Fact)
+		}
+	}
 	sort.Strings(facts)
-	rules := w.Rules
+	rules := []string{}
+	for _, r := range w.Rules {
+		if r.Scope == nil || *r.Scope == 0 {
+			rules = append(rules, r.Rule)
+		}
+	}
 	sort.Strings(rules)
 
 	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
@@ -88,10 +141,13 @@ type Validation struct {
 
 func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	// all these contain v4 blocks, which are not supported yet
+	// except test017 which has a v3 block, but contains a not-yet-supported binary operation
 	if c.Filename == "test017_expressions.bc" ||
 		c.Filename == "test024_third_party.bc" ||
 		c.Filename == "test025_check_all.bc" ||
-		c.Filename == "test026_public_keys_interning.bc" {
+		c.Filename == "test026_public_keys_interning.bc" ||
+		c.Filename == "test027_integer_wraparound.bc" ||
+		c.Filename == "test028_expressions_v4.bc" {
 		t.SkipNow()
 	}
 	fmt.Printf("Checking sample %s\n", c.Filename)
@@ -111,6 +167,7 @@ func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 		}
 
 	} else {
+		fmt.Println(err)
 		fmt.Println("  Parsing failed, all validations must be errors")
 		for _, v := range c.Validations {
 			require.Nil(t, v.Result.Ok)
@@ -160,18 +217,6 @@ func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Bi
 			CompareError(err, v.Result.Err, t)
 		} else {
 			require.NotNil(t, v.Result.Ok)
-		}
-		if filename == "test007_scoped_rules.bc" ||
-			filename == "test008_scoped_checks.bc" ||
-			filename == "test010_authorizer_scope.bc" ||
-			filename == "test013_block_rules.bc" ||
-			filename == "test016_caveat_head_name.bc" || // related to an old implementation detail
-			filename == "test019_generating_ambient_from_variables.bc" || // related to an old implementation issue
-			filename == "test023_execution_scope.bc" {
-			// todo scoping changes means that world contents are different even though the result is the same
-			// the world contained in the samples files contains more facts, but those facts are not considered during
-			// rules / checks / policies evaluation
-			t.SkipNow()
 		}
 		require.Equal(t, v.World.String(), authorizer.PrintWorld())
 	}
