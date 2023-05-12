@@ -227,12 +227,13 @@ const (
 	OpIntersection
 	OpUnion
 	OpLength
+	OpNegate
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -244,22 +245,27 @@ type Expression struct {
 	Right []*OpExpr1 `@@*`
 }
 
+type OpExpr1 struct {
+	Operator Operator `@("||")`
+	Expr1    *Expr1   `@@`
+}
+
 type Expr1 struct {
 	Left  *Expr2     `@@`
 	Right []*OpExpr2 `@@*`
 }
 
-type OpExpr1 struct {
-	Operator Operator `@("&&" | "||")`
+type OpExpr2 struct {
+	Operator Operator `@("&&")`
 	Expr2    *Expr2   `@@`
 }
 
 type Expr2 struct {
-	Left  *Expr3     `@@`
-	Right []*OpExpr3 `@@*`
+	Left  *Expr3   `@@`
+	Right *OpExpr3 `@@?`
 }
 
-type OpExpr2 struct {
+type OpExpr3 struct {
 	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
 	Expr3    *Expr3   `@@`
 }
@@ -269,7 +275,7 @@ type Expr3 struct {
 	Right []*OpExpr4 `@@*`
 }
 
-type OpExpr3 struct {
+type OpExpr4 struct {
 	Operator Operator `@("+" | "-")`
 	Expr4    *Expr4   `@@`
 }
@@ -279,42 +285,29 @@ type Expr4 struct {
 	Right []*OpExpr5 `@@*`
 }
 
-type OpExpr4 struct {
+type OpExpr5 struct {
 	Operator Operator `@("*" | "/")`
 	Expr5    *Expr5   `@@`
 }
 
 type Expr5 struct {
-	Left  *ExprTerm  `@@`
-	Right []*OpExpr5 `@@*`
+	Operator *Operator `@("!")?`
+	Expr6    *Expr6    `@@`
 }
 
-type OpExpr5 struct {
-	Operator   Operator      `Dot @("contains" | "starts_with" | "ends_with" | "matches" | "intersection" | "union" | "length")`
-	Expression []*Expression `"("  @@* ")"`
+type Expr6 struct {
+	Left  *ExprTerm  `@@`
+	Right []*OpExpr7 `@@*`
+}
+
+type OpExpr7 struct {
+	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length")`
+	Expression *Expression `"(" @@? ")"`
 }
 
 type ExprTerm struct {
-	Unary *Unary `@@`
-	Term  *Term  `|@@`
-}
-
-type Unary struct {
-	Negate *Negate `@@`
-	Parens *Parens `|@@`
-	//Length *Length `|@@`
-}
-
-type Parens struct {
-	Expression *Expression `"("  @@ ")"`
-}
-
-type Length struct {
-	Term *Term `@@ Dot "length()"`
-}
-
-type Negate struct {
-	Expr5 *Expr5 `"!" @@`
+	Term       *Term       `@@`
+	Expression *Expression `| "(" @@? ")"`
 }
 
 func (e *Expression) ToExpr(expr *biscuit.Expression) {
@@ -335,9 +328,9 @@ func (e *Expr1) ToExpr(expr *biscuit.Expression) {
 
 func (e *Expr2) ToExpr(expr *biscuit.Expression) {
 	e.Left.ToExpr(expr)
+	if e.Right != nil {
 
-	for _, op := range e.Right {
-		op.ToExpr(expr)
+		e.Right.ToExpr(expr)
 	}
 }
 
@@ -358,8 +351,14 @@ func (e *Expr4) ToExpr(expr *biscuit.Expression) {
 }
 
 func (e *Expr5) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+	e.Expr6.ToExpr(expr)
+	if e.Operator != nil {
+		*expr = append(*expr, biscuit.UnaryNegate)
+	}
+}
 
+func (e *Expr6) ToExpr(expr *biscuit.Expression) {
+	e.Left.ToExpr(expr)
 	for _, op := range e.Right {
 		op.ToExpr(expr)
 	}
@@ -368,46 +367,45 @@ func (e *Expr5) ToExpr(expr *biscuit.Expression) {
 func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
 
 	switch {
-	case e.Unary != nil:
-		switch {
-		case (*e.Unary).Negate != nil:
-			(*e.Unary).Negate.Expr5.ToExpr(expr)
-			*expr = append(*expr, biscuit.UnaryNegate)
-
-		case (*e.Unary).Parens != nil:
-			(*e.Unary).Negate.Expr5.ToExpr(expr)
-			*expr = append(*expr, biscuit.UnaryParens)
-		}
 	case e.Term != nil:
 		//FIXME: error management
 		term, _ := e.Term.ToBiscuit()
 		*expr = append(*expr, biscuit.Value{Term: term})
+	case e.Expression != nil:
+		e.Expression.ToExpr(expr)
+		*expr = append(*expr, biscuit.UnaryParens)
 	}
+
 }
 
 func (e *OpExpr1) ToExpr(expr *biscuit.Expression) {
-	e.Expr2.ToExpr(expr)
+	e.Expr1.ToExpr(expr)
 	e.Operator.ToExpr(expr)
 }
 
 func (e *OpExpr2) ToExpr(expr *biscuit.Expression) {
-	e.Expr3.ToExpr(expr)
+	e.Expr2.ToExpr(expr)
 	e.Operator.ToExpr(expr)
 }
 
 func (e *OpExpr3) ToExpr(expr *biscuit.Expression) {
-	e.Expr4.ToExpr(expr)
+	e.Expr3.ToExpr(expr)
 	e.Operator.ToExpr(expr)
 }
 
 func (e *OpExpr4) ToExpr(expr *biscuit.Expression) {
-	e.Expr5.ToExpr(expr)
+	e.Expr4.ToExpr(expr)
 	e.Operator.ToExpr(expr)
 }
 
 func (e *OpExpr5) ToExpr(expr *biscuit.Expression) {
-	for _, argument := range e.Expression {
-		argument.ToExpr(expr)
+	e.Expr5.ToExpr(expr)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr7) ToExpr(expr *biscuit.Expression) {
+	if e.Expression != nil {
+		e.Expression.ToExpr(expr)
 	}
 	e.Operator.ToExpr(expr)
 }
