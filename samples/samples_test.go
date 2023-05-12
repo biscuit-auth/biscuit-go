@@ -141,9 +141,7 @@ type Validation struct {
 
 func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	// all these contain v4 blocks, which are not supported yet
-	// except test017 which has a v3 block, but contains a not-yet-supported binary operation
-	if c.Filename == "test017_expressions.bc" ||
-		c.Filename == "test024_third_party.bc" ||
+	if c.Filename == "test024_third_party.bc" ||
 		c.Filename == "test025_check_all.bc" ||
 		c.Filename == "test026_public_keys_interning.bc" ||
 		c.Filename == "test027_integer_wraparound.bc" ||
