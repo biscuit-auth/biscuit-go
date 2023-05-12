@@ -467,6 +467,7 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 	case TermTypeString:
 	case TermTypeDate:
 	case TermTypeBool:
+	case TermTypeSet:
 
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Contains right value type: %d", right.Type())
@@ -477,10 +478,24 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 		return nil, errors.New("datalog: Contains left value must be a Set")
 	}
 
-	for _, elt := range set {
-		if g, w := elt.Type(), right.Type(); g != w {
-			return nil, fmt.Errorf("datalog: unexpected Contains set element type: got %d, want %d", g, w)
+	rhsset, ok := right.(Set)
+
+	if ok {
+		for _, rhselt := range rhsset {
+			rhsinlhs := false
+			for _, lhselt := range set {
+				if lhselt.Equal(rhselt) {
+					rhsinlhs = true
+				}
+			}
+			if !rhsinlhs {
+				return Bool(false), nil
+			}
 		}
+		return Bool(true), nil
+	}
+
+	for _, elt := range set {
 		if right.Equal(elt) {
 			return Bool(true), nil
 		}
