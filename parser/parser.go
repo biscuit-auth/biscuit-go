@@ -16,7 +16,7 @@ var (
 var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
 	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
-	{Name: "Hex", Pattern: `hex:`},
+	{Name: "Hex", Pattern: `hex:([0-9a-fA-F]{2})*`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Arrow", Pattern: `<-`},
 	{Name: "Or", Pattern: `\|\|`},

@@ -293,6 +293,14 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryEqual,
 			},
 		},
+		{
+			Input: `hex:12ab == hex:ab`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
+				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
+				biscuit.BinaryEqual,
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

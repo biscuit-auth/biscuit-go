@@ -466,13 +466,11 @@ type HexString string
 
 func (h *HexString) Parse(lex *lexer.PeekingLexer) error {
 	token := lex.Peek()
-	if token.Value != "hex:" {
+	if !strings.HasPrefix(token.Value, "hex:") {
 		return participle.NextMatch
 	}
 	lex.Next()
-
-	content := lex.Next()
-	*h = HexString(content.Value)
+	*h = HexString(token.Value[4:])
 	return nil
 }
 
