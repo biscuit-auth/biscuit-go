@@ -39,6 +39,20 @@ func (v *Variable) Capture(values []string) error {
 	return nil
 }
 
+type Parameter string
+
+func (p *Parameter) Capture(values []string) error {
+	if len(values) != 1 {
+		return errors.New("parser: invalid parameter values")
+	}
+	if !strings.HasPrefix(values[0], "{") ||
+		!strings.HasSuffix(values[0], "}") {
+		return errors.New("parser: invalid parameter capture")
+	}
+	*p = Parameter(strings.Trim(values[0], "{}"))
+	return nil
+}
+
 type Bool bool
 
 func (b *Bool) Capture(values []string) error {
@@ -64,13 +78,15 @@ type BlockElement struct {
 	RuleBody  []*RuleElement `("<-" @@ ("," @@)*)?`
 }
 
-func (b *Block) ToBiscuit() (*biscuit.ParsedBlock, error) {
+type ParametersMap map[string]biscuit.Term
+
+func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error) {
 	facts := []biscuit.Fact{}
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
 	for _, e := range b.Body {
 		if e.Check != nil {
-			c, err := e.Check.ToBiscuit()
+			c, err := e.Check.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
@@ -80,13 +96,13 @@ func (b *Block) ToBiscuit() (*biscuit.ParsedBlock, error) {
 				Head: e.Predicate,
 				Body: e.RuleBody,
 			}
-			r, err := rule.ToBiscuit()
+			r, err := rule.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
 			rules = append(rules, *r)
 		} else {
-			p, err := e.Predicate.ToBiscuit()
+			p, err := e.Predicate.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
@@ -106,7 +122,7 @@ type AuthorizerElement struct {
 	BlockElement *BlockElement `|@@`
 }
 
-func (b *Authorizer) ToBiscuit() (*biscuit.ParsedAuthorizer, error) {
+func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthorizer, error) {
 	facts := []biscuit.Fact{}
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
@@ -116,7 +132,7 @@ func (b *Authorizer) ToBiscuit() (*biscuit.ParsedAuthorizer, error) {
 		if e.BlockElement != nil {
 			be := e.BlockElement
 			if be.Check != nil {
-				c, err := be.Check.ToBiscuit()
+				c, err := be.Check.ToBiscuit(parameters)
 				if err != nil {
 					return nil, err
 				}
@@ -126,20 +142,20 @@ func (b *Authorizer) ToBiscuit() (*biscuit.ParsedAuthorizer, error) {
 					Head: be.Predicate,
 					Body: be.RuleBody,
 				}
-				r, err := rule.ToBiscuit()
+				r, err := rule.ToBiscuit(parameters)
 				if err != nil {
 					return nil, err
 				}
 				rules = append(rules, *r)
 			} else {
-				p, err := be.Predicate.ToBiscuit()
+				p, err := be.Predicate.ToBiscuit(parameters)
 				if err != nil {
 					return nil, err
 				}
 				facts = append(facts, biscuit.Fact{Predicate: *p})
 			}
 		} else if e.Policy != nil {
-			p, err := e.Policy.ToBiscuit()
+			p, err := e.Policy.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
@@ -191,18 +207,20 @@ type Deny struct {
 }
 
 type Term struct {
-	Variable *Variable  `@Variable`
-	Bytes    *HexString `| @@`
-	String   *string    `| @String`
-	Date     *string    `| @DateTime`
-	Integer  *int64     `| @Int`
-	Bool     *Bool      `| @Bool`
-	Set      []*Term    `| "[" @@ ("," @@)* "]"`
+	Parameter *Parameter `@Parameter`
+	Variable  *Variable  `| @Variable`
+	Bytes     *HexString `| @@`
+	String    *string    `| @String`
+	Date      *string    `| @DateTime`
+	Integer   *int64     `| @Int`
+	Bool      *Bool      `| @Bool`
+	Set       []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
 type Value struct {
 	Number        *float64    `  @(Float|Int)`
 	Variable      *string     `| @Ident`
+	Parameter     *Parameter  `| @Parameter`
 	Subexpression *Expression `| "(" @@ ")"`
 }
 
@@ -310,102 +328,102 @@ type ExprTerm struct {
 	Expression *Expression `| "(" @@? ")"`
 }
 
-func (e *Expression) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expression) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 
 	for _, op := range e.Right {
-		op.ToExpr(expr)
+		op.ToExpr(expr, parameters)
 	}
 }
 
-func (e *Expr1) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 
 	for _, op := range e.Right {
-		op.ToExpr(expr)
+		op.ToExpr(expr, parameters)
 	}
 }
 
-func (e *Expr2) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 	if e.Right != nil {
 
-		e.Right.ToExpr(expr)
+		e.Right.ToExpr(expr, parameters)
 	}
 }
 
-func (e *Expr3) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 
 	for _, op := range e.Right {
-		op.ToExpr(expr)
+		op.ToExpr(expr, parameters)
 	}
 }
 
-func (e *Expr4) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 
 	for _, op := range e.Right {
-		op.ToExpr(expr)
+		op.ToExpr(expr, parameters)
 	}
 }
 
-func (e *Expr5) ToExpr(expr *biscuit.Expression) {
-	e.Expr6.ToExpr(expr)
+func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr6.ToExpr(expr, parameters)
 	if e.Operator != nil {
 		*expr = append(*expr, biscuit.UnaryNegate)
 	}
 }
 
-func (e *Expr6) ToExpr(expr *biscuit.Expression) {
-	e.Left.ToExpr(expr)
+func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
 	for _, op := range e.Right {
-		op.ToExpr(expr)
+		op.ToExpr(expr, parameters)
 	}
 }
 
-func (e *ExprTerm) ToExpr(expr *biscuit.Expression) {
+func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 
 	switch {
 	case e.Term != nil:
 		//FIXME: error management
-		term, _ := e.Term.ToBiscuit()
+		term, _ := e.Term.ToBiscuit(parameters)
 		*expr = append(*expr, biscuit.Value{Term: term})
 	case e.Expression != nil:
-		e.Expression.ToExpr(expr)
+		e.Expression.ToExpr(expr, parameters)
 		*expr = append(*expr, biscuit.UnaryParens)
 	}
 
 }
 
-func (e *OpExpr1) ToExpr(expr *biscuit.Expression) {
-	e.Expr1.ToExpr(expr)
+func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr1.ToExpr(expr, parameters)
 	e.Operator.ToExpr(expr)
 }
 
-func (e *OpExpr2) ToExpr(expr *biscuit.Expression) {
-	e.Expr2.ToExpr(expr)
+func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr2.ToExpr(expr, parameters)
 	e.Operator.ToExpr(expr)
 }
 
-func (e *OpExpr3) ToExpr(expr *biscuit.Expression) {
-	e.Expr3.ToExpr(expr)
+func (e *OpExpr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr3.ToExpr(expr, parameters)
 	e.Operator.ToExpr(expr)
 }
 
-func (e *OpExpr4) ToExpr(expr *biscuit.Expression) {
-	e.Expr4.ToExpr(expr)
+func (e *OpExpr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr4.ToExpr(expr, parameters)
 	e.Operator.ToExpr(expr)
 }
 
-func (e *OpExpr5) ToExpr(expr *biscuit.Expression) {
-	e.Expr5.ToExpr(expr)
+func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr5.ToExpr(expr, parameters)
 	e.Operator.ToExpr(expr)
 }
 
-func (e *OpExpr7) ToExpr(expr *biscuit.Expression) {
+func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 	if e.Expression != nil {
-		e.Expression.ToExpr(expr)
+		e.Expression.ToExpr(expr, parameters)
 	}
 	e.Operator.ToExpr(expr)
 }
@@ -482,10 +500,10 @@ func (h *HexString) String() string {
 	return string(*h)
 }
 
-func (p *Predicate) ToBiscuit() (*biscuit.Predicate, error) {
+func (p *Predicate) ToBiscuit(parameters ParametersMap) (*biscuit.Predicate, error) {
 	terms := make([]biscuit.Term, 0, len(p.IDs))
 	for _, a := range p.IDs {
-		biscuitTerm, err := a.ToBiscuit()
+		biscuitTerm, err := a.ToBiscuit(parameters)
 		if err != nil {
 			return nil, err
 		}
@@ -498,7 +516,7 @@ func (p *Predicate) ToBiscuit() (*biscuit.Predicate, error) {
 	}, nil
 }
 
-func (a *Term) ToBiscuit() (biscuit.Term, error) {
+func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 	var biscuitTerm biscuit.Term
 	switch {
 	case a.Integer != nil:
@@ -525,7 +543,7 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 	case a.Set != nil:
 		biscuitSet := make(biscuit.Set, 0, len(a.Set))
 		for _, term := range a.Set {
-			setTerm, err := term.ToBiscuit()
+			setTerm, err := term.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
@@ -535,6 +553,14 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 			biscuitSet = append(biscuitSet, setTerm)
 		}
 		biscuitTerm = biscuitSet
+	case a.Parameter != nil:
+		var paramName string = string(*(a.Parameter))
+		paramValue := parameters[paramName]
+		if paramValue == nil {
+			return nil, fmt.Errorf("parser: unbound parameter: %s", paramName)
+		}
+		biscuitTerm = paramValue
+
 	default:
 		return nil, errors.New("parser: unsupported predicate, must be one of integer, string, variable, or bytes")
 	}
@@ -542,7 +568,7 @@ func (a *Term) ToBiscuit() (biscuit.Term, error) {
 	return biscuitTerm, nil
 }
 
-func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
+func (r *Rule) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 	body := []biscuit.Predicate{}
 	expressions := make([]biscuit.Expression, 0)
 
@@ -550,7 +576,7 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 		switch {
 		case p.Predicate != nil:
 			{
-				predicate, err := (*p.Predicate).ToBiscuit()
+				predicate, err := (*p.Predicate).ToBiscuit(parameters)
 				if err != nil {
 					return nil, err
 				}
@@ -559,14 +585,14 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr)
+				(*p.Expression).ToExpr(&expr, parameters)
 
 				expressions = append(expressions, expr)
 			}
 		}
 	}
 
-	head, err := r.Head.ToBiscuit()
+	head, err := r.Head.ToBiscuit(parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -578,10 +604,10 @@ func (r *Rule) ToBiscuit() (*biscuit.Rule, error) {
 	}, nil
 }
 
-func (c *Check) ToBiscuit() (*biscuit.Check, error) {
+func (c *Check) ToBiscuit(parameters ParametersMap) (*biscuit.Check, error) {
 	queries := make([]biscuit.Rule, 0, len(c.Queries))
 	for _, q := range c.Queries {
-		r, err := q.ToBiscuit()
+		r, err := q.ToBiscuit(parameters)
 		if err != nil {
 			return nil, err
 		}
@@ -594,7 +620,7 @@ func (c *Check) ToBiscuit() (*biscuit.Check, error) {
 	}, nil
 }
 
-func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
+func (r *CheckQuery) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 	body := []biscuit.Predicate{}
 	expressions := make([]biscuit.Expression, 0)
 
@@ -602,7 +628,7 @@ func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
 		switch {
 		case p.Predicate != nil:
 			{
-				predicate, err := (*p.Predicate).ToBiscuit()
+				predicate, err := (*p.Predicate).ToBiscuit(parameters)
 				if err != nil {
 					return nil, err
 				}
@@ -611,7 +637,7 @@ func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr)
+				(*p.Expression).ToExpr(&expr, parameters)
 
 				expressions = append(expressions, expr)
 			}
@@ -630,7 +656,7 @@ func (r *CheckQuery) ToBiscuit() (*biscuit.Rule, error) {
 	}, nil
 }
 
-func (p *Policy) ToBiscuit() (*biscuit.Policy, error) {
+func (p *Policy) ToBiscuit(parameters ParametersMap) (*biscuit.Policy, error) {
 	var parsedQueries []*CheckQuery
 	var kind biscuit.PolicyKind
 	switch {
@@ -649,7 +675,7 @@ func (p *Policy) ToBiscuit() (*biscuit.Policy, error) {
 	}
 	queries := make([]biscuit.Rule, 0, len(parsedQueries))
 	for _, q := range parsedQueries {
-		r, err := q.ToBiscuit()
+		r, err := q.ToBiscuit(parameters)
 		if err != nil {
 			return nil, err
 		}
