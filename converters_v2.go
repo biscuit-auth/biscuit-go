@@ -318,6 +318,8 @@ func tokenExprUnaryToProtoExprUnary(op datalog.UnaryOp) (*pb.OpUnary, error) {
 		pbUnaryKind = pb.OpUnary_Negate
 	case datalog.UnaryParens:
 		pbUnaryKind = pb.OpUnary_Parens
+	case datalog.UnaryLength:
+		pbUnaryKind = pb.OpUnary_Length
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported UnaryOpFunc type: %v", op.UnaryOpFunc.Type())
 	}
@@ -331,6 +333,8 @@ func protoExprUnaryToTokenExprUnary(op *pb.OpUnary) (datalog.UnaryOpFunc, error)
 		unaryOp = datalog.Negate{}
 	case pb.OpUnary_Parens:
 		unaryOp = datalog.Parens{}
+	case pb.OpUnary_Length:
+		unaryOp = datalog.Length{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpUnary type: %v", op.Kind)
 	}
@@ -370,6 +374,10 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_And
 	case datalog.BinaryOr:
 		pbBinaryKind = pb.OpBinary_Or
+	case datalog.BinaryIntersection:
+		pbBinaryKind = pb.OpBinary_Intersection
+	case datalog.BinaryUnion:
+		pbBinaryKind = pb.OpBinary_Union
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -409,6 +417,10 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.And{}
 	case pb.OpBinary_Or:
 		binaryOp = datalog.Or{}
+	case pb.OpBinary_Intersection:
+		binaryOp = datalog.Intersection{}
+	case pb.OpBinary_Union:
+		binaryOp = datalog.Union{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}

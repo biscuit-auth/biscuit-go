@@ -112,19 +112,11 @@ func TestExprTerm(t *testing.T) {
 	parser, err := participle.Build[ExprTerm](DefaultParserOptions...)
 	require.NoError(t, err)
 
-	parsed, err := parser.ParseString("test", "!$0")
+	parsed, err := parser.ParseString("test", "$0")
 	require.NoError(t, err)
 	require.Equal(t, &ExprTerm{
-		Unary: &Unary{
-			Negate: &Negate{
-				Expr5: &Expr5{
-					Left: &ExprTerm{
-						Term: &Term{
-							Variable: varptr("0"),
-						},
-					},
-				},
-			},
+		Term: &Term{
+			Variable: varptr("0"),
 		},
 	}, parsed)
 }
@@ -288,16 +280,37 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.UnaryNegate,
 			},
 		},
+		{
+			Input: `[hex:41].union([hex:42]).intersection([hex:41]).length() == $0`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A"))}},
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("B"))}},
+				biscuit.BinaryUnion,
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A"))}},
+				biscuit.BinaryIntersection,
+				biscuit.UnaryLength,
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryEqual,
+			},
+		},
+		{
+			Input: `hex:12ab == hex:ab`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
+				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
+				biscuit.BinaryEqual,
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
 			parsed, err := parser.ParseString("test", testCase.Input)
-			require.NoError(t, err)
+			require.NoError(t, err, testCase.Input)
 
 			var expr biscuit.Expression
 			(*parsed).ToExpr(&expr)
-			require.Equal(t, testCase.Expected, &expr)
+			require.Equal(t, testCase.Expected, &expr, testCase.Input)
 		})
 	}
 
@@ -424,24 +437,26 @@ func TestGrammarCheck(t *testing.T) {
 											Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
-														Left: &ExprTerm{
-															Term: &Term{
-																Variable: varptr("0"),
+														Expr6: &Expr6{
+															Left: &ExprTerm{
+																Term: &Term{
+																	Variable: varptr("0"),
+																},
 															},
 														},
 													},
 												},
 											},
-										},
-										Right: []*OpExpr2{
-											{
+											Right: &OpExpr3{
 												Operator: OpGreaterThan,
 												Expr3: &Expr3{
 													Left: &Expr4{
 														Left: &Expr5{
-															Left: &ExprTerm{
-																Term: &Term{
-																	Integer: i64ptr(42),
+															Expr6: &Expr6{
+																Left: &ExprTerm{
+																	Term: &Term{
+																		Integer: i64ptr(42),
+																	},
 																},
 															},
 														},
@@ -459,24 +474,26 @@ func TestGrammarCheck(t *testing.T) {
 											Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
-														Left: &ExprTerm{
-															Term: &Term{
-																Variable: varptr("1"),
+														Expr6: &Expr6{
+															Left: &ExprTerm{
+																Term: &Term{
+																	Variable: varptr("1"),
+																},
 															},
-														},
-														Right: []*OpExpr5{
-															{
-																Operator: OpPrefix,
-																Expression: []*Expression{
-																	{
+															Right: []*OpExpr7{
+																{
+																	Operator: OpPrefix,
+																	Expression: &Expression{
 																		Left: &Expr1{
 																			Left: &Expr2{
 																				Left: &Expr3{
 																					Left: &Expr4{
 																						Left: &Expr5{
-																							Left: &ExprTerm{
-																								Term: &Term{
-																									String: sptr("test"),
+																							Expr6: &Expr6{
+																								Left: &ExprTerm{
+																									Term: &Term{
+																										String: sptr("test"),
+																									},
 																								},
 																							},
 																						},

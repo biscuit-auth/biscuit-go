@@ -368,6 +368,74 @@ func getRuleTestCases() []testCase {
 			Input:         `rule1(#a) <- body1($0, $1), $0 in [$1, "foo"]`,
 			ExpectFailure: true,
 		},
+		{
+			// fails because precedence is not handled
+			Input: `rule1("a") <- true || false && true`,
+
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Bool(true)},
+						biscuit.Value{Term: biscuit.Bool(false)},
+						biscuit.Value{Term: biscuit.Bool(true)},
+						biscuit.BinaryAnd,
+						biscuit.BinaryOr,
+					},
+				},
+			},
+		},
+		{
+			Input: `rule1("a") <- 1 + 2 * 3 + 4 / 5`,
+
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Integer(1)},
+						biscuit.Value{Term: biscuit.Integer(2)},
+						biscuit.Value{Term: biscuit.Integer(3)},
+						biscuit.BinaryMul,
+						biscuit.BinaryAdd,
+						biscuit.Value{Term: biscuit.Integer(4)},
+						biscuit.Value{Term: biscuit.Integer(5)},
+						biscuit.BinaryDiv,
+						biscuit.BinaryAdd,
+					},
+				},
+			},
+		},
+		{
+			Input: `rule1("a") <- 1 + 2 * (3 + 4)`,
+
+			Expected: biscuit.Rule{
+				Head: biscuit.Predicate{
+					Name: "rule1",
+					IDs:  []biscuit.Term{biscuit.String("a")},
+				},
+				Body: []biscuit.Predicate{},
+				Expressions: []biscuit.Expression{
+					{
+						biscuit.Value{Term: biscuit.Integer(1)},
+						biscuit.Value{Term: biscuit.Integer(2)},
+						biscuit.Value{Term: biscuit.Integer(3)},
+						biscuit.Value{Term: biscuit.Integer(4)},
+						biscuit.BinaryAdd,
+						biscuit.UnaryParens,
+						biscuit.BinaryMul,
+						biscuit.BinaryAdd,
+					},
+				},
+			},
+		},
 	}
 }
 
