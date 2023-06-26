@@ -25,6 +25,7 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "Comment", Pattern: `//[^\n]*`},
 	{Name: "String", Pattern: `\"[^\"]*\"`},
 	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_:]+`},
+	{Name: "Parameter", Pattern: `\{[a-zA-Z0-9_:]+\}`},
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},
 	{Name: "Int", Pattern: `[0-9]+`},
 	{Name: "Bool", Pattern: `true|false`},
@@ -42,23 +43,23 @@ var DefaultParserOptions = []participle.Option{
 }
 
 type Parser interface {
-	Fact(fact string) (biscuit.Fact, error)
-	Rule(rule string) (biscuit.Rule, error)
-	Check(check string) (biscuit.Check, error)
-	Policy(policy string) (biscuit.Policy, error)
-	Block(block string) (biscuit.ParsedBlock, error)
-	Authorizer(authorizer string) (biscuit.ParsedAuthorizer, error)
+	Fact(fact string, parameters ParametersMap) (biscuit.Fact, error)
+	Rule(rule string, parameters ParametersMap) (biscuit.Rule, error)
+	Check(check string, parameters ParametersMap) (biscuit.Check, error)
+	Policy(policy string, parameters ParametersMap) (biscuit.Policy, error)
+	Block(block string, parameters ParametersMap) (biscuit.ParsedBlock, error)
+	Authorizer(authorizer string, parameters ParametersMap) (biscuit.ParsedAuthorizer, error)
 
 	Must() MustParser
 }
 
 type MustParser interface {
-	Fact(fact string) biscuit.Fact
-	Rule(rule string) biscuit.Rule
-	Check(check string) biscuit.Check
-	Policy(policy string) biscuit.Policy
-	Block(block string) biscuit.ParsedBlock
-	Authorizer(authorizer string) biscuit.ParsedAuthorizer
+	Fact(fact string, parameters ParametersMap) biscuit.Fact
+	Rule(rule string, parameters ParametersMap) biscuit.Rule
+	Check(check string, parameters ParametersMap) biscuit.Check
+	Policy(policy string, parameters ParametersMap) biscuit.Policy
+	Block(block string, parameters ParametersMap) biscuit.ParsedBlock
+	Authorizer(authorizer string, parameters ParametersMap) biscuit.ParsedAuthorizer
 }
 
 type parser struct {
@@ -89,13 +90,13 @@ func New() Parser {
 	}
 }
 
-func (p *parser) Fact(fact string) (biscuit.Fact, error) {
+func (p *parser) Fact(fact string, parameters ParametersMap) (biscuit.Fact, error) {
 	parsed, err := p.factParser.ParseString("fact", fact)
 	if err != nil {
 		return biscuit.Fact{}, err
 	}
 
-	pred, err := parsed.ToBiscuit()
+	pred, err := parsed.ToBiscuit(parameters)
 	if err != nil {
 		return biscuit.Fact{}, err
 	}
@@ -109,13 +110,13 @@ func (p *parser) Fact(fact string) (biscuit.Fact, error) {
 	return biscuit.Fact{Predicate: *pred}, nil
 }
 
-func (p *parser) Rule(rule string) (biscuit.Rule, error) {
+func (p *parser) Rule(rule string, parameters ParametersMap) (biscuit.Rule, error) {
 	parsed, err := p.ruleParser.ParseString("rule", rule)
 	if err != nil {
 		return biscuit.Rule{}, err
 	}
 
-	r, err := parsed.ToBiscuit()
+	r, err := parsed.ToBiscuit(parameters)
 	if err != nil {
 		return biscuit.Rule{}, err
 	}
@@ -123,7 +124,7 @@ func (p *parser) Rule(rule string) (biscuit.Rule, error) {
 	return *r, nil
 }
 
-func (p *parser) Check(check string) (biscuit.Check, error) {
+func (p *parser) Check(check string, parameters ParametersMap) (biscuit.Check, error) {
 	parsed, err := p.checkParser.ParseString("check", check)
 	if err != nil {
 		return biscuit.Check{}, err
@@ -131,7 +132,7 @@ func (p *parser) Check(check string) (biscuit.Check, error) {
 
 	queries := make([]biscuit.Rule, len(parsed.Queries))
 	for i, q := range parsed.Queries {
-		query, err := q.ToBiscuit()
+		query, err := q.ToBiscuit(parameters)
 		if err != nil {
 			return biscuit.Check{}, err
 		}
@@ -144,7 +145,7 @@ func (p *parser) Check(check string) (biscuit.Check, error) {
 	}, nil
 }
 
-func (p *parser) Policy(policy string) (biscuit.Policy, error) {
+func (p *parser) Policy(policy string, parameters ParametersMap) (biscuit.Policy, error) {
 	parsed, err := p.policyParser.ParseString("policy", policy)
 	if err != nil {
 		return biscuit.Policy{}, err
@@ -169,7 +170,7 @@ func (p *parser) Policy(policy string) (biscuit.Policy, error) {
 
 	queries := make([]biscuit.Rule, len(parsedQueries))
 	for i, q := range parsedQueries {
-		query, err := q.ToBiscuit()
+		query, err := q.ToBiscuit(parameters)
 		if err != nil {
 			return biscuit.Policy{}, err
 		}
@@ -183,12 +184,12 @@ func (p *parser) Policy(policy string) (biscuit.Policy, error) {
 	}, nil
 }
 
-func (p *parser) Block(block string) (biscuit.ParsedBlock, error) {
+func (p *parser) Block(block string, parameters ParametersMap) (biscuit.ParsedBlock, error) {
 	parsed, err := p.blockParser.ParseString("block", block)
 	if err != nil {
 		return biscuit.ParsedBlock{}, err
 	}
-	b, err := parsed.ToBiscuit()
+	b, err := parsed.ToBiscuit(parameters)
 
 	if err != nil {
 		return biscuit.ParsedBlock{}, err
@@ -196,12 +197,12 @@ func (p *parser) Block(block string) (biscuit.ParsedBlock, error) {
 	return *b, nil
 }
 
-func (p *parser) Authorizer(authorizer string) (biscuit.ParsedAuthorizer, error) {
+func (p *parser) Authorizer(authorizer string, parameters ParametersMap) (biscuit.ParsedAuthorizer, error) {
 	parsed, err := p.authorizerParser.ParseString("authorizer", authorizer)
 	if err != nil {
 		return biscuit.ParsedAuthorizer{}, err
 	}
-	a, err := parsed.ToBiscuit()
+	a, err := parsed.ToBiscuit(parameters)
 
 	if err != nil {
 		return biscuit.ParsedAuthorizer{}, err
@@ -213,8 +214,8 @@ func (p *parser) Must() MustParser {
 	return &mustParser{parser: p}
 }
 
-func (m *mustParser) Fact(fact string) biscuit.Fact {
-	f, err := m.parser.Fact(fact)
+func (m *mustParser) Fact(fact string, parameters ParametersMap) biscuit.Fact {
+	f, err := m.parser.Fact(fact, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -222,8 +223,8 @@ func (m *mustParser) Fact(fact string) biscuit.Fact {
 	return f
 }
 
-func (m *mustParser) Rule(rule string) biscuit.Rule {
-	r, err := m.parser.Rule(rule)
+func (m *mustParser) Rule(rule string, parameters ParametersMap) biscuit.Rule {
+	r, err := m.parser.Rule(rule, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -231,8 +232,8 @@ func (m *mustParser) Rule(rule string) biscuit.Rule {
 	return r
 }
 
-func (m *mustParser) Check(check string) biscuit.Check {
-	c, err := m.parser.Check(check)
+func (m *mustParser) Check(check string, parameters ParametersMap) biscuit.Check {
+	c, err := m.parser.Check(check, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -240,8 +241,8 @@ func (m *mustParser) Check(check string) biscuit.Check {
 	return c
 }
 
-func (m *mustParser) Policy(policy string) biscuit.Policy {
-	c, err := m.parser.Policy(policy)
+func (m *mustParser) Policy(policy string, parameters ParametersMap) biscuit.Policy {
+	c, err := m.parser.Policy(policy, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -249,8 +250,8 @@ func (m *mustParser) Policy(policy string) biscuit.Policy {
 	return c
 }
 
-func (m *mustParser) Block(block string) biscuit.ParsedBlock {
-	c, err := m.parser.Block(block)
+func (m *mustParser) Block(block string, parameters ParametersMap) biscuit.ParsedBlock {
+	c, err := m.parser.Block(block, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -258,8 +259,8 @@ func (m *mustParser) Block(block string) biscuit.ParsedBlock {
 	return c
 }
 
-func (m *mustParser) Authorizer(authorizer string) biscuit.ParsedAuthorizer {
-	c, err := m.parser.Authorizer(authorizer)
+func (m *mustParser) Authorizer(authorizer string, parameters ParametersMap) biscuit.ParsedAuthorizer {
+	c, err := m.parser.Authorizer(authorizer, parameters)
 	if err != nil {
 		panic(err)
 	}
@@ -268,25 +269,61 @@ func (m *mustParser) Authorizer(authorizer string) biscuit.ParsedAuthorizer {
 }
 
 func FromStringFact(input string) (biscuit.Fact, error) {
-	p := New()
-
-	return p.Fact(input)
+	return FromStringFactWithParams(input, nil)
 }
 
 func FromStringRule(input string) (biscuit.Rule, error) {
-	p := New()
-
-	return p.Rule(input)
+	return FromStringRuleWithParams(input, nil)
 }
 
 func FromStringCheck(input string) (biscuit.Check, error) {
-	p := New()
-
-	return p.Check(input)
+	return FromStringCheckWithParams(input, nil)
 }
 
 func FromStringPolicy(input string) (biscuit.Policy, error) {
+	return FromStringPolicyWithParams(input, nil)
+}
+
+func FromStringBlock(input string) (biscuit.ParsedBlock, error) {
+	return FromStringBlockWithParams(input, nil)
+}
+
+func FromStringAuthorizer(input string) (biscuit.ParsedAuthorizer, error) {
+	return FromStringAuthorizerWithParams(input, nil)
+}
+
+func FromStringFactWithParams(input string, parameters ParametersMap) (biscuit.Fact, error) {
 	p := New()
 
-	return p.Policy(input)
+	return p.Fact(input, parameters)
+}
+
+func FromStringRuleWithParams(input string, parameters ParametersMap) (biscuit.Rule, error) {
+	p := New()
+
+	return p.Rule(input, parameters)
+}
+
+func FromStringCheckWithParams(input string, parameters ParametersMap) (biscuit.Check, error) {
+	p := New()
+
+	return p.Check(input, parameters)
+}
+
+func FromStringPolicyWithParams(input string, parameters ParametersMap) (biscuit.Policy, error) {
+	p := New()
+
+	return p.Policy(input, parameters)
+}
+
+func FromStringBlockWithParams(input string, parameters ParametersMap) (biscuit.ParsedBlock, error) {
+	p := New()
+
+	return p.Block(input, parameters)
+}
+
+func FromStringAuthorizerWithParams(input string, parameters ParametersMap) (biscuit.ParsedAuthorizer, error) {
+	p := New()
+
+	return p.Authorizer(input, parameters)
 }

@@ -504,7 +504,7 @@ func TestParserFact(t *testing.T) {
 	p := New()
 	for _, testCase := range getFactTestCases() {
 		t.Run(testCase.Input, func(t *testing.T) {
-			fact, err := p.Fact(testCase.Input)
+			fact, err := p.Fact(testCase.Input, nil)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -523,7 +523,7 @@ func TestParseRule(t *testing.T) {
 	p := New()
 	for _, testCase := range getRuleTestCases() {
 		t.Run(testCase.Input, func(t *testing.T) {
-			rule, err := p.Rule(testCase.Input)
+			rule, err := p.Rule(testCase.Input, nil)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -542,7 +542,7 @@ func TestParserCheck(t *testing.T) {
 	p := New()
 	for _, testCase := range getCheckTestCases() {
 		t.Run(testCase.Input, func(t *testing.T) {
-			caveat, err := p.Check(testCase.Input)
+			caveat, err := p.Check(testCase.Input, nil)
 			if testCase.ExpectFailure {
 				if testCase.ExpectErr != nil {
 					require.Equal(t, testCase.ExpectErr, err)
@@ -568,7 +568,7 @@ func TestMustParserFact(t *testing.T) {
 				}()
 			}
 
-			fact := p.Must().Fact(testCase.Input)
+			fact := p.Must().Fact(testCase.Input, nil)
 			require.Equal(t, testCase.Expected, fact)
 		})
 	}

@@ -27,6 +27,15 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
+			Input: `resource({param1})`,
+			Expected: &Predicate{
+				Name: sptr("resource"),
+				IDs: []*Term{
+					{Parameter: paramptr("param1")},
+				},
+			},
+		},
+		{
 			Input: `resource($0, "read")`,
 			Expected: &Predicate{
 				Name: sptr("resource"),
@@ -130,6 +139,7 @@ func TestGrammarExpression(t *testing.T) {
 
 	testCases := []struct {
 		Input    string
+		Params   ParametersMap
 		Expected *biscuit.Expression
 	}{
 		{
@@ -301,6 +311,27 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryEqual,
 			},
 		},
+		{
+			Input: `{param1} + {param2} * {param3} == {param4} || {param5}`,
+			Params: map[string]biscuit.Term{
+				"param1": biscuit.Integer(1),
+				"param2": biscuit.Integer(2),
+				"param3": biscuit.Integer(3),
+				"param4": biscuit.Integer(7),
+				"param5": biscuit.Bool(false),
+			},
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Integer(2)},
+				biscuit.Value{Term: biscuit.Integer(3)},
+				biscuit.BinaryMul,
+				biscuit.BinaryAdd,
+				biscuit.Value{Term: biscuit.Integer(7)},
+				biscuit.BinaryEqual,
+				biscuit.Value{Term: biscuit.Bool(false)},
+				biscuit.BinaryOr,
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -309,7 +340,7 @@ func TestGrammarExpression(t *testing.T) {
 			require.NoError(t, err, testCase.Input)
 
 			var expr biscuit.Expression
-			(*parsed).ToExpr(&expr)
+			(*parsed).ToExpr(&expr, testCase.Params)
 			require.Equal(t, testCase.Expected, &expr, testCase.Input)
 		})
 	}
@@ -705,6 +736,11 @@ func TestGrammarAuthorizer(t *testing.T) {
 func varptr(s string) *Variable {
 	v := Variable(s)
 	return &v
+}
+
+func paramptr(s string) *Parameter {
+	p := Parameter(s)
+	return &p
 }
 
 func sptr(s string) *string {

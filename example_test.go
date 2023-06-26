@@ -12,43 +12,19 @@ import (
 func ExampleBiscuit() {
 	rng := rand.Reader
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
+
+	authority, err := parser.FromStringBlockWithParams(`
+		right("/a/file1.txt", {read});
+		right("/a/file1.txt", {write});
+		right("/a/file2.txt", {read});
+		right("/a/file3.txt", {write});
+	`, map[string]biscuit.Term{"read": biscuit.String("read"), "write": biscuit.String("write")})
+	if err != nil {
+		panic(fmt.Errorf("failed to parse authority block: %v", err))
+	}
+
 	builder := biscuit.NewBuilder(privateRoot)
-
-	fact1, err := parser.FromStringFact(`right("/a/file1.txt", "read")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse authority facts: %v", err))
-	}
-	err = builder.AddAuthorityFact(fact1)
-	if err != nil {
-		panic(fmt.Errorf("failed to add authority facts: %v", err))
-	}
-
-	fact2, err := parser.FromStringFact(`right("/a/file1.txt", "write")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse authority facts: %v", err))
-	}
-	err = builder.AddAuthorityFact(fact2)
-	if err != nil {
-		panic(fmt.Errorf("failed to add authority facts: %v", err))
-	}
-
-	fact3, err := parser.FromStringFact(`right("/a/file2.txt", "read")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse authority facts: %v", err))
-	}
-	err = builder.AddAuthorityFact(fact3)
-	if err != nil {
-		panic(fmt.Errorf("failed to add authority facts: %v", err))
-	}
-
-	fact4, err := parser.FromStringFact(`right("/a/file3.txt", "write")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse authority facts: %v", err))
-	}
-	err = builder.AddAuthorityFact(fact4)
-	if err != nil {
-		panic(fmt.Errorf("failed to add authority facts: %v", err))
-	}
+	builder.AddBlock(authority)
 
 	b, err := builder.Build()
 	if err != nil {
@@ -69,14 +45,14 @@ func ExampleBiscuit() {
 
 	blockBuilder := deser.CreateBlock()
 
-	check, err := parser.FromStringCheck(`check if resource($file), operation($permission), ["read"].contains($permission)`)
+	block, err := parser.FromStringBlockWithParams(`
+			check if resource($file), operation($permission), [{read}].contains($permission);`,
+		map[string]biscuit.Term{"read": biscuit.String("read")})
+
 	if err != nil {
-		panic(fmt.Errorf("failed to parse check: %v", err))
+		panic(fmt.Errorf("failed to parse block: %v", err))
 	}
-	err = blockBuilder.AddCheck(check)
-	if err != nil {
-		panic(fmt.Errorf("failed to add block check: %v", err))
-	}
+	blockBuilder.AddBlock(block)
 
 	b2, err := deser.Append(rng, blockBuilder.Build())
 	if err != nil {
@@ -101,26 +77,20 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to create verifier: %v", err))
 	}
 
-	vfact1, err := parser.FromStringFact(`resource("/a/file1.txt")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier fact: %v", err))
-	}
-	v1.AddFact(vfact1)
+	authorizer, err := parser.FromStringAuthorizerWithParams(`
+		resource({res});
+		operation({op});
+		allow if right({res}, {op});
+		`, map[string]biscuit.Term{"res": biscuit.String("/a/file1.txt"), "op": biscuit.String("read")})
 
-	vfact2, err := parser.FromStringFact(`operation("read")`)
 	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier fact: %v", err))
+		panic(fmt.Errorf("failed to parse authorizer: %v", err))
 	}
-	v1.AddFact(vfact2)
-
-	policy, err := parser.FromStringPolicy(`allow if resource("/a/file1.txt")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier policy: %v", err))
-	}
-	v1.AddPolicy(policy)
+	v1.AddAuthorizer(authorizer)
 
 	if err := v1.Authorize(); err != nil {
-		fmt.Println(v1.PrintWorld())
+		// fmt.Println(v1.PrintWorld())
+
 		fmt.Println("forbidden to read /a/file1.txt")
 	} else {
 		//fmt.Println(v1.PrintWorld())
@@ -130,23 +100,16 @@ func ExampleBiscuit() {
 
 	v1, _ = b2.Authorizer(publicRoot)
 
-	vfact1, err = parser.FromStringFact(`resource("/a/file1.txt")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier fact: %v", err))
-	}
-	v1.AddFact(vfact1)
+	authorizer, err = parser.FromStringAuthorizerWithParams(`
+		resource({res});
+		operation({op});
+		allow if right({res}, {op});
+		`, map[string]biscuit.Term{"res": biscuit.String("/a/file1.txt"), "op": biscuit.String("write")})
 
-	vfact2, err = parser.FromStringFact(`operation("write")`)
 	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier fact: %v", err))
+		panic(fmt.Errorf("failed to parse authorizer: %v", err))
 	}
-	v1.AddFact(vfact2)
-
-	policy, err = parser.FromStringPolicy(`allow if resource("/a/file1.txt")`)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse verifier policy: %v", err))
-	}
-	v1.AddPolicy(policy)
+	v1.AddAuthorizer(authorizer)
 
 	if err := v1.Authorize(); err != nil {
 		fmt.Println("forbidden to write /a/file1.txt")

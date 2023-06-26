@@ -179,7 +179,7 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 
 	rng := rand.Reader
 	_, privateRoot, _ := ed25519.GenerateKey(rng)
-	authority, err := p.Block(blocks[0].Code)
+	authority, err := p.Block(blocks[0].Code, nil)
 	require.NoError(t, err)
 	builder := biscuit.NewBuilder(privateRoot)
 	builder.AddBlock(authority)
@@ -188,7 +188,7 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	rebuilt := *r
 
 	for _, b := range blocks[1:] {
-		parsed, err := p.Block(b.Code)
+		parsed, err := p.Block(b.Code, nil)
 		require.NoError(t, err)
 		builder := rebuilt.CreateBlock()
 		builder.AddBlock(parsed)
@@ -202,7 +202,7 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 
 func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Biscuit, v Validation, t *testing.T) {
 	p := parser.New()
-	authorizer_code, err := p.Authorizer(v.AuthorizerCode)
+	authorizer_code, err := p.Authorizer(v.AuthorizerCode, nil)
 	require.NoError(t, err)
 	authorizer, err := token.Authorizer(root_key)
 
