@@ -53,6 +53,106 @@ func (b *Bool) Capture(values []string) error {
 	return nil
 }
 
+type Block struct {
+	Comments []*Comment      `@Comment*`
+	Body     []*BlockElement `(@@ ";")*`
+}
+
+type BlockElement struct {
+	Check     *Check         `@@`
+	Predicate *Predicate     `|@@`
+	RuleBody  []*RuleElement `("<-" @@ ("," @@)*)?`
+}
+
+func (b *Block) ToBiscuit() (*biscuit.ParsedBlock, error) {
+	facts := []biscuit.Fact{}
+	rules := []biscuit.Rule{}
+	checks := []biscuit.Check{}
+	for _, e := range b.Body {
+		if e.Check != nil {
+			c, err := e.Check.ToBiscuit()
+			if err != nil {
+				return nil, err
+			}
+			checks = append(checks, *c)
+		} else if e.Predicate != nil && e.RuleBody != nil {
+			rule := Rule{
+				Head: e.Predicate,
+				Body: e.RuleBody,
+			}
+			r, err := rule.ToBiscuit()
+			if err != nil {
+				return nil, err
+			}
+			rules = append(rules, *r)
+		} else {
+			p, err := e.Predicate.ToBiscuit()
+			if err != nil {
+				return nil, err
+			}
+			facts = append(facts, biscuit.Fact{Predicate: *p})
+		}
+	}
+	return &biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks}, nil
+}
+
+type Authorizer struct {
+	Comments []*Comment           `@Comment*`
+	Body     []*AuthorizerElement `(@@ ";")*`
+}
+
+type AuthorizerElement struct {
+	Policy       *Policy       `@@`
+	BlockElement *BlockElement `|@@`
+}
+
+func (b *Authorizer) ToBiscuit() (*biscuit.ParsedAuthorizer, error) {
+	facts := []biscuit.Fact{}
+	rules := []biscuit.Rule{}
+	checks := []biscuit.Check{}
+	policies := []biscuit.Policy{}
+
+	for _, e := range b.Body {
+		if e.BlockElement != nil {
+			be := e.BlockElement
+			if be.Check != nil {
+				c, err := be.Check.ToBiscuit()
+				if err != nil {
+					return nil, err
+				}
+				checks = append(checks, *c)
+			} else if be.Predicate != nil && be.RuleBody != nil {
+				rule := Rule{
+					Head: be.Predicate,
+					Body: be.RuleBody,
+				}
+				r, err := rule.ToBiscuit()
+				if err != nil {
+					return nil, err
+				}
+				rules = append(rules, *r)
+			} else {
+				p, err := be.Predicate.ToBiscuit()
+				if err != nil {
+					return nil, err
+				}
+				facts = append(facts, biscuit.Fact{Predicate: *p})
+			}
+		} else if e.Policy != nil {
+			p, err := e.Policy.ToBiscuit()
+			if err != nil {
+				return nil, err
+			}
+			policies = append(policies, *p)
+
+		}
+	}
+	return &biscuit.ParsedAuthorizer{
+		Policies: policies,
+		Block:    biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks},
+	}, nil
+}
+
 type Rule struct {
 	Comments []*Comment     `@Comment*`
 	Head     *Predicate     `@@`

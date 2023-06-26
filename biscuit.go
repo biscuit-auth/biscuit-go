@@ -449,6 +449,13 @@ Biscuit {
 		blocks,
 	)
 }
+func (b *Biscuit) Code() []string {
+	blocks := make([]string, len(b.blocks))
+	for i, block := range b.blocks {
+		blocks[i] = block.Code(b.symbols)
+	}
+	return blocks
+}
 
 /*
 func (b *Biscuit) checkRootKey(root ed25519.PublicKey) error {

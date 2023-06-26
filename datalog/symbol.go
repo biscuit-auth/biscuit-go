@@ -2,6 +2,7 @@ package datalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -243,6 +244,9 @@ func (d SymbolDebugger) World(w *World) string {
 	for i, r := range w.rules {
 		rules[i] = d.Rule(r)
 	}
+
+	sort.Strings(facts)
+	sort.Strings(rules)
 	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
 }
 

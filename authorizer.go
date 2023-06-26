@@ -17,6 +17,8 @@ var (
 )
 
 type Authorizer interface {
+	AddAuthorizer(a ParsedAuthorizer)
+	AddBlock(b ParsedBlock)
 	AddFact(fact Fact)
 	AddRule(rule Rule)
 	AddCheck(check Check)
@@ -72,6 +74,25 @@ func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 	a.symbols = a.baseSymbols.Clone()
 
 	return a, nil
+}
+
+func (v *authorizer) AddAuthorizer(a ParsedAuthorizer) {
+	v.AddBlock(a.Block)
+	for _, p := range a.Policies {
+		v.AddPolicy(p)
+	}
+}
+
+func (v *authorizer) AddBlock(block ParsedBlock) {
+	for _, f := range block.Facts {
+		v.AddFact(f)
+	}
+	for _, r := range block.Rules {
+		v.AddRule(r)
+	}
+	for _, c := range block.Checks {
+		v.AddCheck(c)
+	}
 }
 
 func (v *authorizer) AddFact(fact Fact) {
