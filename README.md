@@ -15,35 +15,38 @@ biscuit-go is an implementation of [Biscuit](https://github.com/biscuit-auth/bis
 ```go
 rng := rand.Reader
 publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
+
+authority, err := parser.FromStringBlockWithParams(`
+	right("/a/file1.txt", {read});
+	right("/a/file1.txt", {write});
+	right("/a/file2.txt", {read});
+	right("/a/file3.txt", {write});
+`, map[string]biscuit.Term{"read": biscuit.String("read"), "write": biscuit.String("write")})
+
+if err != nil {
+	panic(fmt.Errorf("failed to parse authority block: %v", err))
+}
+
 builder := biscuit.NewBuilder(privateRoot)
-
-fact1, err := parser.FromStringFact(`right("/a/file1.txt", "read")`)
-if err != nil {
-    panic(fmt.Errorf("failed to parse authority facts: %v", err))
-}
-
-err := builder.AddAuthorityFact(fact1)
-if err != nil {
-    panic(fmt.Errorf("failed to add authority facts: %v", err))
-}
-
-// ... add more authority facts, rules, caveats...
+builder.AddBlock(authority)
 
 b, err := builder.Build()
 if err != nil {
-    panic(fmt.Errorf("failed to build biscuit: %v", err))
+	panic(fmt.Errorf("failed to build biscuit: %v", err))
 }
+
 token, err := b.Serialize()
 if err != nil {
-    panic(fmt.Errorf("failed to serialize biscuit: %v", err))
+	panic(fmt.Errorf("failed to serialize biscuit: %v", err))
 }
 
 // token is now a []byte, ready to be shared
-// If you want a base64 encoded token, do it like this
+// The biscuit spec mandates the use of URL-safe base64 encoding for textual representation:
 fmt.Println(base64.URLEncoding.EncodeToString(token))
 ```
 
 #### Attenuate a biscuit
+
 ```go
 b, err = biscuit.Unmarshal(token)
 if err != nil {
@@ -52,9 +55,13 @@ if err != nil {
 
 // Attenuate the biscuit by appending a new block to it
 blockBuilder := b.CreateBlock()
-blockBuilder.AddFact(biscuit.Fact{/* ... */})
-
-// ... add more facts, rules, caveats...
+block, err := parser.FromStringBlockWithParams(`
+		check if resource($file), operation($permission), [{read}].contains($permission);`,
+	map[string]biscuit.Term{"read": biscuit.String("read")})
+if err != nil {
+	panic(fmt.Errorf("failed to parse block: %v", err))
+}
+blockBuilder.AddBlock(block)
 
 attenuatedBiscuit, err := b.Append(rng, blockBuilder.Build())
 if err != nil {
@@ -65,7 +72,7 @@ if err != nil {
     panic(fmt.Errorf("failed to serialize biscuit: %v", err))
 }
 
-// token is now a []byte attenuation of the original token, and ready to be shared
+// attenuatedToken is a []byte, representing an attenuated token
 ```
 
 #### Verify a biscuit
@@ -81,16 +88,15 @@ if err != nil {
     panic(fmt.Errorf("failed to verify token and create authorizer: %v", err))
 }
 
-fact1, err := parser.FromStringFact(`resource("/a/file1.txt")`)
+authorizerContents, err := parser.FromStringAuthorizerWithParams(`
+	resource({res});
+	operation({op});
+	allow if right({res}, {op});
+	`, map[string]biscuit.Term{"res": biscuit.String("/a/file1.txt"), "op": biscuit.String("read")})
 if err != nil {
-    panic(fmt.Errorf("failed to parse authority facts: %v", err))
+	panic(fmt.Errorf("failed to parse authorizer: %v", err))
 }
-
-auhorizer.AddFact(fact1)
-
-// ... add more ambient facts, rules, caveats...
-
-authorizer.AddPolicy(biscuit.DefaultAllowPolicy)
+authorizer.AddAuthorizer(authorizerContents)
 
 if err := authorizer.Authorize(); err != nil {
     fmt.Printf("failed authorizing token: %v\n", err)
@@ -101,17 +107,38 @@ if err := authorizer.Authorize(); err != nil {
 
 ### Using biscuit-go grammar
 
-To ease adding facts, rules, or caveats, a simple grammar and a parser are available, allowing to declare biscuit elements as plain strings. See [GRAMMAR reference](./parser/GRAMMAR.md) for the complete syntax.
+biscuit-go provides a datalog parser, allowing to input datalog elements as plain strings, along with support for parameter substitution. 
+
+See [GRAMMAR reference](./parser/GRAMMAR.md) for the complete syntax.
+
+The parsers supports parsing whole blocks (containing several facts, rules and checks), whole authorizers (containing several facts, rules, checks and policies), as well as individual facts, rules, checks and policies. Parsing and adding elements individually is especially useful when doing so from inside a loop. 
+
+The `parser` module provides convenient helpers for parsing a string into datalog elements (`FromStringFact`, `FromStringRule`, `FromStringCheck`, `FromStringPolicy`, `FromStringBlock`, `FromStringAuthorizer`, for static datalog snippets, and their counterparts allowing parameter substitution: `FromStringFactWithParams`, `FromStringRuleWithParams`, `FromStringCheckWithParams`, `FromStringPolicyWithParams`, `FromStringBlockWithParams`, `FromStringAuthorizerWithParams`).
+
+#### Panic on parsing errors
+
+In most cases, `FromString*` functions will let you handle errors. If you do not wish to handle errors and instead crash on errors (for instance in one-off scripts), it can be done by first creating a parser instance, and using the `panic`-y functions:
 
 ```go
 p := parser.New()
-b.AddFact(p.Must().Fact(`resource("/a/file1.txt")`))
+b := biscuit.NewBuilder(privateRoot)
+
+b.AddBlock(p.Must().Block(`
+	right("/a/file1.txt", {read});
+	right("/a/file1.txt", {write});
+	right("/a/file2.txt", {read});
+	right("/a/file3.txt", {write});
+`, map[string]biscuit.Term{"read": biscuit.String("read"), "write": biscuit.String("write")}))
+
+b.AddFact(p.Must().Fact(`resource({res})`, map[string]biscuit.Term{"res": biscuit.String("/a/file1.txt")}))
 b.AddRule(p.Must().Rule(`
     can_read($file) 
         <- resource($file)
         $file.starts_with("/a/")
-`))
+`, nil))
 ```
+
+Do note that these helpers take two arguments: a datalog snippet and a parameters map. If the datalog snippet does not contain parameters, `nil` can be passed as the second argument.
 
 ## Examples
 
