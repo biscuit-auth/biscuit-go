@@ -402,7 +402,7 @@ func TestNewErrors(t *testing.T) {
 
 	t.Run("authority block Strings overlap", func(t *testing.T) {
 		_, privateRoot, _ := ed25519.GenerateKey(rng)
-		_, err := New(rng, privateRoot, &datalog.SymbolTable{"String1", "String2"}, &Block{
+		_, err := New(rng, DefaultSignMethod(privateRoot), &datalog.SymbolTable{"String1", "String2"}, &Block{
 			symbols: &datalog.SymbolTable{"String1"},
 		})
 		require.Equal(t, ErrSymbolTableOverlap, err)
