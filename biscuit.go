@@ -2,20 +2,17 @@ package biscuit
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/binary"
-
-	//"crypto/sha256"
-	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"io"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/biscuit-auth/biscuit-go/v2/datalog"
 	"github.com/biscuit-auth/biscuit-go/v2/pb"
-
-	//"github.com/biscuit-auth/biscuit-go/sig"
-	"google.golang.org/protobuf/proto"
 )
 
 // Biscuit represents a valid Biscuit token
@@ -53,7 +50,12 @@ var (
 	UnsupportedAlgorithm = errors.New("biscuit: unsupported signature algorithm")
 )
 
-func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
+func New(
+	rng io.Reader,
+	sign signFunc,
+	baseSymbols *datalog.SymbolTable,
+	authority *Block,
+) (*Biscuit, error) {
 	if rng == nil {
 		rng = rand.Reader
 	}
@@ -83,7 +85,11 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 	toSign := append(marshalledAuthority[:], toSignAlgorithm...)
 	toSign = append(toSign, nextPublicKey[:]...)
 
-	signature := ed25519.Sign(root, toSign)
+	var signature []byte
+	if signature, err = sign(toSign); err != nil {
+		return nil, err
+	}
+
 	nextKey := &pb.PublicKey{
 		Algorithm: &algorithm,
 		Key:       nextPublicKey,
