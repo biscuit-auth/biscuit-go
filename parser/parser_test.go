@@ -606,3 +606,9 @@ func TestMustParserFact(t *testing.T) {
 // 		})
 // 	}
 // }
+
+func TestIssue84(t *testing.T) {
+	rule, err := FromStringRule(`var($a) <- user($a), !($a == "abc")`)
+	_ = rule
+	require.NoError(t, err)
+}
