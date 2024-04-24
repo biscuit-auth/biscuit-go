@@ -95,9 +95,6 @@ func (e *Expression) Print(symbols *SymbolTable) string {
 				return "<invalid expression: unary operation failed to pop value>"
 			}
 			res := op.(UnaryOp).Print(v)
-			if err != nil {
-				return "<invalid expression: binary operation failed to pop right value>"
-			}
 			s.Push(res)
 		case OpTypeBinary:
 			right, err := s.Pop()
@@ -160,6 +157,8 @@ func (op UnaryOp) Print(value string) string {
 		out = fmt.Sprintf("!%s", value)
 	case UnaryParens:
 		out = fmt.Sprintf("(%s)", value)
+	case UnaryLength:
+		out = fmt.Sprintf("%s.length()", value)
 	default:
 		out = fmt.Sprintf("unknown(%s)", value)
 	}
@@ -228,7 +227,7 @@ func (Length) Eval(value Term, symbols *SymbolTable) (Term, error) {
 	case TermTypeSet:
 		out = Integer(len(value.(Set)))
 	default:
-		return nil, fmt.Errorf("datalog: unexpected Negate value type: %d", value.Type())
+		return nil, fmt.Errorf("datalog: unexpected Length value type: %d", value.Type())
 	}
 	return out, nil
 }
