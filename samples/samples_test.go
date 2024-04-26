@@ -141,13 +141,13 @@ type Validation struct {
 
 func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	// all these contain v4 blocks, which are not supported yet
-	if c.Filename == "test024_third_party.bc" ||
-		c.Filename == "test025_check_all.bc" ||
-		c.Filename == "test026_public_keys_interning.bc" ||
-		c.Filename == "test027_integer_wraparound.bc" ||
-		c.Filename == "test028_expressions_v4.bc" {
-		t.SkipNow()
-	}
+	// if c.Filename == "test024_third_party.bc" ||
+	//	c.Filename == "test025_check_all.bc" ||
+	//	c.Filename == "test026_public_keys_interning.bc" ||
+	//	c.Filename == "test027_integer_wraparound.bc" ||
+	//	c.Filename == "test028_expressions_v4.bc" {
+	//	t.SkipNow()
+	// }
 	fmt.Printf("Checking sample %s\n", c.Filename)
 	b, err := os.ReadFile("./data/current/" + c.Filename)
 	require.NoError(t, err)
