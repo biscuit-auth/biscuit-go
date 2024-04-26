@@ -328,7 +328,7 @@ func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
 	}
 
 	switch pbPolicies.GetVersion() {
-	case 3:
+	case 3, 4:
 		return v.loadPoliciesV2(pbPolicies)
 	default:
 		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())

@@ -11,7 +11,7 @@ import (
 )
 
 const MinSchemaVersion uint32 = 3
-const MaxSchemaVersion uint32 = 3
+const MaxSchemaVersion uint32 = 4
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
