@@ -161,7 +161,7 @@ func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 		}
 
 		for _, v := range c.Validations {
-			CompareResult(root_key, c.Filename, *token, v, t)
+			CompareResult(root_key, *token, v, t)
 		}
 
 	} else {
@@ -182,7 +182,8 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	authority, err := p.Block(blocks[0].Code, nil)
 	require.NoError(t, err)
 	builder := biscuit.NewBuilder(privateRoot)
-	builder.AddBlock(authority)
+	err = builder.AddBlock(authority)
+	require.NoError(t, err)
 	r, err := builder.Build()
 	require.NoError(t, err)
 	rebuilt := *r
@@ -191,7 +192,8 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 		parsed, err := p.Block(b.Code, nil)
 		require.NoError(t, err)
 		builder := rebuilt.CreateBlock()
-		builder.AddBlock(parsed)
+		err = builder.AddBlock(parsed)
+		require.NoError(t, err)
 		r, err := rebuilt.Append(rng, builder.Build())
 		require.NoError(t, err)
 		rebuilt = *r
@@ -200,7 +202,7 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	require.Equal(t, sample, rebuilt.Code())
 }
 
-func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Biscuit, v Validation, t *testing.T) {
+func CompareResult(root_key ed25519.PublicKey, token biscuit.Biscuit, v Validation, t *testing.T) {
 	p := parser.New()
 	authorizer_code, err := p.Authorizer(v.AuthorizerCode, nil)
 	require.NoError(t, err)
