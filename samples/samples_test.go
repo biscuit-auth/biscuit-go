@@ -167,6 +167,7 @@ func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	} else {
 		fmt.Println(err)
 		fmt.Println("  Parsing failed, all validations must be errors")
+		// TODO: fix this logic, parsing may fail for the "wrong" reason and we should still detect it. See test027.
 		for _, v := range c.Validations {
 			require.Nil(t, v.Result.Ok)
 		}
@@ -224,7 +225,9 @@ func CompareResult(root_key ed25519.PublicKey, token biscuit.Biscuit, v Validati
 
 func CompareError(authorization_error error, sample_error *BiscuitError, t *testing.T) {
 	error_string := authorization_error.Error()
-	if sample_error.Format != nil {
+	if sample_error == nil {
+		require.Fail(t, error_string)
+	} else if sample_error.Format != nil {
 		require.Equal(t, error_string, "biscuit: invalid signature")
 	} else if sample_error.FailedLogic != nil {
 		if sample_error.FailedLogic.Unauthorized != nil {

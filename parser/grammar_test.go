@@ -175,6 +175,26 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
+			Input: `$0 < 1 + 2`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Integer(2)},
+				biscuit.BinaryAdd,
+				biscuit.BinaryLessThan,
+			},
+		},
+		{
+			Input: `$0 < 1 & 2`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Integer(2)},
+				biscuit.BinaryBitwiseAnd,
+				biscuit.BinaryLessThan,
+			},
+		},
+		{
 			Input: `$0 <= 1`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
@@ -236,6 +256,13 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.String("^abc[a-z]+$")},
 				biscuit.BinaryRegex,
+			},
+		},
+		{
+			Input: `$0.length() `,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.UnaryLength,
 			},
 		},
 		{
@@ -309,6 +336,14 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
 				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
 				biscuit.BinaryEqual,
+			},
+		},
+		{
+			Input: `hex:12ab != hex:ab`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
+				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
+				biscuit.BinaryNotEqual,
 			},
 		},
 		{
@@ -468,10 +503,16 @@ func TestGrammarCheck(t *testing.T) {
 											Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
-														Expr6: &Expr6{
-															Left: &ExprTerm{
-																Term: &Term{
-																	Variable: varptr("0"),
+														Left: &Expr6{
+															Left: &Expr7{
+																Left: &Expr8{
+																	Expr9: &Expr9{
+																		Left: &ExprTerm{
+																			Term: &Term{
+																				Variable: varptr("0"),
+																			},
+																		},
+																	},
 																},
 															},
 														},
@@ -483,10 +524,16 @@ func TestGrammarCheck(t *testing.T) {
 												Expr3: &Expr3{
 													Left: &Expr4{
 														Left: &Expr5{
-															Expr6: &Expr6{
-																Left: &ExprTerm{
-																	Term: &Term{
-																		Integer: i64ptr(42),
+															Left: &Expr6{
+																Left: &Expr7{
+																	Left: &Expr8{
+																		Expr9: &Expr9{
+																			Left: &ExprTerm{
+																				Term: &Term{
+																					Integer: i64ptr(42),
+																				},
+																			},
+																		},
 																	},
 																},
 															},
@@ -505,25 +552,37 @@ func TestGrammarCheck(t *testing.T) {
 											Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
-														Expr6: &Expr6{
-															Left: &ExprTerm{
-																Term: &Term{
-																	Variable: varptr("1"),
-																},
-															},
-															Right: []*OpExpr7{
-																{
-																	Operator: OpPrefix,
-																	Expression: &Expression{
-																		Left: &Expr1{
-																			Left: &Expr2{
-																				Left: &Expr3{
-																					Left: &Expr4{
-																						Left: &Expr5{
-																							Expr6: &Expr6{
-																								Left: &ExprTerm{
-																									Term: &Term{
-																										String: sptr("test"),
+														Left: &Expr6{
+															Left: &Expr7{
+																Left: &Expr8{
+																	Expr9: &Expr9{
+																		Left: &ExprTerm{
+																			Term: &Term{
+																				Variable: varptr("1"),
+																			},
+																		},
+																		Right: []*OpExpr10{
+																			{
+																				Operator: OpPrefix,
+																				Expression: &Expression{
+																					Left: &Expr1{
+																						Left: &Expr2{
+																							Left: &Expr3{
+																								Left: &Expr4{
+																									Left: &Expr5{
+																										Left: &Expr6{
+																											Left: &Expr7{
+																												Left: &Expr8{
+																													Expr9: &Expr9{
+																														Left: &ExprTerm{
+																															Term: &Term{
+																																String: sptr("test"),
+																															},
+																														},
+																													},
+																												},
+																											},
+																										},
 																									},
 																								},
 																							},

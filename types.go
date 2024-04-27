@@ -373,6 +373,10 @@ const (
 	BinaryOr
 	BinaryIntersection
 	BinaryUnion
+	BinaryBitwiseAnd
+	BinaryBitwiseOr
+	BinaryBitwiseXor
+	BinaryNotEqual
 )
 
 func (BinaryOp) Type() OpType {
@@ -414,6 +418,14 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Intersection{}}
 	case BinaryUnion:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Union{}}
+	case BinaryBitwiseAnd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseAnd{}}
+	case BinaryBitwiseOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseOr{}}
+	case BinaryBitwiseXor:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseXor{}}
+	case BinaryNotEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -455,6 +467,14 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryIntersection, nil
 	case datalog.BinaryUnion:
 		return BinaryUnion, nil
+	case datalog.BinaryBitwiseAnd:
+		return BinaryBitwiseAnd, nil
+	case datalog.BinaryBitwiseOr:
+		return BinaryBitwiseOr, nil
+	case datalog.BinaryBitwiseXor:
+		return BinaryBitwiseXor, nil
+	case datalog.BinaryNotEqual:
+		return BinaryNotEqual, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}

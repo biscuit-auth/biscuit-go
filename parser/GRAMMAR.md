@@ -26,21 +26,25 @@ Constraints allows performing checks on a variable, below is the list of availab
 ### Boolean
 
 - Equal: `$b == true`
+- Not equal: `$b != false`
 - Negation: `!$b`
 - And / Or: `$b || $c && $d`
 
 ### Integer
 
 - Equal: `$i == 1`
+- Not equal: `$i != 1`
 - Greater than: `$i > 1`
 - Greater than or equal: `$i >= 1`
 - Less than: `$i < 1`
 - Less than or equal: `$i <= 1`
 - Arithmetic (`*`, `/`, `+`, `-`)
+- Bitwise (`&`, `|`, `^`)
 
 ###  String
 
 - Equal: `$s == "abc"`
+- Not equal: `$s != "abc"`
 - Starts with: `$s.starts_with("abc")`
 - Ends with: `$s.ends_with("abc")`
 - Regular expression: `$s.matches("^abc\s+def$") `
@@ -50,6 +54,7 @@ Constraints allows performing checks on a variable, below is the list of availab
 ### Date
 
 - Equal: `$date == "2006-01-02T15:04:05Z07:00"`
+- Not equal: `$date != "2006-01-02T15:04:05Z07:00"`
 - Before (strict): `$date < "2006-01-02T15:04:05Z07:00"`
 - Before: `$date <= "2006-01-02T15:04:05Z07:00"`
 - After (strict): `$date > "2006-01-02T15:04:05Z07:00"`
@@ -58,11 +63,13 @@ Constraints allows performing checks on a variable, below is the list of availab
 ### Bytes
 
 - Equal: `$b == "hex:3df97fb5"`
+- Not equal: `$b != "hex:3df97fb5"`
 - Length: `$b.length()`
 
 ### Set
 
 - Equal: `$set == ["a", "b"]`
+- Not equal: `$set != ["a", "b"]`
 - Contains (element membership): `$set.contains("a")`
 - Contains (set inclusion): `$set.contains([a])`
 - Union: `$set.union(["a"])`
@@ -74,14 +81,17 @@ Constraints allows performing checks on a variable, below is the list of availab
 The operators have the following precedence (highest to lowest):
 
 
-| Operators                   | Associativity    |
-|-----------------------------|------------------|
-| `!` (prefix)                | not associative  |
-| `*`, `/`                    | left-associative |
-| `+`, `-`                    | left-associative |
-| `>`, `>=`, `<`, `<=`, `==`  | not associative  |
-| `&&`                        | left-associative |
-| `||`                        | left-associative |
+| Operators                        | Associativity   |
+|----------------------------------|-----------------|
+| `!` (prefix)                     | not associative |
+| `*`, `/`                         | left-associative |
+| `+`, `-`                         | left-associative |
+| `&`                              | left-associative |
+| `\|`                             | left-associative |
+| `^`                              | left-associative |
+| `>`, `>=`, `<`, `<=`, `==`, `!=` | not associative |
+| `&&`                             | left-associative |
+| `\|\|`                           | left-associative |
 
 Parentheses can be used to force precedence (or to make it explicit).
 
