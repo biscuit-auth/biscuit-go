@@ -537,7 +537,7 @@ func (p Predicate) String() string {
 type TermType byte
 
 const (
-	TermTypeSymbol TermType = iota
+	_ TermType = iota
 	TermTypeVariable
 	TermTypeInteger
 	TermTypeString
