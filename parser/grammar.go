@@ -213,6 +213,7 @@ type Term struct {
 	String    *string    `| @String`
 	Date      *string    `| @DateTime`
 	Integer   *int64     `| @Int`
+	NegInt    *int64     `| "-" @Int`
 	Bool      *Bool      `| @Bool`
 	Set       []*Term    `| "[" @@ ("," @@)* "]"`
 }
@@ -605,6 +606,8 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 	switch {
 	case a.Integer != nil:
 		biscuitTerm = biscuit.Integer(*a.Integer)
+	case a.NegInt != nil:
+		biscuitTerm = biscuit.Integer(-*a.Integer)
 	case a.String != nil:
 		biscuitTerm = biscuit.String(*a.String)
 	case a.Variable != nil:
