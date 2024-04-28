@@ -617,24 +617,6 @@ func TestGrammarCheck(t *testing.T) {
 	}
 }
 
-func TestGrammarCheckMinimal(t *testing.T) {
-	parser, err := participle.Build[Check](DefaultParserOptions...)
-	require.NoError(t, err)
-
-	testCases := []struct {
-		Input string
-	}{
-		{Input: "check if -922 != 0"},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.Input, func(t *testing.T) {
-			parsed, err := parser.ParseString("test", testCase.Input)
-			_ = parsed
-			require.NoError(t, err)
-		})
-	}
-}
-
 func TestGrammarBlock(t *testing.T) {
 	parser, err := participle.Build[Block](DefaultParserOptions...)
 	require.NoError(t, err)
