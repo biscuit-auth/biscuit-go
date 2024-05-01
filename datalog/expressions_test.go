@@ -425,8 +425,9 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 	}
 }
 
-func TestBinaryEqual(t *testing.T) {
+func TestBinaryEqualNotEqual(t *testing.T) {
 	require.Equal(t, BinaryEqual, Equal{}.Type())
+	require.Equal(t, BinaryNotEqual, NotEqual{}.Type())
 	syms := &SymbolTable{}
 
 	testCases := []struct {
@@ -488,18 +489,28 @@ func TestBinaryEqual(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			ops := Expression{
+			ops1 := Expression{
 				Value{tc.left},
 				Value{tc.right},
 				BinaryOp{Equal{}},
 			}
 
-			res, err := ops.Evaluate(nil, syms)
+			ops2 := Expression{
+				Value{tc.left},
+				Value{tc.right},
+				BinaryOp{NotEqual{}},
+			}
+
+			res1, err1 := ops1.Evaluate(nil, syms)
+			res2, err2 := ops2.Evaluate(nil, syms)
 			if tc.expectedErr {
-				require.Error(t, err)
+				require.Error(t, err1)
+				require.Error(t, err2)
 			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.res, res)
+				require.NoError(t, err1)
+				require.NoError(t, err2)
+				require.Equal(t, tc.res, res1)
+				require.Equal(t, !tc.res, res2)
 			}
 		})
 	}
