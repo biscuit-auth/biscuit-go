@@ -1188,3 +1188,52 @@ func TestBinaryOr(t *testing.T) {
 		})
 	}
 }
+
+func TestPrint(t *testing.T) {
+	syms := SymbolTable{}
+	syms.Insert("abc")
+	testCases := []struct {
+		desc string
+		expr Expression
+		res  string
+	}{
+		{
+			desc: "number",
+			expr: Expression{Value{Integer(9)}},
+			res:  "9",
+		},
+		{
+			desc: "string",
+			expr: Expression{Value{syms.Sym("abc")}},
+			res:  "\"abc\"",
+		},
+		{
+			desc: "unary",
+			expr: Expression{Value{syms.Sym("abc")}, UnaryOp{Length{}}},
+			res:  "\"abc\".length()",
+		},
+		{
+			desc: "binary",
+			expr: Expression{Value{Integer(9)}, Value{Integer(4)}, BinaryOp{Mul{}}},
+			res:  "9 * 4",
+		},
+		{
+			desc: "parens",
+			expr: Expression{
+				Value{Integer(9)},
+				Value{Integer(3)},
+				BinaryOp{Add{}},
+				UnaryOp{Parens{}},
+				Value{Integer(4)},
+				BinaryOp{Div{}},
+			},
+			res: "(9 + 3) / 4",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			p := tc.expr.Print(&syms)
+			require.Equal(t, tc.res, p)
+		})
+	}
+}
