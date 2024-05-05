@@ -141,21 +141,7 @@ func (v *authorizer) Authorize() error {
 	var errs []error
 
 	for i, check := range v.checks {
-		c := check.convert(v.symbols)
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
-		}
-		if !successful {
-			debug := datalog.SymbolDebugger{
-				SymbolTable: v.symbols,
-			}
-			errs = append(errs, fmt.Errorf("failed to verify check #%d: %s", i, debug.Check(c)))
-		}
+		errs = v.applyDatalogChecks(&check, errs, v.world, "", i)
 	}
 
 	for i, check := range v.biscuit.authority.checks {
@@ -163,22 +149,7 @@ func (v *authorizer) Authorize() error {
 		if err != nil {
 			return fmt.Errorf("biscuit: verification failed: %s", err)
 		}
-		c := ch.convert(v.symbols)
-
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
-		}
-		if !successful {
-			debug := datalog.SymbolDebugger{
-				SymbolTable: v.symbols,
-			}
-			errs = append(errs, fmt.Errorf("failed to verify block 0 check #%d: %s", i, debug.Check(c)))
-		}
+		errs = v.applyDatalogChecks(ch, errs, v.world, "block 0", i)
 	}
 
 	policyMatched := false
@@ -235,23 +206,7 @@ func (v *authorizer) Authorize() error {
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
-			c := ch.convert(v.symbols)
-
-			successful := false
-			for _, query := range c.Queries {
-				res := block_world.QueryRule(query, v.symbols)
-
-				if len(*res) != 0 {
-					successful = true
-					break
-				}
-			}
-			if !successful {
-				debug := datalog.SymbolDebugger{
-					SymbolTable: v.symbols,
-				}
-				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", i+1, j, debug.Check(c)))
-			}
+			errs = v.applyDatalogChecks(ch, errs, block_world, fmt.Sprintf("block %d", i+1), j)
 		}
 
 		block_world.ResetRules()
@@ -275,6 +230,26 @@ func (v *authorizer) Authorize() error {
 	} else {
 		return ErrNoMatchingPolicy
 	}
+}
+
+func (v *authorizer) applyDatalogChecks(ch *Check, errs []error, world *datalog.World, block string, idx int) []error {
+	c := ch.convert(v.symbols)
+
+	successful := false
+	for _, query := range c.Queries {
+		res := world.QueryRule(query, v.symbols)
+		if len(*res) != 0 {
+			successful = true
+			break
+		}
+	}
+	if !successful {
+		debug := datalog.SymbolDebugger{
+			SymbolTable: v.symbols,
+		}
+		errs = append(errs, fmt.Errorf("failed to verify block %s check #%d: %s", block, idx, debug.Check(c)))
+	}
+	return errs
 }
 
 func (v *authorizer) Query(rule Rule) (FactSet, error) {
