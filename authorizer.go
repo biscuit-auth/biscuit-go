@@ -114,7 +114,7 @@ func (v *authorizer) AddPolicy(policy Policy) {
 func (v *authorizer) Authorize() error {
 	// if we load facts from the verifier before
 	// the token's fact and rules, we might get inconsistent symbols
-	// token ements should first be converted to builder elements
+	// token elements should first be converted to builder elements
 	// with the token's symbol table, then converted back
 	// with the verifier's symbol table
 	for _, fact := range *v.biscuit.authority.facts {
@@ -203,7 +203,7 @@ func (v *authorizer) Authorize() error {
 		}
 	}
 
-	// remove the rules from the vrifier and authority blocks
+	// remove the rules from the verifier and authority blocks
 	// so they are not affected by facts created by later blocks
 	v.world.ResetRules()
 

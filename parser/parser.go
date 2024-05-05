@@ -23,7 +23,7 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "And", Pattern: `&&`},
 	{Name: "Operator", Pattern: `==|!=|>=|<=|>|<|\+|-|\*|&|\||\^`},
 	{Name: "Comment", Pattern: `//[^\n]*`},
-	{Name: "String", Pattern: `\"[^\"]*\"`},
+	{Name: "String", Pattern: `\"(\\"|[^\"])*\"`},
 	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_:]+`},
 	{Name: "Parameter", Pattern: `\{[a-zA-Z0-9_:]+\}`},
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},

@@ -259,8 +259,8 @@ var operatorMap = map[string]Operator{
 	"==": OpEqual, "!=": OpNotEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength,
 	"&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor}
 
-func (o *Operator) Capture(s []string) error {
-	*o = operatorMap[s[0]]
+func (op *Operator) Capture(s []string) error {
+	*op = operatorMap[s[0]]
 	return nil
 }
 

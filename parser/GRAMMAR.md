@@ -9,7 +9,7 @@ Represents a Datalog type, can be one of: parameter, variable, integer, string, 
 - parameter is delimited by curly brackets: `{param}`. Those are replaced by actual values before evaluation.
 - variable is prefixed with a `$` sign followed by a string or an unsigned 32bit base-10 integer,  e.g. `$0` or `$variable1`
 - integer is any base-10 int64
-- string is any utf8 character sequence, between double quotes, e.g. `"/path/to/file.txt"`
+- string is any utf8 character sequence, between double quotes, e.g. `"/path/to/file.txt"`. A double-quote may be included if preceded by a backslash, `\"`
 - date is RFC3339 encoded, e.g. `2006-01-02T15:04:05Z`
 - bytes is an hexadecimal encoded string, prefixed with a `hex:` sequence
 - boolean is either `true` or `false`

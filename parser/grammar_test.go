@@ -130,6 +130,46 @@ func TestExprTerm(t *testing.T) {
 	}, parsed)
 }
 
+func TestGrammarTerm(t *testing.T) {
+	parser, err := participle.Build[Term](DefaultParserOptions...)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Title    string
+		Input    string
+		Expected *Term
+	}{
+		{
+			Title:    "integer",
+			Input:    `33`,
+			Expected: &Term{Integer: i64ptr(33)},
+		},
+		{
+			Title:    "string",
+			Input:    `"abc"`,
+			Expected: &Term{String: sptr("abc")},
+		},
+		{
+			Title:    "Unicode string",
+			Input:    `"Миша"`,
+			Expected: &Term{String: sptr("Миша")},
+		},
+		{
+			Title:    "quoted double quotes",
+			Input:    `"before \" after"`,
+			Expected: &Term{String: sptr("before \" after")},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Input, func(t *testing.T) {
+			parsed, err := parser.ParseString("test", testCase.Input)
+			require.NoError(t, err)
+			require.Equal(t, testCase.Expected, parsed)
+		})
+	}
+}
+
 func TestGrammarExpression(t *testing.T) {
 	parser, err := participle.Build[Expression](DefaultParserOptions...)
 	require.NoError(t, err)
