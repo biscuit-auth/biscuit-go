@@ -141,7 +141,7 @@ func (v *authorizer) Authorize() error {
 	var errs []error
 
 	for i, check := range v.checks {
-		errs = v.applyDatalogChecks(&check, errs, v.world, "", i)
+		errs = v.applyCheck(&check, errs, v.world, "authorizer", i)
 	}
 
 	for i, check := range v.biscuit.authority.checks {
@@ -149,7 +149,7 @@ func (v *authorizer) Authorize() error {
 		if err != nil {
 			return fmt.Errorf("biscuit: verification failed: %s", err)
 		}
-		errs = v.applyDatalogChecks(ch, errs, v.world, "block 0", i)
+		errs = v.applyCheck(ch, errs, v.world, "block 0", i)
 	}
 
 	policyMatched := false
@@ -206,7 +206,7 @@ func (v *authorizer) Authorize() error {
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
-			errs = v.applyDatalogChecks(ch, errs, block_world, fmt.Sprintf("block %d", i+1), j)
+			errs = v.applyCheck(ch, errs, block_world, fmt.Sprintf("block %d", i+1), j)
 		}
 
 		block_world.ResetRules()
@@ -232,7 +232,7 @@ func (v *authorizer) Authorize() error {
 	}
 }
 
-func (v *authorizer) applyDatalogChecks(ch *Check, errs []error, world *datalog.World, block string, idx int) []error {
+func (v *authorizer) applyCheck(ch *Check, errs []error, world *datalog.World, block string, idx int) []error {
 	c := ch.convert(v.symbols)
 
 	successful := false
