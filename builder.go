@@ -27,8 +27,8 @@ type Builder interface {
 }
 
 type builder struct {
-	rng  io.Reader
-	root ed25519.PrivateKey
+	rng        io.Reader
+	signMethod signFunc
 
 	symbolsStart int
 	symbols      *datalog.SymbolTable
@@ -38,7 +38,16 @@ type builder struct {
 	context      string
 }
 
-type builderOption func(b *builder)
+type (
+	builderOption func(b *builder)
+	signFunc      func([]byte) ([]byte, error)
+)
+
+func DefaultSignMethod(root ed25519.PrivateKey) signFunc {
+	return func(toSign []byte) ([]byte, error) {
+		return ed25519.Sign(root, toSign), nil
+	}
+}
 
 func WithRandom(rng io.Reader) builderOption {
 	return func(b *builder) {
@@ -53,13 +62,19 @@ func WithSymbols(symbols *datalog.SymbolTable) builderOption {
 	}
 }
 
+func WithCustomSignMethod(s signFunc) builderOption {
+	return func(b *builder) {
+		b.signMethod = s
+	}
+}
+
 func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
 	b := &builder{
 		rng:          rand.Reader,
-		root:         root,
 		symbols:      defaultSymbolTable.Clone(),
 		symbolsStart: defaultSymbolTable.Len(),
 		facts:        new(datalog.FactSet),
+		signMethod:   DefaultSignMethod(root),
 	}
 
 	for _, o := range opts {
@@ -112,7 +127,7 @@ func (b *builder) AddAuthorityCheck(check Check) error {
 }
 
 func (b *builder) Build() (*Biscuit, error) {
-	return New(b.rng, b.root, b.symbols, &Block{
+	return New(b.rng, b.signMethod, b.symbols, &Block{
 		symbols: b.symbols.SplitOff(b.symbolsStart),
 		facts:   b.facts,
 		rules:   b.rules,
