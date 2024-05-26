@@ -200,17 +200,12 @@ func (e InvalidRuleError) Error() string {
 }
 
 func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error {
+	return r.ApplyExtended(facts, newFacts, syms, CheckKindOne)
+}
+
+func (r Rule) ApplyExtended(facts *FactSet, newFacts *FactSet, syms *SymbolTable, kind CheckKind) error {
 	// extract all variables from the rule body
-	variables := make(MatchedVariables)
-	for _, predicate := range r.Body {
-		for _, term := range predicate.Terms {
-			v, ok := term.(Variable)
-			if !ok {
-				continue
-			}
-			variables[v] = nil
-		}
-	}
+	variables := r.collectVariables()
 
 	combinations := combine(variables, r.Body, r.Expressions, facts, syms)
 
@@ -238,8 +233,30 @@ func (r Rule) Apply(facts *FactSet, newFacts *FactSet, syms *SymbolTable) error 
 	return nil
 }
 
+func (r Rule) collectVariables() MatchedVariables {
+	variables := make(MatchedVariables)
+	for _, predicate := range r.Body {
+		for _, term := range predicate.Terms {
+			v, ok := term.(Variable)
+			if !ok {
+				continue
+			}
+			variables[v] = nil
+		}
+	}
+	return variables
+}
+
+type CheckKind byte
+
+const (
+	CheckKindOne CheckKind = iota
+	CheckKindAll
+)
+
 type Check struct {
-	Queries []Rule
+	CheckKind CheckKind
+	Queries   []Rule
 }
 
 type FactSet []Fact
@@ -443,8 +460,15 @@ func (w *World) Query(pred Predicate) *FactSet {
 }
 
 func (w *World) QueryRule(rule Rule, syms *SymbolTable) *FactSet {
+	return w.QueryRuleExtended(rule, syms, CheckKindOne)
+}
+
+func (w *World) QueryRuleExtended(rule Rule, syms *SymbolTable, kind CheckKind) *FactSet {
 	newFacts := &FactSet{}
-	rule.Apply(w.facts, newFacts, syms)
+	err := rule.ApplyExtended(w.facts, newFacts, syms, kind)
+	if err != nil { // TODO: this check was missing from mainline code. Report as security vuln?
+		return &FactSet{}
+	}
 	return newFacts
 }
 

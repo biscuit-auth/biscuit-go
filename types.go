@@ -481,7 +481,8 @@ func fromDatalogBinaryOp(_ *datalog.SymbolTable, dbBinary datalog.BinaryOp) (Op,
 }
 
 type Check struct {
-	Queries []Rule
+	CheckKind datalog.CheckKind
+	Queries   []Rule
 }
 
 func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
@@ -491,7 +492,8 @@ func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
 	}
 
 	return datalog.Check{
-		Queries: queries,
+		CheckKind: c.CheckKind,
+		Queries:   queries,
 	}
 }
 
@@ -506,7 +508,8 @@ func fromDatalogCheck(symbols *datalog.SymbolTable, dlCheck datalog.Check) (*Che
 	}
 
 	return &Check{
-		Queries: queries,
+		CheckKind: dlCheck.CheckKind,
+		Queries:   queries,
 	}, nil
 }
 

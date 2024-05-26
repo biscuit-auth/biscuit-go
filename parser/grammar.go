@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/biscuit-auth/biscuit-go/v2/datalog"
 	"strconv"
 	"strings"
 	"time"
@@ -185,8 +186,23 @@ type Predicate struct {
 	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
 }
 
+type CheckKind byte
+
 type Check struct {
-	Queries []*CheckQuery `"check if" @@ ( "or" @@ )*`
+	CheckKind CheckKind     `@("check if" | "check all")`
+	Queries   []*CheckQuery `@@ ( "or" @@ )*`
+}
+
+func (c *CheckKind) Capture(values []string) error {
+	switch values[0] {
+	case "check if":
+		*c = CheckKind(datalog.CheckKindOne)
+	case "check all":
+		*c = CheckKind(datalog.CheckKindAll)
+	default:
+		return errors.New("check must start with check if or check all")
+	}
+	return nil
 }
 
 type CheckQuery struct {
@@ -703,7 +719,8 @@ func (c *Check) ToBiscuit(parameters ParametersMap) (*biscuit.Check, error) {
 	}
 
 	return &biscuit.Check{
-		Queries: queries,
+		CheckKind: datalog.CheckKind(c.CheckKind),
+		Queries:   queries,
 	}, nil
 }
 

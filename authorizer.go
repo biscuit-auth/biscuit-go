@@ -235,11 +235,21 @@ func (v *authorizer) Authorize() error {
 func (v *authorizer) applyCheck(ch *Check, errs []error, world *datalog.World, block string, idx int) []error {
 	c := ch.convert(v.symbols)
 
+	if c.CheckKind != datalog.CheckKindOne {
+		errs = append(errs, errors.New("whazzat check kind?"))
+		return errs
+	}
+
 	successful := false
 	for _, query := range c.Queries {
-		res := world.QueryRule(query, v.symbols)
+		res := world.QueryRuleExtended(query, v.symbols, c.CheckKind)
 		if len(*res) != 0 {
 			successful = true
+			debug := datalog.SymbolDebugger{SymbolTable: v.symbols}
+			querystr := debug.CheckQuery(query)
+			_ = querystr
+			resstr := debug.FactSet(res)
+			_ = resstr
 			break
 		}
 	}

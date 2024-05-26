@@ -444,6 +444,39 @@ func TestGrammarCheck(t *testing.T) {
 		{
 			Input: `check if parent("a", "b"), parent("b", "c")`,
 			Expected: &Check{
+				CheckKind: CheckKind(datalog.CheckKindOne),
+				Queries: []*CheckQuery{
+					{
+						Body: []*RuleElement{
+							{
+								Predicate: &Predicate{
+
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("a")},
+										{String: sptr("b")},
+									},
+								},
+							},
+							{
+								Predicate: &Predicate{
+
+									Name: sptr("parent"),
+									IDs: []*Term{
+										{String: sptr("b")},
+										{String: sptr("c")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Input: `check all parent("a", "b"), parent("b", "c")`,
+			Expected: &Check{
+				CheckKind: CheckKind(datalog.CheckKindAll),
 				Queries: []*CheckQuery{
 					{
 						Body: []*RuleElement{
@@ -475,6 +508,7 @@ func TestGrammarCheck(t *testing.T) {
 		{
 			Input: `check if parent("a", "b"), parent("b", "c")`,
 			Expected: &Check{
+				CheckKind: CheckKind(datalog.CheckKindOne),
 				Queries: []*CheckQuery{
 					{
 						Body: []*RuleElement{
@@ -504,6 +538,7 @@ func TestGrammarCheck(t *testing.T) {
 		{
 			Input: `check if parent("a", "b"), parent("b", "c") or parent("a", "b"), parent("b", "c"), $0 > 42, $1.starts_with("test")`,
 			Expected: &Check{
+				CheckKind: CheckKind(datalog.CheckKindOne),
 				Queries: []*CheckQuery{
 					{
 						Body: []*RuleElement{

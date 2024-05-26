@@ -232,7 +232,16 @@ func (d SymbolDebugger) Check(c Check) string {
 	for i, q := range c.Queries {
 		queries[i] = d.CheckQuery(q)
 	}
-	return fmt.Sprintf("check if %s", strings.Join(queries, " or "))
+	var formatStr string
+	switch c.CheckKind {
+	case CheckKindOne:
+		formatStr = "check if %s"
+	case CheckKindAll:
+		formatStr = "check all %s"
+	default:
+		formatStr = "Error: unknown check %s"
+	}
+	return fmt.Sprintf(formatStr, strings.Join(queries, " or "))
 }
 
 func (d SymbolDebugger) World(w *World) string {

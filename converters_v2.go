@@ -455,7 +455,17 @@ func tokenCheckToProtoCheckV2(input datalog.Check) (*pb.CheckV2, error) {
 		pbQueries[i] = q
 	}
 
+	var kind pb.CheckV2_Kind
+	switch input.CheckKind {
+	case datalog.CheckKindOne:
+		kind = pb.CheckV2_One
+	case datalog.CheckKindAll:
+		kind = pb.CheckV2_All
+	default:
+		return nil, errors.New("unsupported check kind")
+	}
 	return &pb.CheckV2{
+		Kind:    &kind,
 		Queries: pbQueries,
 	}, nil
 }
@@ -470,7 +480,18 @@ func protoCheckToTokenCheckV2(input *pb.CheckV2) (*datalog.Check, error) {
 		queries[i] = *q
 	}
 
+	var kind datalog.CheckKind
+	switch input.GetKind() {
+	case pb.CheckV2_One:
+		kind = datalog.CheckKindOne
+	case pb.CheckV2_All:
+		kind = datalog.CheckKindAll
+	default:
+		return nil, errors.New("unsupported check kind")
+	}
+
 	return &datalog.Check{
-		Queries: queries,
+		CheckKind: kind,
+		Queries:   queries,
 	}, nil
 }
