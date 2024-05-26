@@ -57,6 +57,19 @@ func TestUnaryParens(t *testing.T) {
 	require.Equal(t, Integer(9), res)
 }
 
+func TestUnaryLength(t *testing.T) {
+	syms := &SymbolTable{}
+
+	ops := Expression{
+		Value{syms.Insert("Саша")},
+		UnaryOp{Length{}},
+	}
+
+	res, err := ops.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Integer(8), res) // this is the number of bytes (the specification is vague on this point)
+}
+
 func TestBinaryLessThan(t *testing.T) {
 	require.Equal(t, BinaryLessThan, LessThan{}.Type())
 	syms := &SymbolTable{}
@@ -531,6 +544,12 @@ func TestBinaryContains(t *testing.T) {
 			name:  "integer in set",
 			left:  Set{Integer(1), Integer(2), Integer(3)},
 			right: Integer(1),
+			want:  Bool(true),
+		},
+		{
+			name:  "integer in set, negative",
+			left:  Set{Integer(1), Integer(2), Integer(-3)},
+			right: Integer(-3),
 			want:  Bool(true),
 		},
 		{
