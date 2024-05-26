@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/biscuit-auth/biscuit-go/v2/datalog"
 	"testing"
 	"time"
 
@@ -92,6 +93,16 @@ func TestGrammarPredicate(t *testing.T) {
 				IDs: []*Term{
 					{Variable: varptr("1")},
 					{Set: []*Term{{Bytes: hexsptr("41414141")}, {String: sptr("sym")}}},
+				},
+			},
+		},
+		{
+			Input: `right($1, [33, -5])`,
+			Expected: &Predicate{
+				Name: sptr("right"),
+				IDs: []*Term{
+					{Variable: varptr("1")},
+					{Set: []*Term{{Integer: i64ptr(33)}, {NegInt: i64ptr(5)}}},
 				},
 			},
 		},
