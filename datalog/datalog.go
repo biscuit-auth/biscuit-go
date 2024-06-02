@@ -207,7 +207,9 @@ func (r Rule) ApplyExtended(facts *FactSet, newFacts *FactSet, syms *SymbolTable
 	// extract all variables from the rule body
 	variables := r.collectVariables()
 
-	combinations := combine(variables, r.Body, r.Expressions, facts, syms)
+	matchAllExpr := kind == CheckKindAll
+
+	combinations := combine(variables, r.Body, r.Expressions, facts, syms, matchAllExpr)
 
 	for res := range combinations {
 		if res.error != nil {
@@ -466,7 +468,7 @@ func (w *World) QueryRule(rule Rule, syms *SymbolTable) *FactSet {
 func (w *World) QueryRuleExtended(rule Rule, syms *SymbolTable, kind CheckKind) *FactSet {
 	newFacts := &FactSet{}
 	err := rule.ApplyExtended(w.facts, newFacts, syms, kind)
-	if err != nil { // TODO: this check was missing from mainline code. Report as security vuln?
+	if err != nil { // TODO: this check was missing from mainline code.
 		return &FactSet{}
 	}
 	return newFacts
@@ -510,7 +512,7 @@ func (m MatchedVariables) Clone() MatchedVariables {
 	return res
 }
 
-func combine(variables MatchedVariables, predicates []Predicate, expressions []Expression, facts *FactSet, syms *SymbolTable) <-chan struct {
+func combine(variables MatchedVariables, predicates []Predicate, expressions []Expression, facts *FactSet, syms *SymbolTable, matchAllExpr bool) <-chan struct {
 	MatchedVariables
 	error
 } {
@@ -601,8 +603,17 @@ func combine(variables MatchedVariables, predicates []Predicate, expressions []E
 							return
 						}
 						if !res.Equal(Bool(true)) {
-							valid = false
-							break
+							if !matchAllExpr {
+								valid = false
+								break
+							} else {
+								c <- struct {
+									MatchedVariables
+									error
+								}{complete_vars, fmt.Errorf("one or more expressions failed to match")}
+
+								return
+							}
 						}
 					}
 
