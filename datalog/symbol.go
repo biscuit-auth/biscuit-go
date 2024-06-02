@@ -129,12 +129,12 @@ func (t *SymbolTable) SplitOff(at int) *SymbolTable {
 		panic("split index out of bound")
 	}
 
-	new := make(SymbolTable, len(*t)-at)
-	copy(new, (*t)[at:])
+	newSlice := make(SymbolTable, len(*t)-at)
+	copy(newSlice, (*t)[at:])
 
 	*t = (*t)[:at]
 
-	return &new
+	return &newSlice
 }
 
 func (t *SymbolTable) Len() int {
