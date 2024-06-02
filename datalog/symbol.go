@@ -178,6 +178,16 @@ func (d SymbolDebugger) Predicate(p Predicate) string {
 			s = "\"" + d.Str(sym) + "\""
 		} else if variable, ok := id.(Variable); ok {
 			s = "$" + d.Var(variable)
+		} else if set, ok := id.(Set); ok {
+			mbrs := make([]string, len(set))
+			for j, mbr := range set {
+				if sym, ok := mbr.(String); ok {
+					mbrs[j] = "\"" + d.Str(sym) + "\""
+				} else {
+					mbrs[j] = fmt.Sprintf("%v", mbr)
+				}
+			}
+			s = "[" + strings.Join(mbrs, ", ") + "]"
 		} else {
 			s = fmt.Sprintf("%v", id)
 		}
