@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/biscuit-auth/biscuit-go/v2/datalog"
 	"strconv"
 	"strings"
 	"time"
@@ -185,8 +186,23 @@ type Predicate struct {
 	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
 }
 
+type CheckKind byte
+
 type Check struct {
-	Queries []*CheckQuery `"check if" @@ ( "or" @@ )*`
+	CheckKind CheckKind     `@("check if" | "check all")`
+	Queries   []*CheckQuery `@@ ( "or" @@ )*`
+}
+
+func (c *CheckKind) Capture(values []string) error {
+	switch values[0] {
+	case "check if":
+		*c = CheckKind(datalog.CheckKindOne)
+	case "check all":
+		*c = CheckKind(datalog.CheckKindAll)
+	default:
+		return errors.New("check must start with check if or check all")
+	}
+	return nil
 }
 
 type CheckQuery struct {
@@ -213,6 +229,7 @@ type Term struct {
 	String    *string    `| @String`
 	Date      *string    `| @DateTime`
 	Integer   *int64     `| @Int`
+	NegInt    *int64     `| "-" @Int`
 	Bool      *Bool      `| @Bool`
 	Set       []*Term    `| "[" @@ ("," @@)* "]"`
 }
@@ -238,6 +255,7 @@ const (
 	OpLessThan
 	OpGreaterThan
 	OpEqual
+	OpNotEqual
 	OpContains
 	OpPrefix
 	OpSuffix
@@ -246,15 +264,19 @@ const (
 	OpUnion
 	OpLength
 	OpNegate
+	OpBitwiseAnd
+	OpBitwiseOr
+	OpBitwiseXor
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpEqual, "!=": OpNotEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength,
+	"&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor}
 
-func (o *Operator) Capture(s []string) error {
-	*o = operatorMap[s[0]]
+func (op *Operator) Capture(s []string) error {
+	*op = operatorMap[s[0]]
 	return nil
 }
 
@@ -284,7 +306,7 @@ type Expr2 struct {
 }
 
 type OpExpr3 struct {
-	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "==" | "!=")`
 	Expr3    *Expr3   `@@`
 }
 
@@ -294,7 +316,7 @@ type Expr3 struct {
 }
 
 type OpExpr4 struct {
-	Operator Operator `@("+" | "-")`
+	Operator Operator `@("^")`
 	Expr4    *Expr4   `@@`
 }
 
@@ -304,21 +326,51 @@ type Expr4 struct {
 }
 
 type OpExpr5 struct {
-	Operator Operator `@("*" | "/")`
+	Operator Operator `@("|")`
 	Expr5    *Expr5   `@@`
 }
 
 type Expr5 struct {
-	Operator *Operator `@("!")?`
-	Expr6    *Expr6    `@@`
+	Left  *Expr6     `@@`
+	Right []*OpExpr6 `@@*`
+}
+
+type OpExpr6 struct {
+	Operator Operator `@("&")`
+	Expr6    *Expr6   `@@`
 }
 
 type Expr6 struct {
-	Left  *ExprTerm  `@@`
+	Left  *Expr7     `@@`
 	Right []*OpExpr7 `@@*`
 }
 
 type OpExpr7 struct {
+	Operator Operator `@("+" | "-")`
+	Expr7    *Expr7   `@@`
+}
+
+type Expr7 struct {
+	Left  *Expr8     `@@`
+	Right []*OpExpr8 `@@*`
+}
+
+type OpExpr8 struct {
+	Operator Operator `@("*" | "/")`
+	Expr8    *Expr8   `@@`
+}
+
+type Expr8 struct {
+	Operator *Operator `@("!")?`
+	Expr9    *Expr9    `@@`
+}
+
+type Expr9 struct {
+	Left  *ExprTerm   `@@`
+	Right []*OpExpr10 `@@*`
+}
+
+type OpExpr10 struct {
 	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length")`
 	Expression *Expression `"(" @@? ")"`
 }
@@ -369,13 +421,37 @@ func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 }
 
 func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr6.ToExpr(expr, parameters)
+	e.Left.ToExpr(expr, parameters)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr, parameters)
+	}
+}
+
+func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr, parameters)
+	}
+}
+
+func (e *Expr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Left.ToExpr(expr, parameters)
+
+	for _, op := range e.Right {
+		op.ToExpr(expr, parameters)
+	}
+}
+
+func (e *Expr8) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr9.ToExpr(expr, parameters)
 	if e.Operator != nil {
 		*expr = append(*expr, biscuit.UnaryNegate)
 	}
 }
 
-func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+func (e *Expr9) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 	e.Left.ToExpr(expr, parameters)
 	for _, op := range e.Right {
 		op.ToExpr(expr, parameters)
@@ -421,7 +497,22 @@ func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 	e.Operator.ToExpr(expr)
 }
 
+func (e *OpExpr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr6.ToExpr(expr, parameters)
+	e.Operator.ToExpr(expr)
+}
+
 func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr7.ToExpr(expr, parameters)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr8) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
+	e.Expr8.ToExpr(expr, parameters)
+	e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr10) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
 	if e.Expression != nil {
 		e.Expression.ToExpr(expr, parameters)
 	}
@@ -454,6 +545,8 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryGreaterThan
 	case OpEqual:
 		biscuit_op = biscuit.BinaryEqual
+	case OpNotEqual:
+		biscuit_op = biscuit.BinaryNotEqual
 	case OpContains:
 		biscuit_op = biscuit.BinaryContains
 	case OpPrefix:
@@ -468,6 +561,14 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryIntersection
 	case OpUnion:
 		biscuit_op = biscuit.BinaryUnion
+	case OpBitwiseAnd:
+		biscuit_op = biscuit.BinaryBitwiseAnd
+	case OpBitwiseOr:
+		biscuit_op = biscuit.BinaryBitwiseOr
+	case OpBitwiseXor:
+		biscuit_op = biscuit.BinaryBitwiseXor
+	case OpNegate:
+		biscuit_op = biscuit.UnaryNegate
 	}
 
 	*expr = append(*expr, biscuit_op)
@@ -521,6 +622,8 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 	switch {
 	case a.Integer != nil:
 		biscuitTerm = biscuit.Integer(*a.Integer)
+	case a.NegInt != nil:
+		biscuitTerm = biscuit.Integer(-*a.Integer)
 	case a.String != nil:
 		biscuitTerm = biscuit.String(*a.String)
 	case a.Variable != nil:
@@ -616,7 +719,8 @@ func (c *Check) ToBiscuit(parameters ParametersMap) (*biscuit.Check, error) {
 	}
 
 	return &biscuit.Check{
-		Queries: queries,
+		CheckKind: datalog.CheckKind(c.CheckKind),
+		Queries:   queries,
 	}, nil
 }
 
