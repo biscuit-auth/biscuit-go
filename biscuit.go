@@ -469,7 +469,7 @@ func (b *Biscuit) checkRootKey(root ed25519.PublicKey) error {
 	return nil
 }*/
 
-func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
+func (b *Biscuit) GenerateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
 	world := datalog.NewWorld()
 
 	for _, fact := range *b.authority.facts {
