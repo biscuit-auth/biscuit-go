@@ -319,7 +319,7 @@ func TestGenerateWorld(t *testing.T) {
 	require.NoError(t, err)
 
 	StringTable := (build.(*builder)).symbols
-	world, err := b.generateWorld(defaultSymbolTable.Clone())
+	world, err := b.GenerateWorld(defaultSymbolTable.Clone())
 	require.NoError(t, err)
 
 	expectedWorld := datalog.NewWorld()
@@ -346,7 +346,7 @@ func TestGenerateWorld(t *testing.T) {
 	require.NoError(t, err)
 
 	allStrings := append(*StringTable, *(blockBuild.(*blockBuilder)).symbols...)
-	world, err = b2.generateWorld(&allStrings)
+	world, err = b2.GenerateWorld(&allStrings)
 	require.NoError(t, err)
 
 	expectedWorld = datalog.NewWorld()
