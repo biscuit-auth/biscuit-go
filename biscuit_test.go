@@ -12,9 +12,13 @@ import (
 
 func TestBiscuit(t *testing.T) {
 	rng := rand.Reader
+	const rootKeyID = 123
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
-	builder := NewBuilder(privateRoot)
+	builder := NewBuilder(
+		privateRoot,
+		WithRNG(rng),
+		WithRootKeyID(rootKeyID))
 
 	builder.AddAuthorityFact(Fact{
 		Predicate: Predicate{Name: "right", IDs: []Term{String("/a/file1"), String("read")}},
@@ -28,6 +32,11 @@ func TestBiscuit(t *testing.T) {
 
 	b1, err := builder.Build()
 	require.NoError(t, err)
+	{
+		keyID, ok := b1.RootKeyID()
+		require.True(t, ok, "root key ID present")
+		require.EqualValues(t, rootKeyID, keyID, "root key ID")
+	}
 
 	b1ser, err := b1.Serialize()
 	require.NoError(t, err)
@@ -35,6 +44,11 @@ func TestBiscuit(t *testing.T) {
 
 	b1deser, err := Unmarshal(b1ser)
 	require.NoError(t, err)
+	{
+		keyID, ok := b1deser.RootKeyID()
+		require.True(t, ok, "root key ID present after round trip")
+		require.EqualValues(t, rootKeyID, keyID, "root key ID after round trip")
+	}
 
 	block2 := b1deser.CreateBlock()
 	block2.AddCheck(Check{
@@ -202,8 +216,8 @@ func TestBiscuitRules(t *testing.T) {
 	require.NoError(t, err)
 
 	// b1 should allow alice & bob only
-	//v, err := b1.Verify(publicRoot)
-	//require.NoError(t, err)
+	// v, err := b1.Verify(publicRoot)
+	// require.NoError(t, err)
 	verifyOwner(t, *b1, publicRoot, map[string]bool{"alice": true, "bob": true, "eve": false})
 
 	block := b1.CreateBlock()
@@ -235,13 +249,12 @@ func TestBiscuitRules(t *testing.T) {
 	require.NoError(t, err)
 
 	// b2 should now only allow alice
-	//v, err = b2.Verify(publicRoot)
-	//require.NoError(t, err)
+	// v, err = b2.Verify(publicRoot)
+	// require.NoError(t, err)
 	verifyOwner(t, *b2, publicRoot, map[string]bool{"alice": true, "bob": false, "eve": false})
 }
 
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
-
 	for user, valid := range owners {
 		v, err := b.Authorizer(publicRoot)
 		require.NoError(t, err)
@@ -318,7 +331,7 @@ func TestGenerateWorld(t *testing.T) {
 	b, err := build.Build()
 	require.NoError(t, err)
 
-	StringTable := (build.(*builder)).symbols
+	StringTable := (build.(*builderOptions)).symbols
 	world, err := b.generateWorld(defaultSymbolTable.Clone())
 	require.NoError(t, err)
 

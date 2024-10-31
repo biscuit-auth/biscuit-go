@@ -53,9 +53,23 @@ var (
 	UnsupportedAlgorithm = errors.New("biscuit: unsupported signature algorithm")
 )
 
-func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
-	if rng == nil {
-		rng = rand.Reader
+type biscuitOptions struct {
+	rng       io.Reader
+	rootKeyID *uint32
+}
+
+type biscuitOption interface {
+	applyToBiscuit(*biscuitOptions) error
+}
+
+func newBiscuit(root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block, opts ...biscuitOption) (*Biscuit, error) {
+	options := biscuitOptions{
+		rng: rand.Reader,
+	}
+	for _, opt := range opts {
+		if err := opt.applyToBiscuit(&options); err != nil {
+			return nil, err
+		}
 	}
 
 	symbols := baseSymbols.Clone()
@@ -66,7 +80,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 
 	symbols.Extend(authority.symbols)
 
-	nextPublicKey, nextPrivateKey, _ := ed25519.GenerateKey(rng)
+	nextPublicKey, nextPrivateKey, _ := ed25519.GenerateKey(options.rng)
 
 	protoAuthority, err := tokenBlockToProtoBlock(authority)
 	if err != nil {
@@ -102,6 +116,7 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 	}
 
 	container := &pb.Biscuit{
+		RootKeyId: options.rootKeyID,
 		Authority: signedBlock,
 		Proof:     proof,
 	}
@@ -111,6 +126,14 @@ func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTabl
 		symbols:   symbols,
 		container: container,
 	}, nil
+}
+
+func New(rng io.Reader, root ed25519.PrivateKey, baseSymbols *datalog.SymbolTable, authority *Block) (*Biscuit, error) {
+	var opts []biscuitOption
+	if rng != nil {
+		opts = []biscuitOption{WithRNG(rng)}
+	}
+	return newBiscuit(root, baseSymbols, authority, opts...)
 }
 
 func (b *Biscuit) CreateBlock() BlockBuilder {
@@ -432,6 +455,13 @@ func (b *Biscuit) BlockCount() int {
 	return len(b.container.Blocks)
 }
 
+func (b *Biscuit) RootKeyID() (uint32, bool) {
+	if v := b.container.RootKeyId; v != nil {
+		return *v, true
+	}
+	return 0, false
+}
+
 func (b *Biscuit) String() string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
@@ -449,6 +479,7 @@ Biscuit {
 		blocks,
 	)
 }
+
 func (b *Biscuit) Code() []string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
