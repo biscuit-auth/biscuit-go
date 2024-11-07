@@ -33,9 +33,9 @@ func TestBiscuit(t *testing.T) {
 	b1, err := builder.Build()
 	require.NoError(t, err)
 	{
-		keyID, ok := b1.RootKeyID()
-		require.True(t, ok, "root key ID present")
-		require.EqualValues(t, rootKeyID, keyID, "root key ID")
+		keyID := b1.RootKeyID()
+		require.NotNil(t, keyID, "root key ID present")
+		require.EqualValues(t, rootKeyID, *keyID, "root key ID")
 	}
 
 	b1ser, err := b1.Serialize()
@@ -45,9 +45,9 @@ func TestBiscuit(t *testing.T) {
 	b1deser, err := Unmarshal(b1ser)
 	require.NoError(t, err)
 	{
-		keyID, ok := b1deser.RootKeyID()
-		require.True(t, ok, "root key ID present after round trip")
-		require.EqualValues(t, rootKeyID, keyID, "root key ID after round trip")
+		keyID := b1deser.RootKeyID()
+		require.NotNil(t, keyID, "root key ID present after round trip")
+		require.EqualValues(t, rootKeyID, *keyID, "root key ID after round trip")
 	}
 
 	block2 := b1deser.CreateBlock()

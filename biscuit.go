@@ -455,11 +455,8 @@ func (b *Biscuit) BlockCount() int {
 	return len(b.container.Blocks)
 }
 
-func (b *Biscuit) RootKeyID() (uint32, bool) {
-	if v := b.container.RootKeyId; v != nil {
-		return *v, true
-	}
-	return 0, false
+func (b *Biscuit) RootKeyID() *uint32 {
+	return b.container.RootKeyId
 }
 
 func (b *Biscuit) String() string {
