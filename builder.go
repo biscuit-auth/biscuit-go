@@ -2,7 +2,6 @@ package biscuit
 
 import (
 	"crypto/ed25519"
-	"crypto/rand"
 	"errors"
 	"io"
 
@@ -26,9 +25,10 @@ type Builder interface {
 	Build() (*Biscuit, error)
 }
 
-type builder struct {
-	rng  io.Reader
-	root ed25519.PrivateKey
+type builderOptions struct {
+	rng       io.Reader
+	rootKey   ed25519.PrivateKey
+	rootKeyID *uint32
 
 	symbolsStart int
 	symbols      *datalog.SymbolTable
@@ -38,38 +38,40 @@ type builder struct {
 	context      string
 }
 
-type builderOption func(b *builder)
-
-func WithRandom(rng io.Reader) builderOption {
-	return func(b *builder) {
-		b.rng = rng
-	}
+type builderOption interface {
+	applyToBuilder(b *builderOptions)
 }
 
+type symbolsOption struct {
+	*datalog.SymbolTable
+}
+
+func (o symbolsOption) applyToBuilder(b *builderOptions) {
+	b.symbolsStart = o.Len()
+	b.symbols = o.Clone()
+}
+
+// WithSymbols supplies a symbol table to use when composing biscuits.
 func WithSymbols(symbols *datalog.SymbolTable) builderOption {
-	return func(b *builder) {
-		b.symbolsStart = symbols.Len()
-		b.symbols = symbols.Clone()
-	}
+	return symbolsOption{symbols}
 }
 
 func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
-	b := &builder{
-		rng:          rand.Reader,
-		root:         root,
+	b := &builderOptions{
+		rootKey:      root,
 		symbols:      defaultSymbolTable.Clone(),
 		symbolsStart: defaultSymbolTable.Len(),
 		facts:        new(datalog.FactSet),
 	}
 
 	for _, o := range opts {
-		o(b)
+		o.applyToBuilder(b)
 	}
 
 	return b
 }
 
-func (b *builder) AddBlock(block ParsedBlock) error {
+func (b *builderOptions) AddBlock(block ParsedBlock) error {
 	for _, f := range block.Facts {
 		if err := b.AddAuthorityFact(f); err != nil {
 			return err
@@ -91,7 +93,7 @@ func (b *builder) AddBlock(block ParsedBlock) error {
 	return nil
 }
 
-func (b *builder) AddAuthorityFact(fact Fact) error {
+func (b *builderOptions) AddAuthorityFact(fact Fact) error {
 	dlFact := fact.convert(b.symbols)
 	if !b.facts.Insert(dlFact) {
 		return ErrDuplicateFact
@@ -100,26 +102,37 @@ func (b *builder) AddAuthorityFact(fact Fact) error {
 	return nil
 }
 
-func (b *builder) AddAuthorityRule(rule Rule) error {
+func (b *builderOptions) AddAuthorityRule(rule Rule) error {
 	dlRule := rule.convert(b.symbols)
 	b.rules = append(b.rules, dlRule)
 	return nil
 }
 
-func (b *builder) AddAuthorityCheck(check Check) error {
+func (b *builderOptions) AddAuthorityCheck(check Check) error {
 	b.checks = append(b.checks, check.convert(b.symbols))
 	return nil
 }
 
-func (b *builder) Build() (*Biscuit, error) {
-	return New(b.rng, b.root, b.symbols, &Block{
-		symbols: b.symbols.SplitOff(b.symbolsStart),
-		facts:   b.facts,
-		rules:   b.rules,
-		checks:  b.checks,
-		context: b.context,
-		version: MaxSchemaVersion,
-	})
+func (b *builderOptions) Build() (*Biscuit, error) {
+	opts := make([]biscuitOption, 0, 2)
+	if v := b.rng; v != nil {
+		opts = append(opts, WithRNG(b.rng))
+	}
+	if v := b.rootKeyID; v != nil {
+		opts = append(opts, WithRootKeyID(*v))
+	}
+	return newBiscuit(
+		b.rootKey,
+		b.symbols,
+		&Block{
+			symbols: b.symbols.SplitOff(b.symbolsStart),
+			facts:   b.facts,
+			rules:   b.rules,
+			checks:  b.checks,
+			context: b.context,
+			version: MaxSchemaVersion,
+		},
+		opts...)
 }
 
 type Unmarshaler struct {
