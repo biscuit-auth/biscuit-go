@@ -505,6 +505,86 @@ func TestBinaryEqual(t *testing.T) {
 	}
 }
 
+func TestBinaryNotEqual(t *testing.T) {
+	require.Equal(t, BinaryNotEqual, NotEqual{}.Type())
+	syms := &SymbolTable{}
+
+	testCases := []struct {
+		desc        string
+		left        Term
+		right       Term
+		res         Bool
+		expectedErr bool
+	}{
+		{
+			desc:  "not equal integers",
+			left:  Integer(3),
+			right: Integer(5),
+			res:   true,
+		},
+		{
+			desc:  "not equal bytes",
+			left:  Bytes{0},
+			right: Bytes{1},
+			res:   true,
+		},
+		{
+			desc:  "not equal string",
+			left:  syms.Insert("abc"),
+			right: syms.Insert("def"),
+			res:   true,
+		},
+		{
+			desc:  "equal integers",
+			left:  Integer(3),
+			right: Integer(3),
+			res:   false,
+		},
+		{
+			desc:  "equal bytes",
+			left:  Bytes{0, 1, 2},
+			right: Bytes{0, 1, 2},
+			res:   false,
+		},
+		{
+			desc:  "equal strings",
+			left:  syms.Insert("abc"),
+			right: syms.Insert("abc"),
+			res:   false,
+		},
+		{
+			desc:        "invalid left type errors",
+			left:        String(42),
+			right:       Integer(42),
+			expectedErr: true,
+		},
+		{
+			desc:        "invalid right type errors",
+			left:        Integer(42),
+			right:       syms.Insert("abc"),
+			expectedErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ops := Expression{
+				Value{tc.left},
+				Value{tc.right},
+				BinaryOp{NotEqual{}},
+			}
+
+			res, err := ops.Evaluate(nil, syms)
+			if tc.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.res, res)
+			}
+		})
+	}
+}
+
 func TestBinaryContains(t *testing.T) {
 	require.Equal(t, BinaryContains, Contains{}.Type())
 	syms := &SymbolTable{}
