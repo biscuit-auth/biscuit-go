@@ -41,6 +41,9 @@ var (
 	ErrInvalidBlockRule = errors.New("biscuit: invalid block rule")
 	// ErrEmptyKeys is returned when verifying a biscuit having no keys
 	ErrEmptyKeys = errors.New("biscuit: empty keys")
+	// ErrNoPublicKeyAvailable is returned when no public root key is available to verify the
+	// signatures on a biscuit's blocks.
+	ErrNoPublicKeyAvailable = errors.New("biscuit: no public key available")
 	// ErrUnknownPublicKey is returned when verifying a biscuit with the wrong public key
 	ErrUnknownPublicKey = errors.New("biscuit: unknown public key")
 
@@ -291,10 +294,42 @@ func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
 	}, nil
 }
 
-// Checks the signature and creates an Authorizer
-// The Authorizer can then test the authorizaion policies and
-// accept or refuse the request
-func (b *Biscuit) Authorizer(root ed25519.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
+type (
+	// A PublickKeyByIDProjection inspects an optional ID for a public key and returns the
+	// corresponding public key, if any. If it doesn't recognize the ID or can't find the public
+	// key, or no ID is supplied and there is no default public key available, it should return an
+	// error satisfying errors.Is(err, ErrNoPublicKeyAvailable).
+	PublickKeyByIDProjection func(*uint32) (ed25519.PublicKey, error)
+)
+
+// WithSingularRootPublicKey supplies one public key to use as the root key with which to verify the
+// signatures on a biscuit's blocks.
+func WithSingularRootPublicKey(key ed25519.PublicKey) PublickKeyByIDProjection {
+	return func(*uint32) (ed25519.PublicKey, error) {
+		return key, nil
+	}
+}
+
+// WithRootPublicKeys supplies a mapping to public keys from their corresponding IDs, used to select
+// which public key to use to verify the signatures on a biscuit's blocks based on the key ID
+// embedded within the biscuit when it was created. If the biscuit has no key ID available, this
+// function selects the optional default key instead. If no public key is available—whether for the
+// biscuit's embedded key ID or a default key when no such ID is present—it returns
+// [ErrNoPublicKeyAvailable].
+func WithRootPublicKeys(keysByID map[uint32]ed25519.PublicKey, defaultKey *ed25519.PublicKey) PublickKeyByIDProjection {
+	return func(id *uint32) (ed25519.PublicKey, error) {
+		if id == nil {
+			if defaultKey != nil {
+				return *defaultKey, nil
+			}
+		} else if key, ok := keysByID[*id]; ok {
+			return key, nil
+		}
+		return nil, ErrNoPublicKeyAvailable
+	}
+}
+
+func (b *Biscuit) authorizerFor(root ed25519.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
 	currentKey := root
 
 	// for now we only support Ed25519
@@ -375,6 +410,34 @@ func (b *Biscuit) Authorizer(root ed25519.PublicKey, opts ...AuthorizerOption) (
 	}
 
 	return NewVerifier(b, opts...)
+}
+
+// AuthorizerFor selects from the supplied source a root public key to use to verify the signatures
+// on the biscuit's blocks, returning an error satisfying errors.Is(err, ErrNoPublicKeyAvailable) if
+// no such public key is available. If the signatures are valid, it creates an [Authorizer], which
+// can then test the authorization policies and accept or refuse the request.
+func (b *Biscuit) AuthorizerFor(keySource PublickKeyByIDProjection, opts ...AuthorizerOption) (Authorizer, error) {
+	if keySource == nil {
+		return nil, errors.New("root public key source must not be nil")
+	}
+	rootPublicKey, err := keySource(b.RootKeyID())
+	if err != nil {
+		return nil, fmt.Errorf("choosing root public key: %w", err)
+	}
+	if len(rootPublicKey) == 0 {
+		return nil, ErrNoPublicKeyAvailable
+	}
+	return b.authorizerFor(rootPublicKey, opts...)
+}
+
+// TODO: Add "Deprecated" note to the "(*Biscuit).Authorizer" method, recommending use of
+// "(*Biscuit).AuthorizerFor" instead. Wait until after we release the module with the latter
+// available, per https://go.dev/wiki/Deprecated.
+
+// Authorizer checks the signature and creates an [Authorizer]. The Authorizer can then test the
+// authorizaion policies and accept or refuse the request.
+func (b *Biscuit) Authorizer(root ed25519.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
+	return b.authorizerFor(root)
 }
 
 func (b *Biscuit) Checks() [][]datalog.Check {
