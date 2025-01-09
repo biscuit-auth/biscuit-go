@@ -13,6 +13,7 @@ import (
 func TestBiscuit(t *testing.T) {
 	rng := rand.Reader
 	const rootKeyID = 123
+	const contextText = "current_context"
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
 	builder := NewBuilder(
@@ -30,8 +31,11 @@ func TestBiscuit(t *testing.T) {
 		Predicate: Predicate{Name: "right", IDs: []Term{String("/a/file2"), String("read")}},
 	})
 
+	builder.SetContext(contextText)
+
 	b1, err := builder.Build()
 	require.NoError(t, err)
+	require.EqualValues(t, contextText, b1.GetContext(), "context authority")
 	{
 		keyID := b1.RootKeyID()
 		require.NotNil(t, keyID, "root key ID present")

@@ -22,6 +22,7 @@ type Builder interface {
 	AddAuthorityFact(fact Fact) error
 	AddAuthorityRule(rule Rule) error
 	AddAuthorityCheck(check Check) error
+	SetContext(string)
 	Build() (*Biscuit, error)
 }
 
@@ -111,6 +112,10 @@ func (b *builderOptions) AddAuthorityRule(rule Rule) error {
 func (b *builderOptions) AddAuthorityCheck(check Check) error {
 	b.checks = append(b.checks, check.convert(b.symbols))
 	return nil
+}
+
+func (b *builderOptions) SetContext(context string) {
+	b.context = context
 }
 
 func (b *builderOptions) Build() (*Biscuit, error) {

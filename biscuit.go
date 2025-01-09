@@ -386,6 +386,14 @@ func (b *Biscuit) Checks() [][]datalog.Check {
 	return result
 }
 
+func (b *Biscuit) GetContext() string {
+	if b == nil || b.authority == nil {
+		return ""
+	}
+
+	return b.authority.context
+}
+
 func (b *Biscuit) Serialize() ([]byte, error) {
 	return proto.Marshal(b.container)
 }
