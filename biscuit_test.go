@@ -100,7 +100,7 @@ func TestBiscuit(t *testing.T) {
 	b3deser, err := Unmarshal(b3ser)
 	require.NoError(t, err)
 
-	v3, err := b3deser.Authorizer(publicRoot)
+	v3, err := b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
@@ -108,14 +108,14 @@ func TestBiscuit(t *testing.T) {
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Authorize())
 
-	v3, err = b3deser.Authorizer(publicRoot)
+	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Authorize())
 
-	v3, err = b3deser.Authorizer(publicRoot)
+	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("write")}}})
@@ -176,7 +176,7 @@ func TestSealedBiscuit(t *testing.T) {
 	b2deser, err := Unmarshal(b2ser)
 	require.NoError(t, err)
 
-	_, err = b2deser.Authorizer(publicRoot)
+	_, err = b2deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 }
 
@@ -260,7 +260,7 @@ func TestBiscuitRules(t *testing.T) {
 
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
 	for user, valid := range owners {
-		v, err := b.Authorizer(publicRoot)
+		v, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 		require.NoError(t, err)
 
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
@@ -288,18 +288,31 @@ func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners m
 
 func TestCheckRootKey(t *testing.T) {
 	rng := rand.Reader
+	const rootKeyID = 123
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
 
-	builder := NewBuilder(privateRoot)
+	builder := NewBuilder(privateRoot, WithRootKeyID(rootKeyID))
 
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.Authorizer(publicRoot)
+	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+		rootKeyID: publicRoot,
+	}, nil))
 	require.NoError(t, err)
 
+	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+		rootKeyID + 1: publicRoot,
+	}, nil))
+	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
+
+	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+		rootKeyID: nil,
+	}, nil))
+	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
+
 	publicNotRoot, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.Authorizer(publicNotRoot)
+	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicNotRoot))
 	require.Equal(t, ErrInvalidSignature, err)
 }
 
@@ -434,11 +447,11 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.Authorizer(publicRoot)
+	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 
 	publicTest, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.Authorizer(publicTest)
+	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicTest))
 	require.Error(t, err)
 }
 
@@ -465,7 +478,7 @@ func TestBiscuitSha256Sum(t *testing.T) {
 	b, err = b.Append(rng, root, blockBuilder.Build())
 	require.NoError(t, err)
 	require.Equal(t, 1, b.BlockCount())
-
+p
 	h10, err := b.SHA256Sum(0)
 	require.NoError(t, err)
 	require.Equal(t, h0, h10)
@@ -591,7 +604,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(b.String())
 
-	verifier, err := b.Authorizer(publicRoot)
+	verifier, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
 	require.NoError(t, err)
 
 	verifier.AddFact(Fact{Predicate: Predicate{
