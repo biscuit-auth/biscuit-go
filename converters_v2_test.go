@@ -66,6 +66,21 @@ func TestExpressionConvertV2(t *testing.T) {
 			},
 		},
 		{
+			Desc: "int comparison not equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(3)},
+				datalog.Value{ID: datalog.Integer(42)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}},
+			},
+			Expected: &pb.ExpressionV2{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 3}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 42}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_NotEqual.Enum()}}},
+				},
+			},
+		},
+		{
 			Desc: "int comparison larger",
 			Input: datalog.Expression{
 				datalog.Value{ID: datalog.Variable(4)},
@@ -165,7 +180,6 @@ func TestExpressionConvertV2(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			Desc: "string comparison equal",
 			Input: datalog.Expression{
@@ -178,6 +192,21 @@ func TestExpressionConvertV2(t *testing.T) {
 					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 10}}}},
 					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
+				},
+			},
+		},
+		{
+			Desc: "string comparison not equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(10)},
+				datalog.Value{ID: syms.Insert("abcde")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}},
+			},
+			Expected: &pb.ExpressionV2{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 10}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_String_{String_: syms.Index("abcde")}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_NotEqual.Enum()}}},
 				},
 			},
 		},
@@ -278,6 +307,21 @@ func TestExpressionConvertV2(t *testing.T) {
 					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 16}}}},
 					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Bytes{Bytes: []byte("abcd")}}}},
 					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Equal.Enum()}}},
+				},
+			},
+		},
+		{
+			Desc: "bytes not equal",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(16)},
+				datalog.Value{ID: datalog.Bytes("abcde")},
+				datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}},
+			},
+			Expected: &pb.ExpressionV2{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 16}}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Bytes{Bytes: []byte("abcde")}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_NotEqual.Enum()}}},
 				},
 			},
 		},

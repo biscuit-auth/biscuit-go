@@ -159,7 +159,7 @@ func getRuleTestCases() []testCase {
 			ExpectFailure: true,
 		},
 		{
-			Input: `rule1("a") <- body1("b"), $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, [1, 2, 3].contains($5), ![4,5,6].contains($6)`,
+			Input: `rule1("a") <- body1("b"), $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, [1, 2, 3].contains($5), ![4,5,6].contains($6), $7 != 6`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -206,11 +206,16 @@ func getRuleTestCases() []testCase {
 						biscuit.BinaryContains,
 						biscuit.UnaryNegate,
 					},
+					{
+						biscuit.Value{Term: biscuit.Variable("7")},
+						biscuit.Value{Term: biscuit.Integer(6)},
+						biscuit.BinaryNotEqual,
+					},
 				},
 			},
 		},
 		{
-			Input: `rule1("a") <- body1("b"), $0 == "abc", $1.starts_with("def"), $2.ends_with("ghi"), $3.matches("file[0-9]+.txt"), ["a","b"].contains($4), !["c", "d"].contains($5)`,
+			Input: `rule1("a") <- body1("b"), $0 == "abc", $1.starts_with("def"), $2.ends_with("ghi"), $3.matches("file[0-9]+.txt"), ["a","b"].contains($4), !["c", "d"].contains($5), $6 != "abc"`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -251,6 +256,11 @@ func getRuleTestCases() []testCase {
 						biscuit.Value{Term: biscuit.Variable("5")},
 						biscuit.BinaryContains,
 						biscuit.UnaryNegate,
+					},
+					{
+						biscuit.Value{Term: biscuit.Variable("6")},
+						biscuit.Value{Term: biscuit.String("abc")},
+						biscuit.BinaryNotEqual,
 					},
 				},
 			},

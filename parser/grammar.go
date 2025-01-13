@@ -238,6 +238,7 @@ const (
 	OpLessThan
 	OpGreaterThan
 	OpEqual
+	OpNotEqual
 	OpContains
 	OpPrefix
 	OpSuffix
@@ -251,7 +252,7 @@ const (
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpEqual, "!=": OpNotEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -284,7 +285,7 @@ type Expr2 struct {
 }
 
 type OpExpr3 struct {
-	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "==" | "!=")`
 	Expr3    *Expr3   `@@`
 }
 
@@ -454,6 +455,8 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryGreaterThan
 	case OpEqual:
 		biscuit_op = biscuit.BinaryEqual
+	case OpNotEqual:
+		biscuit_op = biscuit.BinaryNotEqual
 	case OpContains:
 		biscuit_op = biscuit.BinaryContains
 	case OpPrefix:
