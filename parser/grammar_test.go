@@ -151,6 +151,14 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
+			Input: `$0 != 2`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.Integer(2)},
+				biscuit.BinaryNotEqual,
+			},
+		},
+		{
 			Input: `$1 > 2`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("1")},
@@ -212,6 +220,14 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.String("abc")},
 				biscuit.BinaryEqual,
+			},
+		},
+		{
+			Input: `$0 != "abcd"`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.Value{Term: biscuit.String("abcd")},
+				biscuit.BinaryNotEqual,
 			},
 		},
 		{
@@ -304,11 +320,30 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `hex:12ab == hex:ab`,
+			Input: `[hex:41].intersection([hex:41]).length() != $0`,
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A"))}},
+				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A"))}},
+				biscuit.BinaryIntersection,
+				biscuit.UnaryLength,
+				biscuit.Value{Term: biscuit.Variable("0")},
+				biscuit.BinaryNotEqual,
+			},
+		},
+		{
+			Input: `hex:12ab == hex:12ab`, //not sure why but the previous test also passed even when 12ab should not equal ab
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
+				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
+				biscuit.BinaryEqual,
+			},
+		},
+		{
+			Input: `hex:12ab != hex:ab`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
 				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
-				biscuit.BinaryEqual,
+				biscuit.BinaryNotEqual,
 			},
 		},
 		{
@@ -328,6 +363,21 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryAdd,
 				biscuit.Value{Term: biscuit.Integer(7)},
 				biscuit.BinaryEqual,
+				biscuit.Value{Term: biscuit.Bool(false)},
+				biscuit.BinaryOr,
+			},
+		},
+		{
+			Input: `{param1} != {param2} || {param3}`,
+			Params: map[string]biscuit.Term{
+				"param1": biscuit.Integer(1),
+				"param2": biscuit.Integer(2),
+				"param3": biscuit.Bool(false),
+			},
+			Expected: &biscuit.Expression{
+				biscuit.Value{Term: biscuit.Integer(1)},
+				biscuit.Value{Term: biscuit.Integer(2)},
+				biscuit.BinaryNotEqual,
 				biscuit.Value{Term: biscuit.Bool(false)},
 				biscuit.BinaryOr,
 			},
