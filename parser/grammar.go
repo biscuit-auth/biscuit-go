@@ -668,7 +668,7 @@ func (p *Policy) ToBiscuit(parameters ParametersMap) (*biscuit.Policy, error) {
 		}
 	case p.Deny != nil:
 		{
-			parsedQueries = p.Allow.Queries
+			parsedQueries = p.Deny.Queries
 			kind = biscuit.PolicyKindDeny
 			break
 		}
