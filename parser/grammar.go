@@ -331,108 +331,152 @@ type ExprTerm struct {
 	Expression *Expression `| "(" @@? ")"`
 }
 
-func (e *Expression) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expression) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 	if e.Right != nil {
-
-		e.Right.ToExpr(expr, parameters)
+		return e.Right.ToExpr(expr, parameters)
 	}
+	return nil
 }
 
-func (e *Expr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr6.ToExpr(expr, parameters)
+func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr6.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 	if e.Operator != nil {
 		*expr = append(*expr, biscuit.UnaryNegate)
 	}
+	return nil
 }
 
-func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
-	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
 	}
+	for _, op := range e.Right {
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-
+func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
 	switch {
 	case e.Term != nil:
-		//FIXME: error management
-		term, _ := e.Term.ToBiscuit(parameters)
+		term, err := e.Term.ToBiscuit(parameters)
+		if err != nil {
+			return err
+		}
 		*expr = append(*expr, biscuit.Value{Term: term})
 	case e.Expression != nil:
-		e.Expression.ToExpr(expr, parameters)
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 		*expr = append(*expr, biscuit.UnaryParens)
 	}
-
+	return nil
 }
 
-func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr1.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr2.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr3.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr4.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr5.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	if e.Expression != nil {
-		e.Expression.ToExpr(expr, parameters)
+func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr1.ToExpr(expr, parameters); err != nil {
+		return err
 	}
-	e.Operator.ToExpr(expr)
+	return e.Operator.ToExpr(expr)
 }
 
-func (op *Operator) ToExpr(expr *biscuit.Expression) {
+func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr2.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
 
+func (e *OpExpr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr3.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr4.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr5.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if e.Expression != nil {
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 	var biscuit_op biscuit.Op
 	switch *op {
 	case OpAnd:
@@ -471,9 +515,12 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryIntersection
 	case OpUnion:
 		biscuit_op = biscuit.BinaryUnion
+	default:
+		return fmt.Errorf("parser: unsupported operator %d", *op)
 	}
 
 	*expr = append(*expr, biscuit_op)
+	return nil
 }
 
 type Set struct {
@@ -588,7 +635,9 @@ func (r *Rule) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr, parameters)
+				if err := (*p.Expression).ToExpr(&expr, parameters); err != nil {
+					return nil, err
+				}
 
 				expressions = append(expressions, expr)
 			}
@@ -640,7 +689,9 @@ func (r *CheckQuery) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) 
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr, parameters)
+				if err := (*p.Expression).ToExpr(&expr, parameters); err != nil {
+					return nil, err
+				}
 
 				expressions = append(expressions, expr)
 			}

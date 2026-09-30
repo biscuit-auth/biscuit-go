@@ -638,3 +638,30 @@ func TestFromStringConcurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// An unbound parameter inside an expression used to produce a nil term
+// instead of an error, and crash later when the element was converted.
+func TestUnboundParameterInExpression(t *testing.T) {
+	p := New()
+	params := ParametersMap{"bound": biscuit.Integer(1)}
+
+	_, err := p.Check(`check if resource($r), $r == {missing}`, params)
+	require.ErrorContains(t, err, "unbound parameter: missing")
+
+	_, err = p.Rule(`head($r) <- body($r), $r == {missing}`, params)
+	require.ErrorContains(t, err, "unbound parameter: missing")
+
+	_, err = p.Policy(`allow if resource($r), $r == {missing}`, params)
+	require.ErrorContains(t, err, "unbound parameter: missing")
+
+	_, err = p.Block(`f(1); check if resource($r), $r == {missing};`, params)
+	require.ErrorContains(t, err, "unbound parameter: missing")
+
+	_, err = p.Authorizer(`allow if resource($r), $r == {missing};`, params)
+	require.ErrorContains(t, err, "unbound parameter: missing")
+
+	// Bound parameters in expressions still work.
+	c, err := p.Check(`check if resource($r), $r == {bound}`, params)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Value{Term: biscuit.Integer(1)}, c.Queries[0].Expressions[0][1])
+}

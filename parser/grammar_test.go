@@ -141,9 +141,10 @@ func TestGrammarExpression(t *testing.T) {
 	t2, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
 
 	testCases := []struct {
-		Input    string
-		Params   ParametersMap
-		Expected *biscuit.Expression
+		Input     string
+		Params    ParametersMap
+		Expected  *biscuit.Expression
+		ExpectErr bool
 	}{
 		{
 			Input: `$0 == 1`,
@@ -335,6 +336,18 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryOr,
 			},
 		},
+		{
+			Input:     `$0 == {missing}`,
+			ExpectErr: true,
+		},
+		{
+			Input:     `({missing} + 1) * 2 > $0`,
+			ExpectErr: true,
+		},
+		{
+			Input:     `$0.contains({missing})`,
+			ExpectErr: true,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -343,7 +356,12 @@ func TestGrammarExpression(t *testing.T) {
 			require.NoError(t, err, testCase.Input)
 
 			var expr biscuit.Expression
-			(*parsed).ToExpr(&expr, testCase.Params)
+			err = (*parsed).ToExpr(&expr, testCase.Params)
+			if testCase.ExpectErr {
+				require.Error(t, err, testCase.Input)
+				return
+			}
+			require.NoError(t, err, testCase.Input)
 			require.Equal(t, testCase.Expected, &expr, testCase.Input)
 		})
 	}
