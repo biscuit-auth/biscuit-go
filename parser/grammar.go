@@ -220,13 +220,6 @@ type Term struct {
 	Set       []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
-type Value struct {
-	Number        *float64    `  @(Float|Int)`
-	Variable      *string     `| @Ident`
-	Parameter     *Parameter  `| @Parameter`
-	Subexpression *Expression `| "(" @@ ")"`
-}
-
 type Operator int
 
 const (
@@ -521,13 +514,6 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 
 	*expr = append(*expr, biscuit_op)
 	return nil
-}
-
-type Set struct {
-	Not    bool        `@"not"? "in"`
-	Bytes  []HexString `("[" ( @@ ("," @@)*)+ "]"`
-	String []string    `| "[" (@String ("," @String)*)+ "]"`
-	Int    []int64     `| "[" (@Int ("," @Int)*)+ "]")`
 }
 
 type HexString string
