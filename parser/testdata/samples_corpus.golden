@@ -1,0 +1,115 @@
+test001_basic.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test001_basic.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test001_basic.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\")\n] Rules:[] Checks:[]}}"
+test002_different_root_key.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\")\n] Rules:[] Checks:[]}"
+test002_different_root_key.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test002_different_root_key.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test003_invalid_signature_format.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test003_invalid_signature_format.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test003_invalid_signature_format.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test004_random_block.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test004_random_block.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test004_random_block.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test005_invalid_signature.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test005_invalid_signature.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test005_invalid_signature.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test006_reordered_blocks.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test006_reordered_blocks.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test006_reordered_blocks.bc block 2	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource(\"file1\")] Expressions:[]}]}]}"
+test006_reordered_blocks.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test007_scoped_rules.bc block 0	ok	"{Facts:[\n\tuser_id(\"alice\"),\n\towner(\"alice\", \"file1\")\n] Rules:[] Checks:[]}"
+test007_scoped_rules.bc block 1	ok	"{Facts:[] Rules:[{Head:right($0, \"read\") Body:[resource($0) user_id($1) owner($1, $0)] Expressions:[]}] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test007_scoped_rules.bc block 2	ok	"{Facts:[\n\towner(\"alice\", \"file2\")\n] Rules:[] Checks:[]}"
+test007_scoped_rules.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test008_scoped_checks.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\")\n] Rules:[] Checks:[]}"
+test008_scoped_checks.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test008_scoped_checks.bc block 2	ok	"{Facts:[\n\tright(\"file2\", \"read\")\n] Rules:[] Checks:[]}"
+test008_scoped_checks.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test009_expired_token.bc block 0	ok	"{Facts:[] Rules:[] Checks:[]}"
+test009_expired_token.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource(\"file1\")] Expressions:[]}]} {Queries:[{Head:query() Body:[time($time)] Expressions:[[{Term:$time} {Term:2018-12-20T00:00:00Z} 2]]}]}]}"
+test009_expired_token.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\toperation(\"read\"),\n\ttime(2020-12-21T09:23:12Z)\n] Rules:[] Checks:[]}}"
+test010_authorizer_scope.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\")\n] Rules:[] Checks:[]}"
+test010_authorizer_scope.bc block 1	ok	"{Facts:[\n\tright(\"file2\", \"read\")\n] Rules:[] Checks:[]}"
+test010_authorizer_scope.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\toperation(\"read\")\n] Rules:[] Checks:[{Queries:[{Head:query() Body:[right($0, $1) resource($0) operation($1)] Expressions:[]}]}]}}"
+test011_authorizer_authority_caveats.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\")\n] Rules:[] Checks:[]}"
+test011_authorizer_authority_caveats.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\toperation(\"read\")\n] Rules:[] Checks:[{Queries:[{Head:query() Body:[right($0, $1) resource($0) operation($1)] Expressions:[]}]}]}}"
+test012_authority_caveats.bc block 0	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource(\"file1\")] Expressions:[]}]}]}"
+test012_authority_caveats.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test012_authority_caveats.bc authorizer 1	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test013_block_rules.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\")\n] Rules:[] Checks:[]}"
+test013_block_rules.bc block 1	error
+test013_block_rules.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\ttime(2020-12-21T09:23:12Z)\n] Rules:[] Checks:[]}}"
+test013_block_rules.bc authorizer 1	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file2\"),\n\ttime(2020-12-21T09:23:12Z)\n] Rules:[] Checks:[]}}"
+test014_regex_constraint.bc block 0	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0)] Expressions:[[{Term:$0} {Term:\"file[0-9]+.txt\"} 9]]}]}]}"
+test014_regex_constraint.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\")\n] Rules:[] Checks:[]}}"
+test014_regex_constraint.bc authorizer 1	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file123.txt\")\n] Rules:[] Checks:[]}}"
+test015_multi_queries_caveats.bc block 0	ok	"{Facts:[\n\tmust_be_present(\"hello\")\n] Rules:[] Checks:[]}"
+test015_multi_queries_caveats.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[must_be_present($0)] Expressions:[]} {Head:query() Body:[must_be_present($0)] Expressions:[]}]}]}}"
+test016_caveat_head_name.bc block 0	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource(\"hello\")] Expressions:[]}]}]}"
+test016_caveat_head_name.bc block 1	ok	"{Facts:[\n\tquery(\"test\")\n] Rules:[] Checks:[]}"
+test016_caveat_head_name.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test017_expressions.bc block 0	error
+test017_expressions.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test018_unbound_variables_in_rule.bc block 0	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[operation(\"read\")] Expressions:[]}]}]}"
+test018_unbound_variables_in_rule.bc block 1	ok	"{Facts:[] Rules:[{Head:operation($unbound, \"read\") Body:[operation($any1, $any2)] Expressions:[]}] Checks:[]}"
+test018_unbound_variables_in_rule.bc authorizer 0	ok	"{Policies:[] Block:{Facts:[] Rules:[] Checks:[]}}"
+test019_generating_ambient_from_variables.bc block 0	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[operation(\"read\")] Expressions:[]}]}]}"
+test019_generating_ambient_from_variables.bc block 1	ok	"{Facts:[] Rules:[{Head:operation(\"read\") Body:[operation($any)] Expressions:[]}] Checks:[]}"
+test019_generating_ambient_from_variables.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\toperation(\"write\")\n] Rules:[] Checks:[]}}"
+test020_sealed.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test020_sealed.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test020_sealed.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test021_parsing.bc block 0	ok	"{Facts:[\n\tns::fact_123(\"hello é\\t😁\")\n] Rules:[] Checks:[]}"
+test021_parsing.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[ns::fact_123(\"hello é\\t😁\")] Expressions:[]}]}]}}"
+test022_default_symbols.bc block 0	ok	"{Facts:[\n\tread(0),\n\twrite(1),\n\tresource(2),\n\toperation(3),\n\tright(4),\n\ttime(5),\n\trole(6),\n\towner(7),\n\ttenant(8),\n\tnamespace(9),\n\tuser(10),\n\tteam(11),\n\tservice(12),\n\tadmin(13),\n\temail(14),\n\tgroup(15),\n\tmember(16),\n\tip_address(17),\n\tclient(18),\n\tclient_ip(19),\n\tdomain(20),\n\tpath(21),\n\tversion(22),\n\tcluster(23),\n\tnode(24),\n\thostname(25),\n\tnonce(26),\n\tquery(27)\n] Rules:[] Checks:[]}"
+test022_default_symbols.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[read(0) write(1) resource(2) operation(3) right(4) time(5) role(6) owner(7) tenant(8) namespace(9) user(10) team(11) service(12) admin(13) email(14) group(15) member(16) ip_address(17) client(18) client_ip(19) domain(20) path(21) version(22) cluster(23) node(24) hostname(25) nonce(26) query(27)] Expressions:[]}]}]}}"
+test023_execution_scope.bc block 0	ok	"{Facts:[\n\tauthority_fact(1)\n] Rules:[] Checks:[]}"
+test023_execution_scope.bc block 1	ok	"{Facts:[\n\tblock1_fact(1)\n] Rules:[] Checks:[]}"
+test023_execution_scope.bc block 2	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[authority_fact($var)] Expressions:[]}]} {Queries:[{Head:query() Body:[block1_fact($var)] Expressions:[]}]}]}"
+test023_execution_scope.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test024_third_party.bc block 0	error
+test024_third_party.bc block 1	ok	"{Facts:[\n\tgroup(\"admin\")\n] Rules:[] Checks:[{Queries:[{Head:query() Body:[right(\"read\")] Expressions:[]}]}]}"
+test024_third_party.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test025_check_all.bc block 0	error
+test025_check_all.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\toperation(\"A\"),\n\toperation(\"B\")\n] Rules:[] Checks:[]}}"
+test025_check_all.bc authorizer 1	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\toperation(\"A\"),\n\toperation(\"invalid\")\n] Rules:[] Checks:[]}}"
+test025_check_all.bc authorizer 2	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test026_public_keys_interning.bc block 0	error
+test026_public_keys_interning.bc block 1	error
+test026_public_keys_interning.bc block 2	error
+test026_public_keys_interning.bc block 3	error
+test026_public_keys_interning.bc block 4	error
+test026_public_keys_interning.bc authorizer 0	error
+test027_integer_wraparound.bc block 0	error
+test027_integer_wraparound.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test028_expressions_v4.bc block 0	error
+test028_expressions_v4.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test029_reject_if.bc block 0	error
+test029_reject_if.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\ttest(false)\n] Rules:[] Checks:[]}}"
+test029_reject_if.bc authorizer 1	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\ttest(true)\n] Rules:[] Checks:[]}}"
+test030_null.bc block 0	error
+test030_null.bc authorizer 0	error
+test030_null.bc authorizer 1	error
+test030_null.bc authorizer 2	error
+test030_null.bc authorizer 3	error
+test031_heterogeneous_equal.bc block 0	error
+test031_heterogeneous_equal.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tfact(1, 1),\n\tfact2(1, 2)\n] Rules:[] Checks:[]}}"
+test031_heterogeneous_equal.bc authorizer 1	error
+test032_laziness_closures.bc block 0	error
+test032_laziness_closures.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test032_laziness_closures.bc authorizer 1	error
+test033_typeof.bc block 0	error
+test033_typeof.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test034_array_map.bc block 0	error
+test034_array_map.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test035_ffi.bc block 0	error
+test035_ffi.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test036_secp256r1.bc block 0	ok	"{Facts:[\n\tright(\"file1\", \"read\"),\n\tright(\"file2\", \"read\"),\n\tright(\"file1\", \"write\")\n] Rules:[] Checks:[]}"
+test036_secp256r1.bc block 1	ok	"{Facts:[] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test036_secp256r1.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test037_secp256r1_third_party.bc block 0	error
+test037_secp256r1_third_party.bc block 1	ok	"{Facts:[\n\tfrom_third(true)\n] Rules:[] Checks:[{Queries:[{Head:query() Body:[resource($0) operation(\"read\") right($0, \"read\")] Expressions:[]}]}]}"
+test037_secp256r1_third_party.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[\n\tresource(\"file1\"),\n\toperation(\"read\")\n] Rules:[] Checks:[]}}"
+test038_try_op.bc block 0	error
+test038_try_op.bc authorizer 0	ok	"{Policies:[{Queries:[{Head:query() Body:[] Expressions:[[{Term:true}]]}] Kind:0}] Block:{Facts:[] Rules:[] Checks:[]}}"
+test038_try_op.bc authorizer 1	error
