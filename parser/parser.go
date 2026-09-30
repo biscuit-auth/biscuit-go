@@ -17,9 +17,12 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
+// Rules are tried in order and the first match wins. Word-like rules need \b
+// so that they do not split an identifier such as `truename` or `checkpoint`.
+// Method names (length, contains, ...) lex as Ident; the grammar matches them
+// by value after a Dot.
 var BiscuitLexerRules = []lexer.SimpleRule{
-	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
-	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
+	{Name: "Keyword", Pattern: `\b(check if|allow if|deny if)\b`},
 	{Name: "Hex", Pattern: `hex:([0-9a-fA-F]{2})*`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Arrow", Pattern: `<-`},
@@ -32,7 +35,7 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "Parameter", Pattern: `\{[a-zA-Z0-9_:]+\}`},
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},
 	{Name: "Int", Pattern: `[0-9]+`},
-	{Name: "Bool", Pattern: `true|false`},
+	{Name: "Bool", Pattern: `\b(true|false)\b`},
 	{Name: "Ident", Pattern: `[a-z][a-zA-Z0-9_:]*`},
 	{Name: "Whitespace", Pattern: `[ \t]+`},
 	{Name: "EOL", Pattern: `[\n\r]+`},

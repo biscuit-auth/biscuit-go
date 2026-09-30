@@ -67,6 +67,31 @@ func getFactTestCases() []testCase {
 			Input:    `empty()`,
 			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "empty", IDs: []biscuit.Term{}}},
 		},
+		// Names starting with a method or literal keyword are still names.
+		{
+			Input:    `prefixed("a")`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "prefixed", IDs: []biscuit.Term{biscuit.String("a")}}},
+		},
+		{
+			Input:    `lengthy(1)`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "lengthy", IDs: []biscuit.Term{biscuit.Integer(1)}}},
+		},
+		{
+			Input:    `contains_x(1)`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "contains_x", IDs: []biscuit.Term{biscuit.Integer(1)}}},
+		},
+		{
+			Input:    `matcheslist(1)`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "matcheslist", IDs: []biscuit.Term{biscuit.Integer(1)}}},
+		},
+		{
+			Input:    `truename("x")`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "truename", IDs: []biscuit.Term{biscuit.String("x")}}},
+		},
+		{
+			Input:    `falsehood(true)`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "falsehood", IDs: []biscuit.Term{biscuit.Bool(true)}}},
+		},
 	}
 }
 
