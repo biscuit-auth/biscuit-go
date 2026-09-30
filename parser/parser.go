@@ -5,6 +5,7 @@ package parser
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -217,6 +218,17 @@ func (p *parser) Must() MustParser {
 	return &mustParser{parser: p}
 }
 
+var (
+	sharedParser     Parser
+	sharedParserOnce sync.Once
+)
+
+// Building a parser costs milliseconds; a built parser is stateless and safe for concurrent use.
+func shared() Parser {
+	sharedParserOnce.Do(func() { sharedParser = New() })
+	return sharedParser
+}
+
 func (m *mustParser) Fact(fact string, parameters ParametersMap) biscuit.Fact {
 	f, err := m.parser.Fact(fact, parameters)
 	if err != nil {
@@ -296,37 +308,25 @@ func FromStringAuthorizer(input string) (biscuit.ParsedAuthorizer, error) {
 }
 
 func FromStringFactWithParams(input string, parameters ParametersMap) (biscuit.Fact, error) {
-	p := New()
-
-	return p.Fact(input, parameters)
+	return shared().Fact(input, parameters)
 }
 
 func FromStringRuleWithParams(input string, parameters ParametersMap) (biscuit.Rule, error) {
-	p := New()
-
-	return p.Rule(input, parameters)
+	return shared().Rule(input, parameters)
 }
 
 func FromStringCheckWithParams(input string, parameters ParametersMap) (biscuit.Check, error) {
-	p := New()
-
-	return p.Check(input, parameters)
+	return shared().Check(input, parameters)
 }
 
 func FromStringPolicyWithParams(input string, parameters ParametersMap) (biscuit.Policy, error) {
-	p := New()
-
-	return p.Policy(input, parameters)
+	return shared().Policy(input, parameters)
 }
 
 func FromStringBlockWithParams(input string, parameters ParametersMap) (biscuit.ParsedBlock, error) {
-	p := New()
-
-	return p.Block(input, parameters)
+	return shared().Block(input, parameters)
 }
 
 func FromStringAuthorizerWithParams(input string, parameters ParametersMap) (biscuit.ParsedAuthorizer, error) {
-	p := New()
-
-	return p.Authorizer(input, parameters)
+	return shared().Authorizer(input, parameters)
 }

@@ -5,6 +5,7 @@ package parser
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -614,4 +615,26 @@ func TestIssue84(t *testing.T) {
 	rule, err := FromStringRule(`var($a) <- user($a), !($a == "abc")`)
 	_ = rule
 	require.NoError(t, err)
+}
+
+// The FromString helpers share one parser; parsing from many goroutines must be safe.
+func TestFromStringConcurrent(t *testing.T) {
+	want, err := FromStringFact(`right("/a/file1", "read")`)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				got, err := FromStringFact(`right("/a/file1", "read")`)
+				require.NoError(t, err)
+				require.Equal(t, want, got)
+				_, err = FromStringRule(`head($a) <- body($a), $a == "x"`)
+				require.NoError(t, err)
+			}
+		}()
+	}
+	wg.Wait()
 }
