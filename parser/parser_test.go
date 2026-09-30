@@ -55,6 +55,18 @@ func getFactTestCases() []testCase {
 			Input:         `right("/a/file1.txt", [$0])`,
 			ExpectFailure: true,
 		},
+		{
+			Input:         `right("/a/file1.txt" "read")`,
+			ExpectFailure: true,
+		},
+		{
+			Input:         `right(1, 2 3, 4)`,
+			ExpectFailure: true,
+		},
+		{
+			Input:    `empty()`,
+			Expected: biscuit.Fact{Predicate: biscuit.Predicate{Name: "empty", IDs: []biscuit.Term{}}},
+		},
 	}
 }
 

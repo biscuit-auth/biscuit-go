@@ -185,7 +185,7 @@ type RuleElement struct {
 
 type Predicate struct {
 	Name *string `@Ident`
-	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
+	IDs  []*Term `"(" (@@ ("," @@)*)? ")"`
 }
 
 type Check struct {
