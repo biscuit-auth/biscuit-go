@@ -603,10 +603,6 @@ func TestConvertInvalTermsets(t *testing.T) {
 		in   datalog.Set
 	}{
 		{
-			desc: "empty set",
-			in:   datalog.Set{},
-		},
-		{
 			desc: "mixed element types",
 			in: datalog.Set{
 				syms.Insert("abc"),
@@ -635,12 +631,6 @@ func TestConvertInvalTermsets(t *testing.T) {
 		desc string
 		in   *pb.TermV2
 	}{
-		{
-			desc: "empty set",
-			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
-				Set: []*pb.TermV2{},
-			}}},
-		},
 		{
 			desc: "mixed element types",
 			in: &pb.TermV2{Content: &pb.TermV2_Set{Set: &pb.TermSet{
@@ -683,6 +673,17 @@ func TestConvertInvalTermsets(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
+}
+
+// The spec allows the empty set, written {,}.
+func TestConvertEmptySetV2(t *testing.T) {
+	protoSet, err := tokenIDToProtoIDV2(datalog.Set{})
+	require.NoError(t, err)
+	require.Empty(t, protoSet.GetSet().GetSet())
+
+	tokenSet, err := protoIDToTokenIDV2(protoSet)
+	require.NoError(t, err)
+	require.Equal(t, datalog.Set{}, *tokenSet)
 }
 
 func TestBlockConvertV2(t *testing.T) {

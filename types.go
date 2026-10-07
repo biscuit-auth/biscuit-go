@@ -599,8 +599,11 @@ func (a Set) String() string {
 	for _, e := range a {
 		elts = append(elts, e.String())
 	}
+	if len(elts) == 0 {
+		return "{,}"
+	}
 	sort.Strings(elts)
-	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+	return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
 }
 
 type PolicyKind byte

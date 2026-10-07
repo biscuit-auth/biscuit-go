@@ -44,18 +44,6 @@ func (v *Variable) Capture(values []string) error {
 
 type Parameter string
 
-func (p *Parameter) Capture(values []string) error {
-	if len(values) != 1 {
-		return errors.New("parser: invalid parameter values")
-	}
-	if !strings.HasPrefix(values[0], "{") ||
-		!strings.HasSuffix(values[0], "}") {
-		return errors.New("parser: invalid parameter capture")
-	}
-	*p = Parameter(strings.Trim(values[0], "{}"))
-	return nil
-}
-
 type Bool bool
 
 func (b *Bool) Capture(values []string) error {
@@ -209,15 +197,19 @@ type Deny struct {
 	Queries []*CheckQuery `"deny if" @@ ( "or" @@ )*`
 }
 
+// A set literal is written {a, b} and the empty set {,}. The [a, b] form
+// predates the spec syntax and is still accepted.
 type Term struct {
-	Parameter *Parameter `@Parameter`
+	Parameter *Parameter `"{" @Ident "}"`
 	Variable  *Variable  `| @Variable`
 	Bytes     *HexString `| @@`
 	String    *string    `| @String`
 	Date      *string    `| @DateTime`
 	Integer   *int64     `| @Int`
 	Bool      *Bool      `| @Bool`
-	Set       []*Term    `| "[" @@ ("," @@)* "]"`
+	EmptySet  bool       `| @("{" "," "}")`
+	Set       []*Term    `| "{" @@ ("," @@)* "}"`
+	LegacySet []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
 type Operator int
@@ -247,7 +239,7 @@ const (
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpEqual, "===": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -280,7 +272,7 @@ type Expr2 struct {
 }
 
 type OpExpr3 struct {
-	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "===" | "==")`
 	Expr3    *Expr3   `@@`
 }
 
@@ -576,9 +568,15 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 		biscuitTerm = biscuit.Bytes(b)
 	case a.Bool != nil:
 		biscuitTerm = biscuit.Bool(*a.Bool)
-	case a.Set != nil:
-		biscuitSet := make(biscuit.Set, 0, len(a.Set))
-		for _, term := range a.Set {
+	case a.EmptySet:
+		biscuitTerm = biscuit.Set{}
+	case a.Set != nil || a.LegacySet != nil:
+		elts := a.Set
+		if elts == nil {
+			elts = a.LegacySet
+		}
+		biscuitSet := make(biscuit.Set, 0, len(elts))
+		for _, term := range elts {
 			setTerm, err := term.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err

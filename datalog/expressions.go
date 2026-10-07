@@ -280,7 +280,7 @@ func (op BinaryOp) Print(left, right string) string {
 	case BinaryGreaterOrEqual:
 		out = fmt.Sprintf("%s >= %s", left, right)
 	case BinaryEqual:
-		out = fmt.Sprintf("%s == %s", left, right)
+		out = fmt.Sprintf("%s === %s", left, right)
 	case BinaryContains:
 		out = fmt.Sprintf("%s.contains(%s)", left, right)
 	case BinaryPrefix:

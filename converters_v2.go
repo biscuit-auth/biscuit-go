@@ -97,21 +97,15 @@ func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
 		}
 	case datalog.TermTypeSet:
 		datalogSet := input.(datalog.Set)
-		if len(datalogSet) == 0 {
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot be empty")
-		}
-
-		expectedEltType := datalogSet[0].Type()
-		switch expectedEltType {
-		case datalog.TermTypeVariable:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
-		case datalog.TermTypeSet:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
-		}
-
 		protoSet := make([]*pb.TermV2, 0, len(datalogSet))
-		for _, datalogElt := range datalogSet {
-			if datalogElt.Type() != expectedEltType {
+		for i, datalogElt := range datalogSet {
+			switch datalogElt.Type() {
+			case datalog.TermTypeVariable:
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
+			case datalog.TermTypeSet:
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
+			}
+			if expectedEltType := datalogSet[0].Type(); i > 0 && datalogElt.Type() != expectedEltType {
 				return nil, fmt.Errorf(
 					"biscuit: failed to convert token ID to proto ID: set elements must have the same type (got %x, want %x)",
 					datalogElt.Type(),
@@ -156,21 +150,15 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 		id = datalog.Bool(input.GetBool())
 	case *pb.TermV2_Set:
 		elts := input.GetSet().Set
-		if len(elts) == 0 {
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot be empty")
-		}
-
-		expectedEltType := reflect.TypeOf(elts[0].GetContent())
-		switch expectedEltType {
-		case reflect.TypeFor[*pb.TermV2_Variable]():
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
-		case reflect.TypeFor[*pb.TermV2_Set]():
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
-		}
-
 		datalogSet := make(datalog.Set, 0, len(elts))
-		for _, protoElt := range elts {
-			if eltType := reflect.TypeOf(protoElt.GetContent()); eltType != expectedEltType {
+		for i, protoElt := range elts {
+			switch protoElt.GetContent().(type) {
+			case *pb.TermV2_Variable:
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
+			case *pb.TermV2_Set:
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
+			}
+			if eltType, expectedEltType := reflect.TypeOf(protoElt.GetContent()), reflect.TypeOf(elts[0].GetContent()); i > 0 && eltType != expectedEltType {
 				return nil, fmt.Errorf(
 					"biscuit: failed to convert proto ID to token ID: set elements must have the same type (got %x, want %x)",
 					eltType,

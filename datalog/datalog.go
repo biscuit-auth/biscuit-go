@@ -85,8 +85,11 @@ func (s Set) String() string {
 	for _, e := range s {
 		eltStr = append(eltStr, e.String())
 	}
+	if len(eltStr) == 0 {
+		return "{,}"
+	}
 	sort.Strings(eltStr)
-	return fmt.Sprintf("[%s]", strings.Join(eltStr, ", "))
+	return fmt.Sprintf("{%s}", strings.Join(eltStr, ", "))
 }
 func (s Set) Intersect(t Set) Set {
 	result := Set{}
