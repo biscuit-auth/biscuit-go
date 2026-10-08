@@ -5,6 +5,7 @@ package datalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -257,19 +258,57 @@ func (d SymbolDebugger) Check(c Check) string {
 	return fmt.Sprintf("%s %s", kind, strings.Join(queries, " or "))
 }
 
+// World prints the facts grouped by origin and the rules by block, each
+// group sorted, in the layout of the reference implementation:
+//
+//	// origin: [0]
+//	fact(1);
+//	// origin: authorizer
+//	rule($a) <- fact($a);
 func (d SymbolDebugger) World(w *World) string {
-	facts := make([]string, len(*w.facts))
-	for i, f := range *w.facts {
-		facts[i] = d.Predicate(f.Predicate)
+	var b strings.Builder
+	if len(w.facts) > 0 {
+		b.WriteString("// Facts:\n")
 	}
-	rules := make([]string, len(w.rules))
-	for i, r := range w.rules {
-		rules[i] = d.Rule(r)
+	for _, of := range w.facts {
+		if len(of.facts) == 0 {
+			continue
+		}
+		facts := make([]string, len(of.facts))
+		for i, f := range of.facts {
+			facts[i] = d.Predicate(f.Predicate)
+		}
+		sort.Strings(facts)
+		fmt.Fprintf(&b, "// origin: %s\n", of.origin)
+		for _, f := range facts {
+			fmt.Fprintf(&b, "%s;\n", f)
+		}
 	}
 
-	sort.Strings(facts)
-	sort.Strings(rules)
-	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
+	rulesByBlock := map[BlockID][]string{}
+	for _, sr := range w.rules {
+		rulesByBlock[sr.blockID] = append(rulesByBlock[sr.blockID], d.Rule(sr.rule))
+	}
+	if len(rulesByBlock) > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("// Rules:\n")
+	}
+	blocks := make([]BlockID, 0, len(rulesByBlock))
+	for id := range rulesByBlock {
+		blocks = append(blocks, id)
+	}
+	slices.Sort(blocks)
+	for _, id := range blocks {
+		rules := rulesByBlock[id]
+		sort.Strings(rules)
+		fmt.Fprintf(&b, "// origin: %s\n", id)
+		for _, r := range rules {
+			fmt.Fprintf(&b, "%s;\n", r)
+		}
+	}
+	return b.String()
 }
 
 func (d SymbolDebugger) FactSet(s *FactSet) string {

@@ -4,6 +4,7 @@
 package biscuittest
 
 import (
+	"cmp"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
@@ -11,7 +12,10 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2"
@@ -102,37 +106,84 @@ type CheckGroup struct {
 	Checks []string `json:"checks"`
 }
 
-// isTrusted reports whether an origin is the authorizer or the authority block,
-// which is the part of the world the authorizer exposes through PrintWorld.
-func isTrusted(origin *uint64) bool {
-	return origin == nil || *origin == 0 || *origin == authorizerOrigin
+// originString prints an origin the way the authorizer does; a nil block id
+// is the authorizer (usize::MAX in the reference implementation). The JSON
+// lists the ids as a set, so they are sorted here, authorizer last.
+func originString(ids []*uint64) string {
+	ids = sortedOrigin(ids)
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		if id == nil || *id == authorizerOrigin {
+			parts[i] = "authorizer"
+		} else {
+			parts[i] = strconv.FormatUint(*id, 10)
+		}
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+// String renders the expected world in the format of Authorizer.PrintWorld:
+// facts grouped by origin and rules by block, groups and entries sorted.
+// Checks and policies are compared through the authorization result.
 func (w World) String() string {
-	facts := []string{}
-	for _, group := range w.Facts {
-		visible := true
-		for _, o := range group.Origin {
-			if !isTrusted(o) {
-				visible = false
-				break
-			}
-		}
-		if visible {
-			facts = append(facts, group.Facts...)
+	var b strings.Builder
+
+	facts := slices.Clone(w.Facts)
+	for i := range facts {
+		facts[i].Origin = sortedOrigin(facts[i].Origin)
+	}
+	slices.SortFunc(facts, func(a, b FactGroup) int { return compareOrigins(a.Origin, b.Origin) })
+	if len(facts) > 0 {
+		b.WriteString("// Facts:\n")
+	}
+	for _, group := range facts {
+		fmt.Fprintf(&b, "// origin: %s\n", originString(group.Origin))
+		entries := slices.Clone(group.Facts)
+		sort.Strings(entries)
+		for _, f := range entries {
+			fmt.Fprintf(&b, "%s;\n", f)
 		}
 	}
-	sort.Strings(facts)
 
-	rules := []string{}
-	for _, group := range w.Rules {
-		if isTrusted(group.Origin) {
-			rules = append(rules, group.Rules...)
+	rules := slices.Clone(w.Rules)
+	slices.SortFunc(rules, func(a, b RuleGroup) int { return compareOrigins([]*uint64{a.Origin}, []*uint64{b.Origin}) })
+	if len(rules) > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("// Rules:\n")
+	}
+	for _, group := range rules {
+		fmt.Fprintf(&b, "// origin: %s\n", strings.Trim(originString([]*uint64{group.Origin}), "[]"))
+		entries := slices.Clone(group.Rules)
+		sort.Strings(entries)
+		for _, r := range entries {
+			fmt.Fprintf(&b, "%s;\n", r)
 		}
 	}
-	sort.Strings(rules)
+	return b.String()
+}
 
-	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
+func sortedOrigin(ids []*uint64) []*uint64 {
+	ids = slices.Clone(ids)
+	slices.SortFunc(ids, func(a, b *uint64) int { return compareOrigins([]*uint64{a}, []*uint64{b}) })
+	return ids
+}
+
+// compareOrigins orders origins by block id, the authorizer last.
+func compareOrigins(a, b []*uint64) int {
+	value := func(id *uint64) uint64 {
+		if id == nil {
+			return authorizerOrigin
+		}
+		return *id
+	}
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if c := cmp.Compare(value(a[i]), value(b[i])); c != 0 {
+			return c
+		}
+	}
+	return cmp.Compare(len(a), len(b))
 }
 
 type Validation struct {

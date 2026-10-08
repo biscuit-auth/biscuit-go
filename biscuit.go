@@ -612,34 +612,6 @@ func (b *Biscuit) Code() []string {
 	return blocks
 }
 
-func (b *Biscuit) generateWorld(symbols *datalog.SymbolTable) (*datalog.World, error) {
-	world := datalog.NewWorld()
-
-	for _, fact := range *b.authority.facts {
-		world.AddFact(fact)
-	}
-
-	for _, rule := range b.authority.rules {
-		world.AddRule(rule)
-	}
-
-	for _, block := range b.blocks {
-		for _, fact := range *block.facts {
-			world.AddFact(fact)
-		}
-
-		for _, rule := range block.rules {
-			world.AddRule(rule)
-		}
-	}
-
-	if err := world.Run(symbols); err != nil {
-		return nil, err
-	}
-
-	return world, nil
-}
-
 func (b *Biscuit) RevocationIds() [][]byte {
 	result := make([][]byte, 0, len(b.blocks)+1)
 	result = append(result, b.container.Authority.Signature)
