@@ -812,6 +812,35 @@ func TestParseClosures(t *testing.T) {
 	_, err = p.Check(`check if $x.extern::f($p -> $p)`, nil)
 	require.ErrorContains(t, err, "does not take a closure")
 
+	// .try_or(): the receiver, with the method calls before it, becomes a
+	// closure; the fallback is an ordinary operand.
+	check, err = p.Check(`check if ($x === 12).try_or(true), $s.length().try_or(0) > 1`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Closure{Body: biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable("x")},
+			biscuit.Value{Term: biscuit.Integer(12)},
+			biscuit.BinaryEqual,
+			biscuit.UnaryParens,
+		}},
+		biscuit.Value{Term: biscuit.Bool(true)},
+		biscuit.BinaryTryOr,
+	}, check.Queries[0].Expressions[0])
+	require.Equal(t, biscuit.Expression{
+		biscuit.Closure{Body: biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable("s")},
+			biscuit.UnaryLength,
+		}},
+		biscuit.Value{Term: biscuit.Integer(0)},
+		biscuit.BinaryTryOr,
+		biscuit.Value{Term: biscuit.Integer(1)},
+		biscuit.BinaryGreaterThan,
+	}, check.Queries[0].Expressions[1])
+	_, err = p.Check(`check if $x.try_or()`, nil)
+	require.ErrorContains(t, err, "fallback")
+	_, err = p.Check(`check if $x.try_or($p -> $p)`, nil)
+	require.ErrorContains(t, err, "fallback")
+
 	// A method argument that is a plain expression starting with a variable.
 	check, err = p.Check(`check if {1, 2}.contains($x)`, nil)
 	require.NoError(t, err)

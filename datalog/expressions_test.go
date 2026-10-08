@@ -1493,3 +1493,50 @@ func TestExternFuncs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Bool(true), res)
 }
+
+func TestTryOr(t *testing.T) {
+	syms := &SymbolTable{}
+	failing := Expression{Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, UnaryOp{Parens{}}}
+
+	// The receiver fails: the fallback is returned.
+	expr := Expression{Closure{Body: failing}, Value{Bool(true)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "(true === 12).try_or(true)", expr.Print(syms))
+	res, err := expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	// The receiver succeeds: its value is returned.
+	expr = Expression{Closure{Body: Expression{Value{Integer(1)}, Value{Integer(2)}, BinaryOp{Add{}}}}, Value{Integer(0)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "1 + 2.try_or(0)", expr.Print(syms))
+	res, err = expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Integer(3), res)
+
+	// The fallback is an ordinary operand: its error is not caught.
+	expr = Expression{Closure{Body: Expression{Value{Bool(true)}}}, Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, BinaryOp{TryOr{}}}
+	require.Equal(t, "true.try_or(true === 12)", expr.Print(syms))
+	_, err = expr.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	// Nested: an error in the inner fallback is caught by the outer try_or.
+	inner := Expression{Closure{Body: failing}, Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, BinaryOp{TryOr{}}, UnaryOp{Parens{}}}
+	expr = Expression{Closure{Body: inner}, Value{Bool(true)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "((true === 12).try_or(true === 12)).try_or(true)", expr.Print(syms))
+	res, err = expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	// Variables of the expression are visible in the receiver.
+	var one Term = Integer(1)
+	v := Variable(syms.Insert("x"))
+	expr = Expression{Closure{Body: Expression{Value{v}, Value{Integer(1)}, BinaryOp{Add{}}}}, Value{Integer(0)}, BinaryOp{TryOr{}}}
+	res, err = expr.Evaluate(map[Variable]*Term{v: &one}, syms)
+	require.NoError(t, err)
+	require.Equal(t, Integer(2), res)
+
+	// Without a closure receiver, or with a receiver taking parameters.
+	_, err = (&Expression{Value{Bool(true)}, Value{Bool(false)}, BinaryOp{TryOr{}}}).Evaluate(nil, syms)
+	require.ErrorContains(t, err, "must be a closure")
+	_, err = (&Expression{Closure{Params: []Variable{v}, Body: Expression{Value{v}}}, Value{Bool(false)}, BinaryOp{TryOr{}}}).Evaluate(map[Variable]*Term{}, syms)
+	require.ErrorContains(t, err, "takes no parameters")
+}

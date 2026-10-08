@@ -471,6 +471,24 @@ func TestExpressionConvertV2(t *testing.T) {
 				},
 			},
 		},
+		{
+			Desc: "try_or",
+			Input: datalog.Expression{
+				datalog.Closure{Params: []datalog.Variable{}, Body: datalog.Expression{datalog.Value{ID: datalog.Variable(1)}, datalog.UnaryOp{UnaryOpFunc: datalog.Length{}}}},
+				datalog.Value{ID: datalog.Integer(0)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.TryOr{}},
+			},
+			Expected: &pb.Expression{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Closure{Closure: &pb.OpClosure{Params: []uint32{}, Ops: []*pb.Op{
+						{Content: &pb.Op_Value{Value: &pb.Term{Content: &pb.Term_Variable{Variable: 1}}}},
+						{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Length.Enum()}}},
+					}}}},
+					{Content: &pb.Op_Value{Value: &pb.Term{Content: &pb.Term_Integer{Integer: 0}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_TryOr.Enum()}}},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

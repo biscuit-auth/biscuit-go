@@ -101,6 +101,9 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 - Extern function call: `$x.extern::name()` or `$x.extern::name($y)`, where `name` is a function
   registered on the authorizer with `biscuit.WithExternFuncs`. A call to a name that is not
   registered fails the evaluation.
+- Error fallback: `$x.try_or(fallback)` is the value of `$x` (the receiver, including the method
+  calls before `.try_or()`), or `fallback` when evaluating the receiver fails, e.g.
+  `$s.length().try_or(0)`. An error in `fallback` itself is not caught.
 
 ### Operators precedence
 

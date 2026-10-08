@@ -523,6 +523,8 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_Any
 	case datalog.BinaryGet:
 		pbBinaryKind = pb.OpBinary_Get
+	case datalog.BinaryTryOr:
+		pbBinaryKind = pb.OpBinary_TryOr
 	case datalog.BinaryFfi:
 		pbBinaryKind = pb.OpBinary_Ffi
 		name := uint64(op.BinaryOpFunc.(datalog.FfiBinary).Name)
@@ -592,6 +594,8 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.Any{}
 	case pb.OpBinary_Get:
 		binaryOp = datalog.Get{}
+	case pb.OpBinary_TryOr:
+		binaryOp = datalog.TryOr{}
 	case pb.OpBinary_Ffi:
 		if op.FfiName == nil {
 			return nil, errors.New("biscuit: proto OpBinary Ffi without a name")

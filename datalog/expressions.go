@@ -83,18 +83,25 @@ func (e *Expression) EvaluateWith(values map[Variable]*Term, symbols *SymbolTabl
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: failed to pop binary right value: %w", err)
 			}
-			left, err := s.PopTerm()
+			left, err := s.Pop()
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: failed to pop binary left value: %w", err)
 			}
 
 			var res Term
-			if right.closure != nil {
-				res, err = evalWithClosure(op.(BinaryOp), left, *right.closure, values, symbols, externs)
-			} else if ffi, ok := op.(BinaryOp).BinaryOpFunc.(FfiBinary); ok {
-				res, err = externs.call(symbols, ffi.Name, left, right.term)
-			} else {
-				res, err = op.(BinaryOp).Eval(left, right.term, symbols)
+			switch {
+			case right.closure != nil && left.closure != nil:
+				return nil, errors.New("datalog: expressions: binary operator with two closures")
+			case right.closure != nil:
+				res, err = evalWithClosure(op.(BinaryOp), left.term, *right.closure, values, symbols, externs)
+			case left.closure != nil:
+				res, err = evalWithClosure(op.(BinaryOp), right.term, *left.closure, values, symbols, externs)
+			default:
+				if ffi, ok := op.(BinaryOp).BinaryOpFunc.(FfiBinary); ok {
+					res, err = externs.call(symbols, ffi.Name, left.term, right.term)
+				} else {
+					res, err = op.(BinaryOp).Eval(left.term, right.term, symbols)
+				}
 			}
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: binary eval failed: %w", err)
@@ -116,9 +123,10 @@ func (e *Expression) EvaluateWith(values map[Variable]*Term, symbols *SymbolTabl
 	return s.PopTerm()
 }
 
-// evalWithClosure applies a binary operator whose right operand is a closure.
-// The closure runs with its parameters bound on top of the current variables;
-// a parameter may not have the name of a bound variable.
+// evalWithClosure applies a binary operator with one operand a closure and
+// the other the term. The closure runs with its parameters bound on top of
+// the current variables; a parameter may not have the name of a bound
+// variable.
 func evalWithClosure(op BinaryOp, left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
 	f, ok := op.BinaryOpFunc.(ClosureOpFunc)
 	if !ok {
@@ -239,11 +247,13 @@ func (c Closure) Print(symbols *SymbolTable) string {
 	return fmt.Sprintf("%s -> %s", strings.Join(params, ", "), body)
 }
 
-// ClosureOpFunc is a binary operator whose right operand is a closure.
+// ClosureOpFunc is a binary operator with a closure operand: the right one
+// for && || .all() .any(), the receiver for .try_or().
 type ClosureOpFunc interface {
 	BinaryOpFunc
-	// EvalClosure receives the variables of the expression, which it may
-	// extend with the closure parameters.
+	// EvalClosure receives the term operand and the closure, and the
+	// variables of the expression, which it may extend with the closure
+	// parameters.
 	EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error)
 }
 
@@ -470,6 +480,8 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s.get(%s)", left, right)
 	case BinaryFfi:
 		out = fmt.Sprintf("%s.extern::<?>(%s)", left, right)
+	case BinaryTryOr:
+		out = fmt.Sprintf("%s.try_or(%s)", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
@@ -515,6 +527,7 @@ const (
 	BinaryAny
 	BinaryGet
 	BinaryFfi
+	BinaryTryOr
 )
 
 // FfiBinary is the binary extern::name(right) call; see Ffi.
@@ -1059,6 +1072,28 @@ func (LazyOr) EvalClosure(left Term, closure Closure, values map[Variable]*Term,
 		return Bool(true), nil
 	}
 	return closure.Body.EvaluateWith(values, symbols, externs)
+}
+
+// TryOr is receiver.try_or(fallback): the receiver is a closure without
+// parameters; its value, or fallback when evaluating it fails. The fallback
+// is an ordinary operand, so an error in it is not caught.
+type TryOr struct{}
+
+func (TryOr) Type() BinaryOpType {
+	return BinaryTryOr
+}
+func (TryOr) Eval(Term, Term, *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: .try_or() receiver must be a closure")
+}
+func (TryOr) EvalClosure(fallback Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	if len(closure.Params) != 0 {
+		return nil, errors.New("datalog: .try_or() receiver takes no parameters")
+	}
+	res, err := closure.Body.EvaluateWith(values, symbols, externs)
+	if err != nil {
+		return fallback, nil
+	}
+	return res, nil
 }
 
 // All is .all($x -> ...): true when the closure holds for every element of

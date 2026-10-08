@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -403,11 +404,12 @@ const (
 	OpAny
 	OpGet
 	OpTypeOf
+	OpTryOr
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
-	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "get": OpGet, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
+	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "get": OpGet, "try_or": OpTryOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
 	"==": OpHeterogeneousEqual, "===": OpEqual, "!=": OpHeterogeneousNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength, "type": OpTypeOf}
 
 func (o *Operator) Capture(s []string) error {
@@ -508,7 +510,7 @@ type Expr6 struct {
 }
 
 type OpExpr7 struct {
-	Operator   Operator    `Dot (@("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get" | "type")`
+	Operator   Operator    `Dot (@("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get" | "type" | "try_or")`
 	Extern     string      `| @Ident)`
 	Closure    *ClosureArg `"(" (@@`
 	Expression *Expression `| @@)? ")"`
@@ -645,10 +647,16 @@ func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error
 }
 
 func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	start := len(*expr)
 	if err := e.Left.ToExpr(expr, parameters); err != nil {
 		return err
 	}
 	for _, op := range e.Right {
+		if op.Extern == "" && op.Operator == OpTryOr {
+			// The receiver of .try_or() is evaluated lazily, as a closure.
+			receiver := slices.Clone((*expr)[start:])
+			*expr = append((*expr)[:start], biscuit.Closure{Body: receiver})
+		}
 		if err := op.ToExpr(expr, parameters); err != nil {
 			return err
 		}
@@ -733,6 +741,9 @@ func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) err
 		*expr = append(*expr, biscuit.ExternBinary{Name: name})
 		return nil
 	}
+	if e.Operator == OpTryOr && (e.Expression == nil || e.Closure != nil) {
+		return errors.New("parser: .try_or() takes a fallback value")
+	}
 	switch {
 	case e.Closure != nil:
 		var body biscuit.Expression
@@ -789,6 +800,8 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 		biscuit_op = biscuit.BinaryAny
 	case OpGet:
 		biscuit_op = biscuit.BinaryGet
+	case OpTryOr:
+		biscuit_op = biscuit.BinaryTryOr
 	case OpBitwiseAnd:
 		biscuit_op = biscuit.BinaryBitwiseAnd
 	case OpBitwiseOr:

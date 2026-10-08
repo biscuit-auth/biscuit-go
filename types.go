@@ -131,7 +131,7 @@ func containsV33Op(expressions []datalog.Expression) bool {
 				switch op.BinaryOpFunc.Type() {
 				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
 					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny, datalog.BinaryGet,
-					datalog.BinaryFfi:
+					datalog.BinaryFfi, datalog.BinaryTryOr:
 					return true
 				}
 			}
@@ -507,8 +507,8 @@ const (
 
 // Closure is an expression evaluated by the operator that consumes it, with
 // Params bound by that operator: the right side of && and || (BinaryLazyAnd,
-// BinaryLazyOr), or the predicate of .all() and .any() (BinaryAll,
-// BinaryAny).
+// BinaryLazyOr), the predicate of .all() and .any() (BinaryAll, BinaryAny),
+// or the receiver of .try_or() (BinaryTryOr).
 type Closure struct {
 	Params []Variable
 	Body   Expression
@@ -666,6 +666,9 @@ const (
 	BinaryAll
 	BinaryAny
 	BinaryGet
+	// BinaryTryOr is datalog v3.3; its receiver is a Closure without
+	// parameters and its right operand the fallback value.
+	BinaryTryOr
 )
 
 func (BinaryOp) Type() OpType {
@@ -729,6 +732,8 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Any{}}
 	case BinaryGet:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Get{}}
+	case BinaryTryOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.TryOr{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -792,6 +797,8 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryAny, nil
 	case datalog.BinaryGet:
 		return BinaryGet, nil
+	case datalog.BinaryTryOr:
+		return BinaryTryOr, nil
 	case datalog.BinaryFfi:
 		return ExternBinary{Name: symbols.Str(dbBinary.BinaryOpFunc.(datalog.FfiBinary).Name)}, nil
 	default:

@@ -200,9 +200,7 @@ type Validation struct {
 //
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
-var unsupported = map[string]string{
-	"test038_try_op.bc": ".try_or()",
-}
+var unsupported = map[string]string{}
 
 func maxBlockVersion(c TestCase) uint32 {
 	var v uint32
@@ -341,6 +339,8 @@ func CompareError(authorization_error error, sample_error *BiscuitError, t *test
 			require.ErrorIs(t, authorization_error, datalog.ErrInt64Overflow)
 		case "ShadowedVariable":
 			require.ErrorIs(t, authorization_error, datalog.ErrShadowedVariable)
+		case "InvalidType":
+			// Type errors have no sentinel in the datalog package.
 		default:
 			require.Fail(t, "unknown execution error kind", *sample_error.Execution)
 		}
