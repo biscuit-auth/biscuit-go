@@ -30,10 +30,10 @@ func tokenBlockToProtoBlock(input *Block, keys publicKeyTable) (*pb.Block, error
 
 	facts := input.facts
 	if facts != nil {
-		out.FactsV2 = make([]*pb.FactV2, len(*facts))
+		out.Facts = make([]*pb.Fact, len(*facts))
 		var err error
 		for i, fact := range *facts {
-			out.FactsV2[i], err = tokenFactToProtoFactV2(fact)
+			out.Facts[i], err = tokenFactToProtoFactV2(fact)
 			if err != nil {
 				return nil, err
 			}
@@ -42,25 +42,25 @@ func tokenBlockToProtoBlock(input *Block, keys publicKeyTable) (*pb.Block, error
 
 	rules := input.rules
 	if rules != nil {
-		out.RulesV2 = make([]*pb.RuleV2, len(rules))
+		out.Rules = make([]*pb.Rule, len(rules))
 		for i, rule := range rules {
 			r, err := tokenRuleToProtoRuleV2(rule, keys)
 			if err != nil {
 				return nil, err
 			}
-			out.RulesV2[i] = r
+			out.Rules[i] = r
 		}
 	}
 
 	checks := input.checks
 	if checks != nil {
-		out.ChecksV2 = make([]*pb.CheckV2, len(checks))
+		out.Checks = make([]*pb.Check, len(checks))
 		for i, check := range checks {
 			c, err := tokenCheckToProtoCheckV2(check, keys)
 			if err != nil {
 				return nil, err
 			}
-			out.ChecksV2[i] = c
+			out.Checks[i] = c
 		}
 	}
 
@@ -108,11 +108,11 @@ func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error
 
 	switch input.GetVersion() {
 	case blockVersion3_0, blockVersion3_1, blockVersion3_2, blockVersion3_3:
-		facts = make(datalog.FactSet, len(input.FactsV2))
-		rules = make([]datalog.Rule, len(input.RulesV2))
-		checks = make([]datalog.Check, len(input.ChecksV2))
+		facts = make(datalog.FactSet, len(input.Facts))
+		rules = make([]datalog.Rule, len(input.Rules))
+		checks = make([]datalog.Check, len(input.Checks))
 
-		for i, pbFact := range input.FactsV2 {
+		for i, pbFact := range input.Facts {
 			f, err := protoFactToTokenFactV2(pbFact)
 			if err != nil {
 				return nil, err
@@ -120,7 +120,7 @@ func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error
 			facts[i] = *f
 		}
 
-		for i, pbRule := range input.RulesV2 {
+		for i, pbRule := range input.Rules {
 			r, err := protoRuleToTokenRuleV2(pbRule, keys)
 			if err != nil {
 				return nil, err
@@ -128,7 +128,7 @@ func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error
 			rules[i] = *r
 		}
 
-		for i, pbCheck := range input.ChecksV2 {
+		for i, pbCheck := range input.Checks {
 			c, err := protoCheckToTokenCheckV2(pbCheck, keys)
 			if err != nil {
 				return nil, err

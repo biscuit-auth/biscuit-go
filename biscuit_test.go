@@ -438,10 +438,10 @@ func TestBlockVersionFromContent(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 3, b.authority.version)
 
-	kind := pb.CheckV2_All
+	kind := pb.Check_All
 	_, err = protoBlockToTokenBlock(&pb.Block{
-		Version:  proto.Uint32(3),
-		ChecksV2: []*pb.CheckV2{{Kind: &kind}},
+		Version: proto.Uint32(3),
+		Checks:  []*pb.Check{{Kind: &kind}},
 	}, nil)
 	require.ErrorContains(t, err, "block version 3 uses features of version 4")
 

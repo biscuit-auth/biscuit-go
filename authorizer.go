@@ -499,7 +499,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 
 	// Only what the authorizer added itself is saved; the token is not part
 	// of the policies.
-	var protoFacts []*pb.FactV2
+	var protoFacts []*pb.Fact
 	for _, group := range v.world.Facts() {
 		if !group.Origin.Equal(authorizerOrigin) {
 			continue
@@ -513,7 +513,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 		}
 	}
 
-	var protoRules []*pb.RuleV2
+	var protoRules []*pb.Rule
 	for _, br := range v.world.Rules() {
 		if br.BlockID != datalog.AuthorizerBlockID {
 			continue
@@ -525,7 +525,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 		protoRules = append(protoRules, protoRule)
 	}
 
-	protoChecks := make([]*pb.CheckV2, len(v.checks))
+	protoChecks := make([]*pb.Check, len(v.checks))
 	for i, check := range v.checks {
 		protoCheck, err := tokenCheckToProtoCheckV2(check.convert(v.symbols), nil)
 		if err != nil {
@@ -548,7 +548,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 			return nil, fmt.Errorf("verifier: unsupported policy kind %v", policy.Kind)
 		}
 
-		protoPolicy.Queries = make([]*pb.RuleV2, len(policy.Queries))
+		protoPolicy.Queries = make([]*pb.Rule, len(policy.Queries))
 		for j, rule := range policy.Queries {
 			protoRule, err := tokenRuleToProtoRuleV2(rule.convert(v.symbols), nil)
 			if err != nil {
