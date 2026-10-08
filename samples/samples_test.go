@@ -200,7 +200,6 @@ type Validation struct {
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
 var unsupported = map[string]string{
-	"test033_typeof.bc": ".type(), arrays, maps, null",
 	"test035_ffi.bc":    "extern:: functions",
 	"test038_try_op.bc": ".try_or()",
 }

@@ -246,6 +246,8 @@ func (op UnaryOp) Print(value string) string {
 		out = fmt.Sprintf("(%s)", value)
 	case UnaryLength:
 		out = fmt.Sprintf("%s.length()", value)
+	case UnaryTypeOf:
+		out = fmt.Sprintf("%s.type()", value)
 	default:
 		out = fmt.Sprintf("unknown(%s)", value)
 	}
@@ -263,7 +265,42 @@ const (
 	UnaryNegate UnaryOpType = iota
 	UnaryParens
 	UnaryLength
+	// UnaryTypeOf is datalog v3.3.
+	UnaryTypeOf
 )
+
+// TypeOf is .type(): the name of the type of a value, as a String.
+type TypeOf struct{}
+
+func (TypeOf) Type() UnaryOpType {
+	return UnaryTypeOf
+}
+func (TypeOf) Eval(value Term, symbols *SymbolTable) (Term, error) {
+	var name string
+	switch value.Type() {
+	case TermTypeInteger:
+		name = "integer"
+	case TermTypeString:
+		name = "string"
+	case TermTypeDate:
+		name = "date"
+	case TermTypeBytes:
+		name = "bytes"
+	case TermTypeBool:
+		name = "bool"
+	case TermTypeSet:
+		name = "set"
+	case TermTypeNull:
+		name = "null"
+	case TermTypeArray:
+		name = "array"
+	case TermTypeMap:
+		name = "map"
+	default:
+		return nil, fmt.Errorf("datalog: unexpected TypeOf value type: %d", value.Type())
+	}
+	return symbols.Insert(name), nil
+}
 
 // Negate returns the negation of a value.
 // It only accepts a Bool value.

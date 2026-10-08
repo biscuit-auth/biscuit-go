@@ -430,6 +430,8 @@ func tokenExprUnaryToProtoExprUnary(op datalog.UnaryOp) (*pb.OpUnary, error) {
 		pbUnaryKind = pb.OpUnary_Parens
 	case datalog.UnaryLength:
 		pbUnaryKind = pb.OpUnary_Length
+	case datalog.UnaryTypeOf:
+		pbUnaryKind = pb.OpUnary_TypeOf
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported UnaryOpFunc type: %v", op.UnaryOpFunc.Type())
 	}
@@ -445,6 +447,8 @@ func protoExprUnaryToTokenExprUnary(op *pb.OpUnary) (datalog.UnaryOpFunc, error)
 		unaryOp = datalog.Parens{}
 	case pb.OpUnary_Length:
 		unaryOp = datalog.Length{}
+	case pb.OpUnary_TypeOf:
+		unaryOp = datalog.TypeOf{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpUnary type: %v", op.Kind)
 	}

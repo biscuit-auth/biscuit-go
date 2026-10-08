@@ -1406,3 +1406,40 @@ func TestClosures(t *testing.T) {
 	_, err = (&Expression{Value{Bool(true)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{Add{}}}).Evaluate(nil, syms)
 	require.Error(t, err)
 }
+
+func TestUnaryTypeOf(t *testing.T) {
+	syms := &SymbolTable{}
+	require.Equal(t, UnaryTypeOf, TypeOf{}.Type())
+	for _, tc := range []struct {
+		value Term
+		name  string
+	}{
+		{Integer(1), "integer"},
+		{syms.Insert("test"), "string"},
+		{Date(1), "date"},
+		{Bytes{0xaa}, "bytes"},
+		{Bool(true), "bool"},
+		{Set{Bool(false), Bool(true)}, "set"},
+		{Null{}, "null"},
+		{Array{Integer(1)}, "array"},
+		{NewMap(MapEntry{syms.Insert("a"), Bool(true)}), "map"},
+	} {
+		expr := Expression{Value{tc.value}, UnaryOp{TypeOf{}}}
+		res, err := expr.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, syms.Insert(tc.name), res, tc.name)
+		require.Equal(t, dbgTerm(syms, tc.value)+".type()", expr.Print(syms))
+	}
+
+	// A variable: evaluated on its value.
+	var one Term = Integer(1)
+	v := Variable(syms.Insert("t"))
+	expr := Expression{Value{v}, UnaryOp{TypeOf{}}, Value{syms.Insert("integer")}, BinaryOp{HeterogeneousEqual{}}}
+	res, err := expr.Evaluate(map[Variable]*Term{v: &one}, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+}
+
+func dbgTerm(syms *SymbolTable, t Term) string {
+	return SymbolDebugger{SymbolTable: syms}.Term(t)
+}

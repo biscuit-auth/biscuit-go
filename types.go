@@ -122,6 +122,10 @@ func containsV33Op(expressions []datalog.Expression) bool {
 				}
 			case datalog.Closure:
 				return true
+			case datalog.UnaryOp:
+				if op.UnaryOpFunc.Type() == datalog.UnaryTypeOf {
+					return true
+				}
 			case datalog.BinaryOp:
 				switch op.BinaryOpFunc.Type() {
 				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
@@ -557,6 +561,8 @@ const (
 	UnaryNegate
 	UnaryParens
 	UnaryLength
+	// UnaryTypeOf is datalog v3.3; using it makes the block version 6.
+	UnaryTypeOf
 )
 
 func (UnaryOp) Type() OpType {
@@ -570,6 +576,8 @@ func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Parens{}}
 	case UnaryLength:
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Length{}}
+	case UnaryTypeOf:
+		return datalog.UnaryOp{UnaryOpFunc: datalog.TypeOf{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
 	}
@@ -583,6 +591,8 @@ func fromDatalogUnaryOp(symbols *datalog.SymbolTable, dlUnary datalog.UnaryOp) (
 		return UnaryParens, nil
 	case datalog.UnaryLength:
 		return UnaryLength, nil
+	case datalog.UnaryTypeOf:
+		return UnaryTypeOf, nil
 	default:
 		return UnaryUndefined, fmt.Errorf("unsupported datalog unary op: %v", dlUnary.UnaryOpFunc.Type())
 	}

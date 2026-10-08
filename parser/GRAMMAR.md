@@ -94,6 +94,11 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 - Length: `$map.length()`
 - All / Any: the closure receives each entry as a `[key, value]` array, e.g. `$map.all($kv -> $kv.get(1) > 0)`
 
+### Any value (datalog v3.3)
+
+- Type name: `$x.type()` returns one of `"integer"`, `"string"`, `"date"`, `"bytes"`, `"bool"`,
+  `"set"`, `"null"`, `"array"` or `"map"`, e.g. `$x.type() == "integer"`
+
 ### Operators precedence
 
 The operators have the following precedence (highest to lowest):
