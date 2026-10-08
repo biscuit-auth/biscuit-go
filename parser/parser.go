@@ -22,7 +22,7 @@ var (
 // Method names (length, contains, ...) lex as Ident; the grammar matches them
 // by value after a Dot.
 var BiscuitLexerRules = []lexer.SimpleRule{
-	{Name: "Keyword", Pattern: `\b(check if|check all|allow if|deny if)\b`},
+	{Name: "Keyword", Pattern: `\b(check if|check all|reject if|allow if|deny if)\b`},
 	{Name: "Hex", Pattern: `hex:([0-9a-fA-F]{2})*`},
 	{Name: "PublicKey", Pattern: `\b(ed25519|secp256r1)/[0-9a-fA-F]+`},
 	{Name: "Dot", Pattern: `\.`},

@@ -465,6 +465,8 @@ func tokenCheckToProtoCheckV2(input datalog.Check, keys publicKeyTable) (*pb.Che
 	case datalog.CheckKindOne:
 	case datalog.CheckKindAll:
 		pbCheck.Kind = pb.CheckV2_All.Enum()
+	case datalog.CheckKindReject:
+		pbCheck.Kind = pb.CheckV2_Reject.Enum()
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported check kind: %d", input.Kind)
 	}
@@ -488,6 +490,8 @@ func protoCheckToTokenCheckV2(input *pb.CheckV2, keys publicKeyTable) (*datalog.
 	case pb.CheckV2_One:
 	case pb.CheckV2_All:
 		check.Kind = datalog.CheckKindAll
+	case pb.CheckV2_Reject:
+		check.Kind = datalog.CheckKindReject
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported check kind: %s", input.GetKind())
 	}

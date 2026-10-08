@@ -367,6 +367,38 @@ func TestAuthorizeExecutionError(t *testing.T) {
 	require.ErrorIs(t, ab.Authorize(), ErrExecution)
 }
 
+// reject if passes when its query has no match; a block with one is v6.
+func TestBiscuitRejectIf(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityCheck(Check{
+		Kind: CheckKindReject,
+		Queries: []Rule{{
+			Head:        Predicate{Name: "query"},
+			Body:        []Predicate{{Name: "test", IDs: []Term{Variable("t")}}},
+			Expressions: []Expression{{Value{Variable("t")}}},
+		}},
+	}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "reject if test($t), $t")
+
+	authorize := func(value bool) error {
+		ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		require.NoError(t, err)
+		ab.AddFact(Fact{Predicate: Predicate{Name: "test", IDs: []Term{Bool(value)}}})
+		ab.AddPolicy(DefaultAllowPolicy)
+		return ab.Authorize()
+	}
+	require.NoError(t, authorize(false))
+	require.ErrorContains(t, authorize(true), "reject if")
+}
+
 // Blocks that do not use v3.1 features keep version 3, and a v3 block
 // declaring a check kind is rejected.
 func TestBlockVersionFromContent(t *testing.T) {

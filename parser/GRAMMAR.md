@@ -108,11 +108,13 @@ e.g. `right($file, "read") <- resource($file), owner($user, $file), $user == "us
 
 # Check
 
-A check starts with `check if` or `check all`, followed by one or more rule bodies, separated with ` or `.
+A check starts with `check if`, `check all` or `reject if`, followed by one or more rule bodies,
+separated with ` or `.
 
 `check if` passes when one of the bodies has at least one match. `check all` passes when one of the
 bodies has at least one match and every match of that body satisfies its expressions, e.g.
-`check all operation($op), allowed_operations($allowed), $allowed.contains($op)`.
+`check all operation($op), allowed_operations($allowed), $allowed.contains($op)`. `reject if`
+passes when none of the bodies has a match.
 
 # Policy
 

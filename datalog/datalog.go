@@ -276,6 +276,8 @@ const (
 	// CheckKindAll passes when one query has at least one match and every
 	// match of that query satisfies its expressions.
 	CheckKindAll
+	// CheckKindReject (`reject if`) passes when no query has a match.
+	CheckKindReject
 )
 
 type Check struct {

@@ -15,9 +15,9 @@ import (
 )
 
 // Block versions this library accepts: 3 is datalog v3.0, 4 is datalog v3.1,
-// 5 is datalog v3.2.
+// 5 is datalog v3.2, 6 is datalog v3.3.
 const MinSchemaVersion uint32 = 3
-const MaxSchemaVersion uint32 = 5
+const MaxSchemaVersion uint32 = 6
 
 // Block versions, by the datalog release that introduced them.
 const (
@@ -25,10 +25,16 @@ const (
 	blockVersion3_1 uint32 = 4
 	// blockVersion3_2 is the minimum for a third-party block.
 	blockVersion3_2 uint32 = 5
+	blockVersion3_3 uint32 = 6
 )
 
 // schemaVersion is the lowest block version able to carry the given content.
 func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalog.Check) uint32 {
+	for _, c := range checks {
+		if c.Kind == datalog.CheckKindReject {
+			return blockVersion3_3
+		}
+	}
 	if hasScopes(scopes, rules, checks) {
 		return blockVersion3_1
 	}
@@ -578,12 +584,17 @@ const (
 	// and every match of that query satisfies its expressions. Requires a
 	// datalog v3.1 block (version 4).
 	CheckKindAll
+	// CheckKindReject (`reject if`) passes when no query has a match.
+	// Requires a datalog v3.3 block (version 6).
+	CheckKindReject
 )
 
 func (k CheckKind) convert() datalog.CheckKind {
 	switch k {
 	case CheckKindAll:
 		return datalog.CheckKindAll
+	case CheckKindReject:
+		return datalog.CheckKindReject
 	default:
 		return datalog.CheckKindOne
 	}
@@ -593,6 +604,8 @@ func fromDatalogCheckKind(k datalog.CheckKind) CheckKind {
 	switch k {
 	case datalog.CheckKindAll:
 		return CheckKindAll
+	case datalog.CheckKindReject:
+		return CheckKindReject
 	default:
 		return CheckKindOne
 	}

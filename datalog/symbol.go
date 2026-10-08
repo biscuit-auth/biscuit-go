@@ -252,8 +252,11 @@ func (d SymbolDebugger) Check(c Check) string {
 		queries[i] = d.CheckQuery(q)
 	}
 	kind := "check if"
-	if c.Kind == CheckKindAll {
+	switch c.Kind {
+	case CheckKindAll:
 		kind = "check all"
+	case CheckKindReject:
+		kind = "reject if"
 	}
 	return fmt.Sprintf("%s %s", kind, strings.Join(queries, " or "))
 }

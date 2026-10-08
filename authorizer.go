@@ -298,6 +298,14 @@ func (v *authorizer) checkPasses(c datalog.Check, blockID datalog.BlockID, defau
 			if ok {
 				return true, nil
 			}
+		case datalog.CheckKindReject:
+			res, err := v.world.QueryRule(query, blockID, trusted, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if len(*res) == 0 {
+				return true, nil
+			}
 		default:
 			res, err := v.world.QueryRule(query, blockID, trusted, v.symbols)
 			if err != nil {
@@ -369,7 +377,7 @@ func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
 	}
 
 	switch pbPolicies.GetVersion() {
-	case blockVersion3_0, blockVersion3_1, blockVersion3_2:
+	case blockVersion3_0, blockVersion3_1, blockVersion3_2, blockVersion3_3:
 		return v.loadPoliciesV2(pbPolicies)
 	default:
 		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())

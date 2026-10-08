@@ -256,6 +256,8 @@ func (k *CheckKind) Capture(values []string) error {
 		*k = CheckKind(biscuit.CheckKindOne)
 	case "check all":
 		*k = CheckKind(biscuit.CheckKindAll)
+	case "reject if":
+		*k = CheckKind(biscuit.CheckKindReject)
 	default:
 		return fmt.Errorf("parser: invalid check kind %q", values)
 	}
@@ -263,7 +265,7 @@ func (k *CheckKind) Capture(values []string) error {
 }
 
 type Check struct {
-	Kind    CheckKind     `@("check if" | "check all")`
+	Kind    CheckKind     `@("check if" | "check all" | "reject if")`
 	Queries []*CheckQuery `@@ ( "or" @@ )*`
 }
 
