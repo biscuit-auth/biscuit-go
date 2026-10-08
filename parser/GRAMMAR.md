@@ -66,7 +66,7 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 
 ### Set
 
-- Equal: `$set === {"a", "b"}` (`===` is the strict equality operator of the spec; `==` is accepted as an alias)
+- Equal: `$set === {"a", "b"}`
 - Contains (element membership): `$set.contains("a")`
 - Contains (set inclusion): `$set.contains({"a"})`
 - Union: `$set.union({"a"})`
@@ -87,6 +87,9 @@ The operators have the following precedence (highest to lowest):
 | `|`                         | left-associative |
 | `^`                         | left-associative |
 | `>`, `>=`, `<`, `<=`, `===`, `==`, `!==`, `!=` | not associative |
+
+`===` and `!==` are the strict comparisons: comparing values of different types is an error.
+`==` and `!=` compare across types (datalog v3.3): values of different types are not equal.
 | `&&`                        | left-associative |
 | `||`                        | left-associative |
 

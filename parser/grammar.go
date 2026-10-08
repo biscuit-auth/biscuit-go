@@ -328,12 +328,14 @@ const (
 	OpBitwiseAnd
 	OpBitwiseOr
 	OpBitwiseXor
+	OpHeterogeneousEqual
+	OpHeterogeneousNotEqual
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "===": OpEqual, "!=": OpNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpHeterogeneousEqual, "===": OpEqual, "!=": OpHeterogeneousNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -659,6 +661,10 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 		biscuit_op = biscuit.BinaryEqual
 	case OpNotEqual:
 		biscuit_op = biscuit.BinaryNotEqual
+	case OpHeterogeneousEqual:
+		biscuit_op = biscuit.BinaryHeterogeneousEqual
+	case OpHeterogeneousNotEqual:
+		biscuit_op = biscuit.BinaryHeterogeneousNotEqual
 	case OpBitwiseAnd:
 		biscuit_op = biscuit.BinaryBitwiseAnd
 	case OpBitwiseOr:

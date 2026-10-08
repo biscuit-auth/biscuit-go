@@ -461,6 +461,44 @@ func TestBinaryNotEqual(t *testing.T) {
 	}
 }
 
+// == and != compare across types since datalog v3.3: different types are
+// not equal, where === and !== are a type error.
+func TestBinaryHeterogeneousEqual(t *testing.T) {
+	syms := &SymbolTable{}
+	require.Equal(t, BinaryHeterogeneousEqual, HeterogeneousEqual{}.Type())
+	require.Equal(t, BinaryHeterogeneousNotEqual, HeterogeneousNotEqual{}.Type())
+
+	for _, tc := range []struct {
+		left, right Term
+		equal       bool
+	}{
+		{Integer(1), Integer(1), true},
+		{Integer(1), Integer(3), false},
+		{Integer(1), Bool(true), false},
+		{syms.Insert("abcD12x"), Bool(true), false},
+		{Bytes{0x12}, Bytes{0x12}, true},
+		{Set{Integer(1), Integer(4)}, Set{Integer(1), Integer(2)}, false},
+		{Set{Integer(1), Integer(4)}, Bool(true), false},
+	} {
+		eq := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{HeterogeneousEqual{}}}
+		res, err := eq.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, Bool(tc.equal), res, "%v == %v", tc.left, tc.right)
+
+		ne := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{HeterogeneousNotEqual{}}}
+		res, err = ne.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, Bool(!tc.equal), res, "%v != %v", tc.left, tc.right)
+	}
+
+	strict := Expression{Value{Integer(1)}, Value{Bool(true)}, BinaryOp{Equal{}}}
+	_, err := strict.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	printed := Expression{Value{Integer(1)}, Value{Bool(true)}, BinaryOp{HeterogeneousNotEqual{}}}
+	require.Equal(t, "1 != true", printed.Print(syms))
+}
+
 func TestBinaryBitwise(t *testing.T) {
 	syms := &SymbolTable{}
 	for _, tc := range []struct {

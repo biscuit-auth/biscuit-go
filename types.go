@@ -34,6 +34,16 @@ func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalo
 		if c.Kind == datalog.CheckKindReject {
 			return blockVersion3_3
 		}
+		for _, q := range c.Queries {
+			if containsV33Op(q.Expressions) {
+				return blockVersion3_3
+			}
+		}
+	}
+	for _, r := range rules {
+		if containsV33Op(r.Expressions) {
+			return blockVersion3_3
+		}
 	}
 	if hasScopes(scopes, rules, checks) {
 		return blockVersion3_1
@@ -54,6 +64,24 @@ func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalo
 		}
 	}
 	return blockVersion3_0
+}
+
+// containsV33Op reports whether an expression uses an operator introduced
+// in datalog v3.3: the heterogeneous == and !=.
+func containsV33Op(expressions []datalog.Expression) bool {
+	for _, e := range expressions {
+		for _, op := range e {
+			b, ok := op.(datalog.BinaryOp)
+			if !ok {
+				continue
+			}
+			switch b.BinaryOpFunc.Type() {
+			case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual:
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // containsV31Op reports whether an expression uses an operator introduced
@@ -471,6 +499,9 @@ const (
 	BinaryBitwiseOr
 	BinaryBitwiseXor
 	BinaryNotEqual
+	// Datalog v3.3 operators; using one makes the block version 6.
+	BinaryHeterogeneousEqual
+	BinaryHeterogeneousNotEqual
 )
 
 func (BinaryOp) Type() OpType {
@@ -520,6 +551,10 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseXor{}}
 	case BinaryNotEqual:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}}
+	case BinaryHeterogeneousEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousEqual{}}
+	case BinaryHeterogeneousNotEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousNotEqual{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -569,6 +604,10 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryBitwiseXor, nil
 	case datalog.BinaryNotEqual:
 		return BinaryNotEqual, nil
+	case datalog.BinaryHeterogeneousEqual:
+		return BinaryHeterogeneousEqual, nil
+	case datalog.BinaryHeterogeneousNotEqual:
+		return BinaryHeterogeneousNotEqual, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}

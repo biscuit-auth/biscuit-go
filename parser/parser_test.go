@@ -234,7 +234,7 @@ func getRuleTestCases() []testCase {
 					{
 						biscuit.Value{Term: biscuit.Variable("4")},
 						biscuit.Value{Term: biscuit.Integer(4)},
-						biscuit.BinaryEqual,
+						biscuit.BinaryHeterogeneousEqual,
 					},
 					{
 						biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
@@ -265,7 +265,7 @@ func getRuleTestCases() []testCase {
 					{
 						biscuit.Value{Term: biscuit.Variable("0")},
 						biscuit.Value{Term: biscuit.String("abc")},
-						biscuit.BinaryEqual,
+						biscuit.BinaryHeterogeneousEqual,
 					},
 					{
 						biscuit.Value{Term: biscuit.Variable("1")},
@@ -351,7 +351,7 @@ func getRuleTestCases() []testCase {
 					{
 						biscuit.Value{Term: biscuit.Variable("0")},
 						biscuit.Value{Term: biscuit.Bytes([]byte{0x41, 0x41, 0x41, 0x41})},
-						biscuit.BinaryEqual,
+						biscuit.BinaryHeterogeneousEqual,
 					},
 				},
 			},

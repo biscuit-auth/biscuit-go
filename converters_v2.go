@@ -390,6 +390,10 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_BitwiseXor
 	case datalog.BinaryNotEqual:
 		pbBinaryKind = pb.OpBinary_NotEqual
+	case datalog.BinaryHeterogeneousEqual:
+		pbBinaryKind = pb.OpBinary_HeterogeneousEqual
+	case datalog.BinaryHeterogeneousNotEqual:
+		pbBinaryKind = pb.OpBinary_HeterogeneousNotEqual
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -441,6 +445,10 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.BitwiseXor{}
 	case pb.OpBinary_NotEqual:
 		binaryOp = datalog.NotEqual{}
+	case pb.OpBinary_HeterogeneousEqual:
+		binaryOp = datalog.HeterogeneousEqual{}
+	case pb.OpBinary_HeterogeneousNotEqual:
+		binaryOp = datalog.HeterogeneousNotEqual{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}

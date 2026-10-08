@@ -298,6 +298,10 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s ^ %s", left, right)
 	case BinaryNotEqual:
 		out = fmt.Sprintf("%s !== %s", left, right)
+	case BinaryHeterogeneousEqual:
+		out = fmt.Sprintf("%s == %s", left, right)
+	case BinaryHeterogeneousNotEqual:
+		out = fmt.Sprintf("%s != %s", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
@@ -334,6 +338,9 @@ const (
 	BinaryBitwiseOr
 	BinaryBitwiseXor
 	BinaryNotEqual
+	// Datalog v3.3 operators.
+	BinaryHeterogeneousEqual
+	BinaryHeterogeneousNotEqual
 )
 
 // LessThan returns true when left is less than right.
@@ -480,6 +487,35 @@ func (NotEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 		return nil, err
 	}
 	return Bool(!equal.(Bool)), nil
+}
+
+// HeterogeneousEqual is == since datalog v3.3: values of different types
+// are not equal instead of being a type error. Equal (===) keeps the strict
+// behaviour.
+type HeterogeneousEqual struct{}
+
+func (HeterogeneousEqual) Type() BinaryOpType {
+	return BinaryHeterogeneousEqual
+}
+func (HeterogeneousEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if left.Type() != right.Type() {
+		return Bool(false), nil
+	}
+	return Equal{}.Eval(left, right, symbols)
+}
+
+// HeterogeneousNotEqual is != since datalog v3.3, the negation of
+// HeterogeneousEqual.
+type HeterogeneousNotEqual struct{}
+
+func (HeterogeneousNotEqual) Type() BinaryOpType {
+	return BinaryHeterogeneousNotEqual
+}
+func (HeterogeneousNotEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if left.Type() != right.Type() {
+		return Bool(true), nil
+	}
+	return NotEqual{}.Eval(left, right, symbols)
 }
 
 // Contains returns true when the right value exists in the left Set.

@@ -171,7 +171,7 @@ func TestGrammarExpression(t *testing.T) {
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.Integer(1)},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -235,7 +235,7 @@ func TestGrammarExpression(t *testing.T) {
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.String("abc")},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -324,7 +324,7 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryIntersection,
 				biscuit.UnaryLength,
 				biscuit.Value{Term: biscuit.Variable("0")},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -332,7 +332,7 @@ func TestGrammarExpression(t *testing.T) {
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
 				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -351,7 +351,7 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryMul,
 				biscuit.BinaryAdd,
 				biscuit.Value{Term: biscuit.Integer(7)},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 				biscuit.Value{Term: biscuit.Bool(false)},
 				biscuit.BinaryOr,
 			},
