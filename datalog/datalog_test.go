@@ -24,6 +24,24 @@ func hashVar(s string) Variable {
 	return Variable(id)
 }
 
+// Strings and variables inside a set go through the symbol table like any
+// other term, in facts and in expressions.
+func TestSymbolDebuggerSets(t *testing.T) {
+	syms := &SymbolTable{}
+	dbg := SymbolDebugger{syms}
+	allowed := syms.Insert("allowed")
+	a, b := syms.Insert("A"), syms.Insert("B")
+	op := Variable(syms.Insert("op"))
+
+	require.Equal(t, `allowed({"A", "B"})`, dbg.Predicate(Predicate{allowed, []Term{Set{b, a}}}))
+	require.Equal(t, `allowed({,})`, dbg.Predicate(Predicate{allowed, []Term{Set{}}}))
+	require.Equal(t, `{"A", "B"}.contains($op)`, dbg.Expression(Expression{
+		Value{Set{a, b}},
+		Value{op},
+		BinaryOp{Contains{}},
+	}))
+}
+
 func TestFamily(t *testing.T) {
 	w := NewWorld()
 	syms := &SymbolTable{}

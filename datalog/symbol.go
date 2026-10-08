@@ -173,18 +173,33 @@ type SymbolDebugger struct {
 	*SymbolTable
 }
 
+// Term prints a term, resolving strings and variables through the symbol
+// table, including inside sets.
+func (d SymbolDebugger) Term(t Term) string {
+	switch t := t.(type) {
+	case String:
+		return "\"" + d.Str(t) + "\""
+	case Variable:
+		return "$" + d.Var(t)
+	case Set:
+		if len(t) == 0 {
+			return "{,}"
+		}
+		elts := make([]string, len(t))
+		for i, e := range t {
+			elts[i] = d.Term(e)
+		}
+		sort.Strings(elts)
+		return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
+	default:
+		return t.String()
+	}
+}
+
 func (d SymbolDebugger) Predicate(p Predicate) string {
 	strs := make([]string, len(p.Terms))
 	for i, id := range p.Terms {
-		var s string
-		if sym, ok := id.(String); ok {
-			s = "\"" + d.Str(sym) + "\""
-		} else if variable, ok := id.(Variable); ok {
-			s = "$" + d.Var(variable)
-		} else {
-			s = fmt.Sprintf("%v", id)
-		}
-		strs[i] = s
+		strs[i] = d.Term(id)
 	}
 	return fmt.Sprintf("%s(%s)", d.Str(p.Name), strings.Join(strs, ", "))
 }
