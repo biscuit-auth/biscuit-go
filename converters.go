@@ -4,7 +4,6 @@
 package biscuit
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
@@ -12,11 +11,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
+// tokenBlockToProtoBlock serializes a block. keys is the key table of the
+// token before this block; the keys the block introduces come after.
+func tokenBlockToProtoBlock(input *Block, keys publicKeyTable) (*pb.Block, error) {
+	keys = keys.with(input.publicKeys...)
 	out := &pb.Block{
 		Symbols: *input.symbols,
 		Context: proto.String(input.context),
 		Version: proto.Uint32(input.version),
+	}
+	for _, k := range input.publicKeys {
+		out.PublicKeys = append(out.PublicKeys, tokenPublicKeyToProtoPublicKey(k))
+	}
+	var err error
+	if out.Scope, err = tokenScopesToProtoScopes(input.scopes, keys); err != nil {
+		return nil, err
 	}
 
 	facts := input.facts
@@ -35,7 +44,7 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 	if rules != nil {
 		out.RulesV2 = make([]*pb.RuleV2, len(rules))
 		for i, rule := range rules {
-			r, err := tokenRuleToProtoRuleV2(rule)
+			r, err := tokenRuleToProtoRuleV2(rule, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -47,7 +56,7 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 	if checks != nil {
 		out.ChecksV2 = make([]*pb.CheckV2, len(checks))
 		for i, check := range checks {
-			c, err := tokenCheckToProtoCheckV2(check)
+			c, err := tokenCheckToProtoCheckV2(check, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -58,12 +67,29 @@ func tokenBlockToProtoBlock(input *Block) (*pb.Block, error) {
 	return out, nil
 }
 
-func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
+// protoBlockToTokenBlock deserializes a block. keys is the key table of the
+// token before this block; the keys the block introduces come after.
+func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error) {
 	symbols := datalog.SymbolTable(input.Symbols)
 
 	var facts datalog.FactSet
 	var rules []datalog.Rule
 	var checks []datalog.Check
+
+	var publicKeys []datalog.PublicKey
+	for _, pbKey := range input.PublicKeys {
+		key, err := protoPublicKeyToTokenPublicKey(pbKey)
+		if err != nil {
+			return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: %w", err)
+		}
+		publicKeys = append(publicKeys, key)
+	}
+	keys = keys.with(publicKeys...)
+
+	scopes, err := protoScopesToTokenScopes(input.Scope, keys)
+	if err != nil {
+		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: %w", err)
+	}
 
 	if input.GetVersion() < MinSchemaVersion {
 		return nil, fmt.Errorf(
@@ -82,9 +108,6 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 
 	switch input.GetVersion() {
 	case blockVersion3_0, blockVersion3_1:
-		if err := checkBlockVersionFeatures(input); err != nil {
-			return nil, err
-		}
 		facts = make(datalog.FactSet, len(input.FactsV2))
 		rules = make([]datalog.Rule, len(input.RulesV2))
 		checks = make([]datalog.Check, len(input.ChecksV2))
@@ -98,7 +121,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		}
 
 		for i, pbRule := range input.RulesV2 {
-			r, err := protoRuleToTokenRuleV2(pbRule)
+			r, err := protoRuleToTokenRuleV2(pbRule, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -106,7 +129,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		}
 
 		for i, pbCheck := range input.ChecksV2 {
-			c, err := protoCheckToTokenCheckV2(pbCheck)
+			c, err := protoCheckToTokenCheckV2(pbCheck, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -116,7 +139,7 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.GetVersion())
 	}
 
-	if required := schemaVersion(rules, checks); input.GetVersion() < required {
+	if required := schemaVersion(scopes, rules, checks); input.GetVersion() < required {
 		return nil, fmt.Errorf(
 			"biscuit: failed to convert proto block to token block: block version %d uses features of version %d",
 			input.GetVersion(),
@@ -125,36 +148,15 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	}
 
 	return &Block{
-		symbols: &symbols,
-		facts:   &facts,
-		rules:   rules,
-		checks:  checks,
-		context: input.GetContext(),
-		version: input.GetVersion(),
+		symbols:    &symbols,
+		facts:      &facts,
+		rules:      rules,
+		checks:     checks,
+		scopes:     scopes,
+		publicKeys: publicKeys,
+		context:    input.GetContext(),
+		version:    input.GetVersion(),
 	}, nil
-}
-
-// checkBlockVersionFeatures rejects a block using the v3.1 features this
-// library does not support yet (scopes), so that no token is accepted with
-// altered semantics. Features the declared version does not have are
-// rejected after conversion, through schemaVersion.
-func checkBlockVersionFeatures(input *pb.Block) error {
-	if len(input.Scope) > 0 {
-		return errors.New("biscuit: failed to convert proto block to token block: block scopes are not supported")
-	}
-	for _, r := range input.RulesV2 {
-		if len(r.Scope) > 0 {
-			return errors.New("biscuit: failed to convert proto block to token block: rule scopes are not supported")
-		}
-	}
-	for _, c := range input.ChecksV2 {
-		for _, q := range c.Queries {
-			if len(q.Scope) > 0 {
-				return errors.New("biscuit: failed to convert proto block to token block: rule scopes are not supported")
-			}
-		}
-	}
-	return nil
 }
 
 /*func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {

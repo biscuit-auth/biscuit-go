@@ -702,3 +702,50 @@ func TestUnboundParameterInExpression(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, biscuit.Value{Term: biscuit.Integer(1)}, c.Queries[0].Expressions[0][1])
 }
+
+// `trusting` clauses on rules, check queries, policies and blocks.
+func TestParseScopes(t *testing.T) {
+	p := New()
+	const keyText = "ed25519/acdd6d5b53bfee478bf689f8e012fe7988bf755e3d7c5152947abc149bc20189"
+	key, err := biscuit.ParsePublicKey(keyText)
+	require.NoError(t, err)
+	trustKey := biscuit.Scope{Kind: biscuit.ScopePublicKey, PublicKey: key}
+
+	rule, err := p.Rule(`member($u) <- user($u), group($u, "admin") trusting previous, `+keyText, nil)
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Scope{{Kind: biscuit.ScopePrevious}, trustKey}, rule.Scopes)
+
+	rule, err = p.Rule(`member($u) <- user($u)`, nil)
+	require.NoError(t, err)
+	require.Empty(t, rule.Scopes)
+
+	check, err := p.Check(`check if group("admin") trusting `+keyText+` or user("root") trusting authority`, nil)
+	require.NoError(t, err)
+	require.Len(t, check.Queries, 2)
+	require.Equal(t, []biscuit.Scope{trustKey}, check.Queries[0].Scopes)
+	require.Equal(t, []biscuit.Scope{{Kind: biscuit.ScopeAuthority}}, check.Queries[1].Scopes)
+
+	policy, err := p.Policy(`allow if query(1, 2) trusting `+keyText, nil)
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Scope{trustKey}, policy.Queries[0].Scopes)
+
+	block, err := p.Block(`trusting authority, previous; fact(1); rule($a) <- fact($a) trusting `+keyText+`;`, nil)
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Scope{{Kind: biscuit.ScopeAuthority}, {Kind: biscuit.ScopePrevious}}, block.Scopes)
+	require.Len(t, block.Facts, 1)
+	require.Equal(t, []biscuit.Scope{trustKey}, block.Rules[0].Scopes)
+
+	authorizer, err := p.Authorizer(`trusting `+keyText+`; allow if true;`, nil)
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Scope{trustKey}, authorizer.Block.Scopes)
+
+	// A predicate named after a scope keyword is still a predicate.
+	fact, err := p.Fact(`previous("x")`, nil)
+	require.NoError(t, err)
+	require.Equal(t, "previous", fact.Name)
+
+	_, err = p.Rule(`r($a) <- f($a) trusting ed25519/abcd`, nil)
+	require.ErrorContains(t, err, "invalid public key")
+	_, err = p.Rule(`r($a) <- f($a) trusting rsa/abcd`, nil)
+	require.Error(t, err)
+}

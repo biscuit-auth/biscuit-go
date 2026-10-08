@@ -8,6 +8,7 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"io"
+	"slices"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 	"github.com/eclipse-biscuit/biscuit-go/v2/internal/crypto"
@@ -27,6 +28,9 @@ type Builder interface {
 	AddAuthorityFact(fact Fact) error
 	AddAuthorityRule(rule Rule) error
 	AddAuthorityCheck(check Check) error
+	// AddAuthorityScope sets the default scope of the authority block's
+	// rules and checks; see Scope.
+	AddAuthorityScope(scope Scope)
 	SetContext(string)
 	Build() (*Biscuit, error)
 }
@@ -41,6 +45,7 @@ type builderOptions struct {
 	facts        *datalog.FactSet
 	rules        []datalog.Rule
 	checks       []datalog.Check
+	scopes       []datalog.Scope
 	context      string
 }
 
@@ -136,6 +141,10 @@ func (b *builderOptions) AddAuthorityCheck(check Check) error {
 	return nil
 }
 
+func (b *builderOptions) AddAuthorityScope(scope Scope) {
+	b.scopes = append(b.scopes, scope)
+}
+
 func (b *builderOptions) SetContext(context string) {
 	b.context = context
 }
@@ -155,12 +164,14 @@ func (b *builderOptions) Build() (*Biscuit, error) {
 		b.rootKey,
 		b.symbols,
 		&Block{
-			symbols: b.symbols.SplitOff(b.symbolsStart),
-			facts:   b.facts,
-			rules:   b.rules,
-			checks:  b.checks,
-			context: b.context,
-			version: schemaVersion(b.rules, b.checks),
+			symbols:    b.symbols.SplitOff(b.symbolsStart),
+			facts:      b.facts,
+			rules:      b.rules,
+			checks:     b.checks,
+			scopes:     b.scopes,
+			publicKeys: scopeKeys(b.scopes, b.rules, b.checks),
+			context:    b.context,
+			version:    schemaVersion(b.scopes, b.rules, b.checks),
 		},
 		opts...)
 }
@@ -194,12 +205,14 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	authority, err := protoBlockToTokenBlock(pbAuthority)
+	var publicKeys publicKeyTable
+	authority, err := protoBlockToTokenBlock(pbAuthority, publicKeys)
 	if err != nil {
 		return nil, err
 	}
 
 	symbols.Extend(authority.symbols)
+	publicKeys = publicKeys.with(authority.publicKeys...)
 
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
@@ -212,19 +225,21 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 			return nil, err
 		}
 
-		block, err := protoBlockToTokenBlock(pbBlock)
+		block, err := protoBlockToTokenBlock(pbBlock, publicKeys)
 		if err != nil {
 			return nil, err
 		}
 		blocks[i] = block
+		publicKeys = publicKeys.with(block.publicKeys...)
 		symbols.Extend(blocks[i].symbols)
 	}
 
 	return &Biscuit{
-		authority: authority,
-		symbols:   symbols,
-		blocks:    blocks,
-		container: container,
+		authority:  authority,
+		symbols:    symbols,
+		publicKeys: publicKeys,
+		blocks:     blocks,
+		container:  container,
 	}, nil
 }
 
@@ -233,6 +248,9 @@ type BlockBuilder interface {
 	AddFact(fact Fact) error
 	AddRule(rule Rule) error
 	AddCheck(check Check) error
+	// AddScope sets the default scope of the block's rules and checks; see
+	// Scope.
+	AddScope(scope Scope)
 	SetContext(string)
 	Build() *Block
 }
@@ -240,18 +258,26 @@ type BlockBuilder interface {
 type blockBuilder struct {
 	symbolsStart int
 	symbols      *datalog.SymbolTable
-	facts        *datalog.FactSet
-	rules        []datalog.Rule
-	checks       []datalog.Check
-	context      string
+	// publicKeys is the key table of the token the block is appended to.
+	publicKeys publicKeyTable
+	facts      *datalog.FactSet
+	rules      []datalog.Rule
+	checks     []datalog.Check
+	scopes     []datalog.Scope
+	context    string
 }
 
 var _ BlockBuilder = (*blockBuilder)(nil)
 
 func NewBlockBuilder(baseSymbols *datalog.SymbolTable) BlockBuilder {
+	return newBlockBuilder(baseSymbols, nil)
+}
+
+func newBlockBuilder(baseSymbols *datalog.SymbolTable, publicKeys publicKeyTable) BlockBuilder {
 	return &blockBuilder{
 		symbolsStart: baseSymbols.Len(),
 		symbols:      baseSymbols,
+		publicKeys:   publicKeys,
 		facts:        new(datalog.FactSet),
 	}
 }
@@ -274,6 +300,9 @@ func (b *blockBuilder) AddBlock(block ParsedBlock) error {
 		if err != nil {
 			return err
 		}
+	}
+	for _, s := range block.Scopes {
+		b.AddScope(s)
 	}
 
 	return nil
@@ -302,6 +331,10 @@ func (b *blockBuilder) AddCheck(check Check) error {
 	return nil
 }
 
+func (b *blockBuilder) AddScope(scope Scope) {
+	b.scopes = append(b.scopes, scope)
+}
+
 func (b *blockBuilder) SetContext(context string) {
 	b.context = context
 }
@@ -318,13 +351,23 @@ func (b *blockBuilder) Build() *Block {
 	checks := make([]datalog.Check, len(b.checks))
 	copy(checks, b.checks)
 
+	// Only the keys the token does not have yet are carried by the block.
+	var publicKeys []datalog.PublicKey
+	for _, k := range scopeKeys(b.scopes, rules, checks) {
+		if _, known := b.publicKeys.index(k); !known {
+			publicKeys = append(publicKeys, k)
+		}
+	}
+
 	return &Block{
-		symbols: b.symbols.Clone(),
-		facts:   &facts,
-		rules:   rules,
-		checks:  checks,
-		context: b.context,
-		version: schemaVersion(rules, checks),
+		symbols:    b.symbols.Clone(),
+		facts:      &facts,
+		rules:      rules,
+		checks:     checks,
+		scopes:     slices.Clone(b.scopes),
+		publicKeys: publicKeys,
+		context:    b.context,
+		version:    schemaVersion(b.scopes, rules, checks),
 	}
 }
 

@@ -78,9 +78,50 @@ type Block struct {
 }
 
 type BlockElement struct {
-	Check     *Check         `@@`
-	Predicate *Predicate     `|@@`
-	RuleBody  []*RuleElement `("<-" @@ ("," @@)*)?`
+	Check      *Check         `@@`
+	Scopes     []*ScopeElem   `| "trusting" @@ ("," @@)*`
+	Predicate  *Predicate     `| @@`
+	RuleBody   []*RuleElement `("<-" @@ ("," @@)*)?`
+	RuleScopes []*ScopeElem   `("trusting" @@ ("," @@)*)?`
+}
+
+// ScopeElem is one entry of a `trusting` clause.
+type ScopeElem struct {
+	Authority bool    `@"authority"`
+	Previous  bool    `| @"previous"`
+	PublicKey *string `| @PublicKey`
+}
+
+func (s *ScopeElem) ToBiscuit() (biscuit.Scope, error) {
+	switch {
+	case s.Authority:
+		return biscuit.Scope{Kind: biscuit.ScopeAuthority}, nil
+	case s.Previous:
+		return biscuit.Scope{Kind: biscuit.ScopePrevious}, nil
+	case s.PublicKey != nil:
+		key, err := biscuit.ParsePublicKey(*s.PublicKey)
+		if err != nil {
+			return biscuit.Scope{}, fmt.Errorf("parser: %w", err)
+		}
+		return biscuit.Scope{Kind: biscuit.ScopePublicKey, PublicKey: key}, nil
+	default:
+		return biscuit.Scope{}, errors.New("parser: empty scope")
+	}
+}
+
+func scopesToBiscuit(elems []*ScopeElem) ([]biscuit.Scope, error) {
+	if len(elems) == 0 {
+		return nil, nil
+	}
+	scopes := make([]biscuit.Scope, len(elems))
+	for i, e := range elems {
+		s, err := e.ToBiscuit()
+		if err != nil {
+			return nil, err
+		}
+		scopes[i] = s
+	}
+	return scopes, nil
 }
 
 type ParametersMap map[string]biscuit.Term
@@ -89,6 +130,7 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 	facts := []biscuit.Fact{}
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
+	var scopes []biscuit.Scope
 	for _, e := range b.Body {
 		if e.Check != nil {
 			c, err := e.Check.ToBiscuit(parameters)
@@ -96,10 +138,17 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 				return nil, err
 			}
 			checks = append(checks, *c)
+		} else if e.Scopes != nil {
+			s, err := scopesToBiscuit(e.Scopes)
+			if err != nil {
+				return nil, err
+			}
+			scopes = append(scopes, s...)
 		} else if e.Predicate != nil && e.RuleBody != nil {
 			rule := Rule{
-				Head: e.Predicate,
-				Body: e.RuleBody,
+				Head:   e.Predicate,
+				Body:   e.RuleBody,
+				Scopes: e.RuleScopes,
 			}
 			r, err := rule.ToBiscuit(parameters)
 			if err != nil {
@@ -114,7 +163,7 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 			facts = append(facts, biscuit.Fact{Predicate: *p})
 		}
 	}
-	return &biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks}, nil
+	return &biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks, Scopes: scopes}, nil
 }
 
 type Authorizer struct {
@@ -132,6 +181,7 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
 	policies := []biscuit.Policy{}
+	var scopes []biscuit.Scope
 
 	for _, e := range b.Body {
 		if e.BlockElement != nil {
@@ -142,10 +192,17 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 					return nil, err
 				}
 				checks = append(checks, *c)
+			} else if be.Scopes != nil {
+				s, err := scopesToBiscuit(be.Scopes)
+				if err != nil {
+					return nil, err
+				}
+				scopes = append(scopes, s...)
 			} else if be.Predicate != nil && be.RuleBody != nil {
 				rule := Rule{
-					Head: be.Predicate,
-					Body: be.RuleBody,
+					Head:   be.Predicate,
+					Body:   be.RuleBody,
+					Scopes: be.RuleScopes,
 				}
 				r, err := rule.ToBiscuit(parameters)
 				if err != nil {
@@ -170,7 +227,7 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 	}
 	return &biscuit.ParsedAuthorizer{
 		Policies: policies,
-		Block:    biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks},
+		Block:    biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks, Scopes: scopes},
 	}, nil
 }
 
@@ -178,6 +235,7 @@ type Rule struct {
 	Comments []*Comment     `@Comment*`
 	Head     *Predicate     `@@`
 	Body     []*RuleElement `"<-" @@ ("," @@)*`
+	Scopes   []*ScopeElem   `("trusting" @@ ("," @@)*)?`
 }
 
 type RuleElement struct {
@@ -210,7 +268,8 @@ type Check struct {
 }
 
 type CheckQuery struct {
-	Body []*RuleElement `@@ ("," @@)*`
+	Body   []*RuleElement `@@ ("," @@)*`
+	Scopes []*ScopeElem   `("trusting" @@ ("," @@)*)?`
 }
 
 type Policy struct {
@@ -751,10 +810,16 @@ func (r *Rule) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 		return nil, err
 	}
 
+	scopes, err := scopesToBiscuit(r.Scopes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &biscuit.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 
@@ -806,10 +871,16 @@ func (r *CheckQuery) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) 
 		IDs:  []biscuit.Term{},
 	}
 
+	scopes, err := scopesToBiscuit(r.Scopes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &biscuit.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 

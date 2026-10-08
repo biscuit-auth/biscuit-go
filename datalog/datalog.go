@@ -212,6 +212,8 @@ type Rule struct {
 	Head        Predicate
 	Body        []Predicate
 	Expressions []Expression
+	// Scopes is the `trusting` clause; empty means the scopes of the block.
+	Scopes []Scope
 }
 
 type InvalidRuleError struct {

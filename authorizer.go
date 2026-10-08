@@ -30,6 +30,9 @@ type Authorizer interface {
 	AddRule(rule Rule)
 	AddCheck(check Check)
 	AddPolicy(policy Policy)
+	// AddScope sets the default scope of the authorizer's rules, checks
+	// and policies; see Scope.
+	AddScope(scope Scope)
 	Authorize() error
 	Query(rule Rule) (FactSet, error)
 	Biscuit() *Biscuit
@@ -48,6 +51,12 @@ type authorizer struct {
 
 	checks   []Check
 	policies []Policy
+	scopes   []Scope
+
+	// blocksByKey maps the public key of a third-party block, as printed
+	// by datalog.PublicKey.String, to the blocks it signed; `trusting <key>`
+	// resolves to those blocks.
+	blocksByKey map[string][]datalog.BlockID
 
 	dirty bool
 }
@@ -69,6 +78,7 @@ func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 		baseSymbols: defaultSymbolTable.Clone(),
 		checks:      []Check{},
 		policies:    []Policy{},
+		blocksByKey: map[string][]datalog.BlockID{},
 	}
 
 	for _, opt := range opts {
@@ -98,6 +108,9 @@ func (v *authorizer) AddBlock(block ParsedBlock) {
 	for _, c := range block.Checks {
 		v.AddCheck(c)
 	}
+	for _, s := range block.Scopes {
+		v.AddScope(s)
+	}
 }
 
 func (v *authorizer) AddFact(fact Fact) {
@@ -105,7 +118,22 @@ func (v *authorizer) AddFact(fact Fact) {
 }
 
 func (v *authorizer) AddRule(rule Rule) {
-	v.world.AddRule(datalog.AuthorizerBlockID, datalog.DefaultTrustedOrigins(), rule.convert(v.symbols))
+	r := rule.convert(v.symbols)
+	v.world.AddRule(datalog.AuthorizerBlockID, v.trustedOrigins(r.Scopes, v.authorizerTrustedOrigins(), datalog.AuthorizerBlockID), r)
+}
+
+func (v *authorizer) AddScope(scope Scope) {
+	v.scopes = append(v.scopes, scope)
+}
+
+// authorizerTrustedOrigins is the default scope of the authorizer's rules,
+// checks and policies: its own scopes, or the authority block and itself.
+func (v *authorizer) authorizerTrustedOrigins() datalog.TrustedOrigins {
+	return v.trustedOrigins(v.scopes, datalog.DefaultTrustedOrigins(), datalog.AuthorizerBlockID)
+}
+
+func (v *authorizer) trustedOrigins(scopes []datalog.Scope, defaults datalog.TrustedOrigins, current datalog.BlockID) datalog.TrustedOrigins {
+	return datalog.TrustedOriginsFromScopes(scopes, defaults, current, v.blocksByKey)
 }
 
 func (v *authorizer) AddCheck(check Check) {
@@ -119,12 +147,6 @@ func (v *authorizer) AddPolicy(policy Policy) {
 // authorizerOrigin is the origin of the facts the authorizer adds itself.
 var authorizerOrigin = datalog.NewOrigin(datalog.AuthorizerBlockID)
 
-// blockTrustedOrigins is what the rules and checks of a block read without
-// an explicit scope: the authority block, the authorizer and the block itself.
-func blockTrustedOrigins(blockID datalog.BlockID) datalog.TrustedOrigins {
-	return datalog.DefaultTrustedOrigins().With(blockID)
-}
-
 func (v *authorizer) Authorize() error {
 	// if we load facts from the verifier before
 	// the token's fact and rules, we might get inconsistent symbols
@@ -132,8 +154,10 @@ func (v *authorizer) Authorize() error {
 	// with the token's symbol table, then converted back
 	// with the verifier's symbol table
 	blocks := append([]*Block{v.biscuit.authority}, v.biscuit.blocks...)
+	blockTrusted := make([]datalog.TrustedOrigins, len(blocks))
 	for i, block := range blocks {
 		blockID := datalog.BlockID(i)
+		blockTrusted[i] = v.trustedOrigins(block.scopes, datalog.DefaultTrustedOrigins(), blockID)
 		for _, fact := range *block.facts {
 			f, err := fromDatalogFact(v.biscuit.symbols, fact)
 			if err != nil {
@@ -147,7 +171,8 @@ func (v *authorizer) Authorize() error {
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
-			v.world.AddRule(blockID, blockTrustedOrigins(blockID), r.convert(v.symbols))
+			dlRule := r.convert(v.symbols)
+			v.world.AddRule(blockID, v.trustedOrigins(dlRule.Scopes, blockTrusted[i], blockID), dlRule)
 		}
 	}
 
@@ -158,10 +183,11 @@ func (v *authorizer) Authorize() error {
 
 	var errs []error
 	debug := datalog.SymbolDebugger{SymbolTable: v.symbols}
+	authorizerTrusted := v.authorizerTrustedOrigins()
 
 	for i, check := range v.checks {
 		c := check.convert(v.symbols)
-		successful, err := v.checkPasses(c, datalog.AuthorizerBlockID, datalog.DefaultTrustedOrigins())
+		successful, err := v.checkPasses(c, datalog.AuthorizerBlockID, authorizerTrusted)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
@@ -177,7 +203,7 @@ func (v *authorizer) Authorize() error {
 		}
 		c := ch.convert(v.symbols)
 
-		successful, err := v.checkPasses(c, 0, blockTrustedOrigins(0))
+		successful, err := v.checkPasses(c, 0, blockTrusted[0])
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
@@ -193,7 +219,8 @@ func (v *authorizer) Authorize() error {
 			break
 		}
 		for _, query := range policy.Queries {
-			res, err := v.world.QueryRule(query.convert(v.symbols), datalog.AuthorizerBlockID, datalog.DefaultTrustedOrigins(), v.symbols)
+			q := query.convert(v.symbols)
+			res, err := v.world.QueryRule(q, datalog.AuthorizerBlockID, v.trustedOrigins(q.Scopes, authorizerTrusted, datalog.AuthorizerBlockID), v.symbols)
 			if err != nil {
 				return fmt.Errorf("%w: %w", ErrExecution, err)
 			}
@@ -220,7 +247,7 @@ func (v *authorizer) Authorize() error {
 			}
 			c := ch.convert(v.symbols)
 
-			successful, err := v.checkPasses(c, blockID, blockTrustedOrigins(blockID))
+			successful, err := v.checkPasses(c, blockID, blockTrusted[blockID])
 			if err != nil {
 				return fmt.Errorf("%w: %w", ErrExecution, err)
 			}
@@ -249,11 +276,12 @@ func (v *authorizer) Authorize() error {
 	}
 }
 
-// checkPasses evaluates the queries of a check from block blockID over the
-// facts of the trusted origins: a check passes when one of its queries does,
-// under the semantics of its kind.
-func (v *authorizer) checkPasses(c datalog.Check, blockID datalog.BlockID, trusted datalog.TrustedOrigins) (bool, error) {
+// checkPasses evaluates the queries of a check from block blockID: a check
+// passes when one of its queries does, under the semantics of its kind. Each
+// query reads the facts of its own scopes, or of defaults.
+func (v *authorizer) checkPasses(c datalog.Check, blockID datalog.BlockID, defaults datalog.TrustedOrigins) (bool, error) {
 	for _, query := range c.Queries {
+		trusted := v.trustedOrigins(query.Scopes, defaults, blockID)
 		switch c.Kind {
 		case datalog.CheckKindAll:
 			ok, err := v.world.QueryMatchAll(query, trusted, v.symbols)
@@ -282,9 +310,10 @@ func (v *authorizer) Query(rule Rule) (FactSet, error) {
 	}
 	v.dirty = true
 
-	// Queries read the authority block and the authorizer, like the reference
-	// implementation; facts of later blocks are not visible.
-	facts, err := v.world.QueryRule(rule.convert(v.symbols), datalog.AuthorizerBlockID, datalog.DefaultTrustedOrigins(), v.symbols)
+	// Without scopes a query reads the authority block and the authorizer,
+	// like the reference implementation; facts of later blocks are not visible.
+	q := rule.convert(v.symbols)
+	facts, err := v.world.QueryRule(q, datalog.AuthorizerBlockID, v.trustedOrigins(q.Scopes, datalog.DefaultTrustedOrigins(), datalog.AuthorizerBlockID), v.symbols)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrExecution, err)
 	}
@@ -322,6 +351,7 @@ func (v *authorizer) Reset() {
 	v.symbols = v.baseSymbols.Clone()
 	v.checks = []Check{}
 	v.policies = []Policy{}
+	v.scopes = nil
 	v.dirty = false
 }
 
@@ -353,16 +383,16 @@ func (v *authorizer) loadPoliciesV2(pbPolicies *pb.AuthorizerPolicies) error {
 	}
 
 	for _, pbRule := range pbPolicies.Rules {
-		rule, err := protoRuleToTokenRuleV2(pbRule)
+		rule, err := protoRuleToTokenRuleV2(pbRule, nil)
 		if err != nil {
 			return fmt.Errorf("verifier: load policies v1: failed to convert datalog rule: %w", err)
 		}
-		v.world.AddRule(datalog.AuthorizerBlockID, datalog.DefaultTrustedOrigins(), *rule)
+		v.world.AddRule(datalog.AuthorizerBlockID, v.trustedOrigins(rule.Scopes, v.authorizerTrustedOrigins(), datalog.AuthorizerBlockID), *rule)
 	}
 
 	v.checks = make([]Check, len(pbPolicies.Checks))
 	for i, pbCheck := range pbPolicies.Checks {
-		dlCheck, err := protoCheckToTokenCheckV2(pbCheck)
+		dlCheck, err := protoCheckToTokenCheckV2(pbCheck, nil)
 		if err != nil {
 			return fmt.Errorf("verifier: load policies v1: failed to convert datalog check: %w", err)
 		}
@@ -387,7 +417,7 @@ func (v *authorizer) loadPoliciesV2(pbPolicies *pb.AuthorizerPolicies) error {
 
 		policy.Queries = make([]Rule, len(pbPolicy.Queries))
 		for j, pbRule := range pbPolicy.Queries {
-			dlRule, err := protoRuleToTokenRuleV2(pbRule)
+			dlRule, err := protoRuleToTokenRuleV2(pbRule, nil)
 			if err != nil {
 				return fmt.Errorf("verifier: load policies v1: failed to convert datalog policy rule: %w", err)
 			}
@@ -430,7 +460,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 		if br.BlockID != datalog.AuthorizerBlockID {
 			continue
 		}
-		protoRule, err := tokenRuleToProtoRuleV2(br.Rule)
+		protoRule, err := tokenRuleToProtoRuleV2(br.Rule, nil)
 		if err != nil {
 			return nil, fmt.Errorf("verifier: failed to convert rule: %w", err)
 		}
@@ -439,7 +469,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 
 	protoChecks := make([]*pb.CheckV2, len(v.checks))
 	for i, check := range v.checks {
-		protoCheck, err := tokenCheckToProtoCheckV2(check.convert(v.symbols))
+		protoCheck, err := tokenCheckToProtoCheckV2(check.convert(v.symbols), nil)
 		if err != nil {
 			return nil, fmt.Errorf("verifier: failed to convert check: %w", err)
 		}
@@ -462,7 +492,7 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 
 		protoPolicy.Queries = make([]*pb.RuleV2, len(policy.Queries))
 		for j, rule := range policy.Queries {
-			protoRule, err := tokenRuleToProtoRuleV2(rule.convert(v.symbols))
+			protoRule, err := tokenRuleToProtoRuleV2(rule.convert(v.symbols), nil)
 			if err != nil {
 				return nil, fmt.Errorf("verifier: failed to convert policy rule: %w", err)
 			}

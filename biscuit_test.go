@@ -357,14 +357,20 @@ func TestBlockVersionFromContent(t *testing.T) {
 	_, err = protoBlockToTokenBlock(&pb.Block{
 		Version:  proto.Uint32(3),
 		ChecksV2: []*pb.CheckV2{{Kind: &kind}},
-	})
+	}, nil)
+	require.ErrorContains(t, err, "block version 3 uses features of version 4")
+
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version: proto.Uint32(3),
+		Scope:   []*pb.Scope{{Content: &pb.Scope_ScopeType_{ScopeType: pb.Scope_Previous}}},
+	}, nil)
 	require.ErrorContains(t, err, "block version 3 uses features of version 4")
 
 	_, err = protoBlockToTokenBlock(&pb.Block{
 		Version: proto.Uint32(4),
-		Scope:   []*pb.Scope{{}},
-	})
-	require.ErrorContains(t, err, "scopes are not supported")
+		Scope:   []*pb.Scope{{Content: &pb.Scope_PublicKey{PublicKey: 0}}},
+	}, nil)
+	require.ErrorContains(t, err, "public key index 0 out of the key table")
 }
 
 func TestBiscuitBytesSetEquality(t *testing.T) {

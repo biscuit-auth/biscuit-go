@@ -180,7 +180,7 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 	return &id, nil
 }
 
-func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
+func tokenRuleToProtoRuleV2(input datalog.Rule, keys publicKeyTable) (*pb.RuleV2, error) {
 	pbBody := make([]*pb.PredicateV2, len(input.Body))
 	for i, p := range input.Body {
 		pred, err := tokenPredicateToProtoPredicateV2(p)
@@ -204,14 +204,20 @@ func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
 		return nil, err
 	}
 
+	pbScopes, err := tokenScopesToProtoScopes(input.Scopes, keys)
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.RuleV2{
 		Head:        pbHead,
 		Body:        pbBody,
 		Expressions: pbExpressions,
+		Scope:       pbScopes,
 	}, nil
 }
 
-func protoRuleToTokenRuleV2(input *pb.RuleV2) (*datalog.Rule, error) {
+func protoRuleToTokenRuleV2(input *pb.RuleV2, keys publicKeyTable) (*datalog.Rule, error) {
 	body := make([]datalog.Predicate, len(input.Body))
 	for i, predicateV2 := range input.Body {
 		b, err := protoPredicateToTokenPredicateV2(predicateV2)
@@ -234,10 +240,17 @@ func protoRuleToTokenRuleV2(input *pb.RuleV2) (*datalog.Rule, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	scopes, err := protoScopesToTokenScopes(input.Scope, keys)
+	if err != nil {
+		return nil, err
+	}
+
 	return &datalog.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 
@@ -434,10 +447,10 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 	return binaryOp, nil
 }
 
-func tokenCheckToProtoCheckV2(input datalog.Check) (*pb.CheckV2, error) {
+func tokenCheckToProtoCheckV2(input datalog.Check, keys publicKeyTable) (*pb.CheckV2, error) {
 	pbQueries := make([]*pb.RuleV2, len(input.Queries))
 	for i, query := range input.Queries {
-		q, err := tokenRuleToProtoRuleV2(query)
+		q, err := tokenRuleToProtoRuleV2(query, keys)
 		if err != nil {
 			return nil, err
 		}
@@ -458,10 +471,10 @@ func tokenCheckToProtoCheckV2(input datalog.Check) (*pb.CheckV2, error) {
 	return pbCheck, nil
 }
 
-func protoCheckToTokenCheckV2(input *pb.CheckV2) (*datalog.Check, error) {
+func protoCheckToTokenCheckV2(input *pb.CheckV2, keys publicKeyTable) (*datalog.Check, error) {
 	queries := make([]datalog.Rule, len(input.Queries))
 	for i, query := range input.Queries {
-		q, err := protoRuleToTokenRuleV2(query)
+		q, err := protoRuleToTokenRuleV2(query, keys)
 		if err != nil {
 			return nil, err
 		}

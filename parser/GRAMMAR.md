@@ -117,3 +117,14 @@ bodies has at least one match and every match of that body satisfies its express
 # Policy
 
 A policy starts with either `allow if` or `deny if`, followed by one or more rule bodies, separated with ` or `.
+
+# Scope
+
+A rule body, a check body or a policy body may end with a `trusting` clause that selects which
+blocks of the token it reads facts from: `trusting authority`, `trusting previous` (every block up
+to the current one) or `trusting <public key>` (the third-party blocks signed by that key, written
+`ed25519/<hex>` or `secp256r1/<hex>`). Entries are separated with commas, e.g.
+`check if group("admin") trusting previous, ed25519/acdd6d5b53bfee478bf689f8e012fe7988bf755e3d7c5152947abc149bc20189`.
+
+Without a clause, a body reads the authority block, the authorizer and its own block. A block or an
+authorizer may set the default for all its bodies with a `trusting ...;` statement.

@@ -6,6 +6,7 @@ package biscuit
 import (
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -24,7 +25,10 @@ const (
 )
 
 // schemaVersion is the lowest block version able to carry the given content.
-func schemaVersion(rules []datalog.Rule, checks []datalog.Check) uint32 {
+func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalog.Check) uint32 {
+	if hasScopes(scopes, rules, checks) {
+		return blockVersion3_1
+	}
 	for _, c := range checks {
 		if c.Kind != datalog.CheckKindOne {
 			return blockVersion3_1
@@ -70,8 +74,14 @@ type Block struct {
 	facts   *datalog.FactSet
 	rules   []datalog.Rule
 	checks  []datalog.Check
-	context string
-	version uint32
+	// scopes is the block-level `trusting` clause, the default scope of
+	// the rules and checks of the block.
+	scopes []datalog.Scope
+	// publicKeys are the keys the scopes of this block add to the key
+	// table of the token.
+	publicKeys []datalog.PublicKey
+	context    string
+	version    uint32
 }
 
 func (b *Block) Code(symbols *datalog.SymbolTable) string {
@@ -92,11 +102,17 @@ func (b *Block) Code(symbols *datalog.SymbolTable) string {
 		checks[i] = debug.Check(c)
 	}
 
+	var scopes string
+	if len(b.scopes) > 0 {
+		scopes = strings.TrimPrefix(datalog.ScopesString(b.scopes), " ") + ";\n"
+	}
+
 	return fmt.Sprintf(`Block {
-		%v
+		%s%v
 		%s
 		%s
 	}`,
+		scopes,
 		strings.Join(facts, ";\n"),
 		strings.Join(rules, ";\n"),
 		strings.Join(checks, ";\n"),
@@ -154,6 +170,7 @@ type ParsedBlock struct {
 	Facts  FactSet
 	Rules  []Rule
 	Checks []Check
+	Scopes []Scope
 }
 
 type ParsedAuthorizer struct {
@@ -238,6 +255,8 @@ type Rule struct {
 	Head        Predicate
 	Body        []Predicate
 	Expressions []Expression
+	// Scopes is the `trusting` clause; empty means the scopes of the block.
+	Scopes []Scope
 }
 
 func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
@@ -254,6 +273,7 @@ func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
 		Head:        r.Head.convert(symbols),
 		Body:        dlBody,
 		Expressions: dlExpressions,
+		Scopes:      slices.Clone(r.Scopes),
 	}
 }
 
@@ -285,6 +305,7 @@ func fromDatalogRule(symbols *datalog.SymbolTable, dlRule datalog.Rule) (*Rule, 
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      slices.Clone(dlRule.Scopes),
 	}, nil
 }
 

@@ -539,10 +539,10 @@ func TestRuleConvertV2(t *testing.T) {
 		},
 	}
 
-	pbRule, err := tokenRuleToProtoRuleV2(*in)
+	pbRule, err := tokenRuleToProtoRuleV2(*in, nil)
 	require.NoError(t, err)
 	require.Equal(t, expectedPbRule, pbRule)
-	out, err := protoRuleToTokenRuleV2(pbRule)
+	out, err := protoRuleToTokenRuleV2(pbRule, nil)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
 }
@@ -746,16 +746,16 @@ func TestBlockConvertV2(t *testing.T) {
 		Version:  proto.Uint32(version),
 	}
 
-	pbBlock, err := tokenBlockToProtoBlock(in)
+	pbBlock, err := tokenBlockToProtoBlock(in, nil)
 	require.NoError(t, err)
 	require.Equal(t, expectedPbBlock, pbBlock)
 
-	out, err := protoBlockToTokenBlock(pbBlock)
+	out, err := protoBlockToTokenBlock(pbBlock, nil)
 	require.NoError(t, err)
 	require.Equal(t, in, out)
 
 	version = uint32(MaxSchemaVersion + 1)
 	pbBlock.Version = proto.Uint32(version)
-	_, err = protoBlockToTokenBlock(pbBlock)
+	_, err = protoBlockToTokenBlock(pbBlock, nil)
 	require.Error(t, err)
 }

@@ -221,7 +221,7 @@ func (d SymbolDebugger) Rule(r Rule) string {
 		expressionsStart = ", "
 	}
 
-	return fmt.Sprintf("%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+	return fmt.Sprintf("%s <- %s%s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "), ScopesString(r.Scopes))
 }
 
 func (d SymbolDebugger) CheckQuery(r Rule) string {
@@ -239,7 +239,7 @@ func (d SymbolDebugger) CheckQuery(r Rule) string {
 		expressionsStart = ", "
 	}
 
-	return fmt.Sprintf("%s%s%s", strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+	return fmt.Sprintf("%s%s%s%s", strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "), ScopesString(r.Scopes))
 }
 
 func (d SymbolDebugger) Expression(e Expression) string {

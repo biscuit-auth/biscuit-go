@@ -26,7 +26,10 @@ type Biscuit struct {
 	authority *Block
 	blocks    []*Block
 	symbols   *datalog.SymbolTable
-	container *pb.Biscuit
+	// publicKeys is the key table of the token: the keys the scopes of its
+	// blocks refer to, in order of introduction.
+	publicKeys publicKeyTable
+	container  *pb.Biscuit
 }
 
 var (
@@ -91,8 +94,9 @@ func newBiscuit(root crypto.Signer, baseSymbols *datalog.SymbolTable, authority 
 	}
 
 	symbols.Extend(authority.symbols)
+	publicKeys := publicKeyTable(nil).with(authority.publicKeys...)
 
-	protoAuthority, err := tokenBlockToProtoBlock(authority)
+	protoAuthority, err := tokenBlockToProtoBlock(authority, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,9 +117,10 @@ func newBiscuit(root crypto.Signer, baseSymbols *datalog.SymbolTable, authority 
 	}
 
 	return &Biscuit{
-		authority: authority,
-		symbols:   symbols,
-		container: container,
+		authority:  authority,
+		symbols:    symbols,
+		publicKeys: publicKeys,
+		container:  container,
 	}, nil
 }
 
@@ -257,7 +262,7 @@ func (b *Biscuit) lastSignedBlock() *pb.SignedBlock {
 }
 
 func (b *Biscuit) CreateBlock() BlockBuilder {
-	return NewBlockBuilder(b.symbols.Clone())
+	return newBlockBuilder(b.symbols.Clone(), b.publicKeys)
 }
 
 func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
@@ -287,9 +292,10 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 
 	symbols := b.symbols.Clone()
 	symbols.Extend(block.symbols)
+	publicKeys := b.publicKeys.with(block.publicKeys...)
 
 	// serialize and sign the new block
-	protoBlock, err := tokenBlockToProtoBlock(block)
+	protoBlock, err := tokenBlockToProtoBlock(block, b.publicKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -317,10 +323,11 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 	container.Blocks = append(container.Blocks, signedBlock)
 
 	return &Biscuit{
-		authority: authority,
-		blocks:    blocks,
-		symbols:   symbols,
-		container: container,
+		authority:  authority,
+		blocks:     blocks,
+		symbols:    symbols,
+		publicKeys: publicKeys,
+		container:  container,
 	}, nil
 }
 
@@ -365,10 +372,11 @@ func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
 	symbols := b.symbols.Clone()
 
 	return &Biscuit{
-		authority: authority,
-		blocks:    blocks,
-		symbols:   symbols,
-		container: container,
+		authority:  authority,
+		blocks:     blocks,
+		symbols:    symbols,
+		publicKeys: b.publicKeys,
+		container:  container,
 	}, nil
 }
 
