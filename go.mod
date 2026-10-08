@@ -1,6 +1,6 @@
 module github.com/eclipse-biscuit/biscuit-go/v2
 
-go 1.23
+go 1.25.0
 
 require (
 	github.com/alecthomas/participle/v2 v2.1.4

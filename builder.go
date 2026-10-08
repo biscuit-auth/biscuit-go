@@ -4,11 +4,13 @@
 package biscuit
 
 import (
+	stdcrypto "crypto"
 	"crypto/ed25519"
 	"errors"
 	"io"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
+	"github.com/eclipse-biscuit/biscuit-go/v2/internal/crypto"
 	"github.com/eclipse-biscuit/biscuit-go/v2/pb"
 
 	//"github.com/eclipse-biscuit/biscuit-go/sig"
@@ -31,7 +33,7 @@ type Builder interface {
 
 type builderOptions struct {
 	rng       io.Reader
-	rootKey   ed25519.PrivateKey
+	rootKey   crypto.Signer
 	rootKeyID *uint32
 
 	symbolsStart int
@@ -60,7 +62,24 @@ func WithSymbols(symbols *datalog.SymbolTable) builderOption {
 	return symbolsOption{symbols}
 }
 
+// NewBuilder creates a Builder signing the authority block with an Ed25519
+// root key. Use NewBuilderWithSigner for other algorithms.
 func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
+	return NewBuilderWithSigner(root, opts...)
+}
+
+// NewBuilderWithSigner creates a Builder signing the authority block with the
+// given root key: an ed25519.PrivateKey or an *ecdsa.PrivateKey on the P-256
+// curve. Any other key makes Build return ErrUnsupportedAlgorithm.
+func NewBuilderWithSigner(root stdcrypto.Signer, opts ...builderOption) Builder {
+	signer, err := crypto.NewSigner(root)
+	if err != nil {
+		signer = nil
+	}
+	return newBuilder(signer, opts...)
+}
+
+func newBuilder(root crypto.Signer, opts ...builderOption) Builder {
 	b := &builderOptions{
 		rootKey:      root,
 		symbols:      defaultSymbolTable.Clone(),
@@ -122,6 +141,9 @@ func (b *builderOptions) SetContext(context string) {
 }
 
 func (b *builderOptions) Build() (*Biscuit, error) {
+	if b.rootKey == nil {
+		return nil, ErrUnsupportedAlgorithm
+	}
 	opts := make([]biscuitOption, 0, 2)
 	if v := b.rng; v != nil {
 		opts = append(opts, WithRNG(b.rng))
@@ -163,11 +185,8 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	if len(container.Authority.NextKey.Key) != 32 {
-		return nil, ErrInvalidKeySize
-	}
-	if len(container.Authority.Signature) != 64 {
-		return nil, ErrInvalidSignatureSize
+	if err := checkSignedBlockFormat(container.Authority); err != nil {
+		return nil, err
 	}
 
 	pbAuthority := new(pb.Block)
@@ -184,11 +203,8 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
-		if len(sb.NextKey.Key) != 32 {
-			return nil, ErrInvalidKeySize
-		}
-		if len(sb.Signature) != 64 {
-			return nil, ErrInvalidSignatureSize
+		if err := checkSignedBlockFormat(sb); err != nil {
+			return nil, err
 		}
 
 		pbBlock := new(pb.Block)
@@ -310,4 +326,17 @@ func (b *blockBuilder) Build() *Block {
 		context: b.context,
 		version: MaxSchemaVersion,
 	}
+}
+
+// checkSignedBlockFormat rejects a block whose next key or signature cannot be
+// the encoding of its algorithm, before any verification. Ed25519 has fixed
+// sizes; ECDSA signatures are DER and only the key is checked.
+func checkSignedBlockFormat(sb *pb.SignedBlock) error {
+	if _, err := crypto.ParseVerifier(sb.GetNextKey().GetAlgorithm(), sb.GetNextKey().GetKey()); err != nil {
+		return err
+	}
+	if sb.GetNextKey().GetAlgorithm() == pb.PublicKey_Ed25519 && len(sb.GetSignature()) != ed25519.SignatureSize {
+		return ErrInvalidSignatureSize
+	}
+	return nil
 }

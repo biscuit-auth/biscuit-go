@@ -147,9 +147,7 @@ type Validation struct {
 //
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
-var unsupported = map[string]string{
-	"test036_secp256r1.bc": "secp256r1 signatures",
-}
+var unsupported = map[string]string{}
 
 func maxBlockVersion(c TestCase) uint32 {
 	var v uint32
