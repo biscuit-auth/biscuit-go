@@ -285,6 +285,17 @@ func tokenExpressionToProtoExpressionV2(input datalog.Expression) (*pb.Expressio
 				return nil, err
 			}
 			pbExpr.Ops[i] = &pb.Op{Content: &pb.Op_Binary{Binary: pbBinary}}
+		case datalog.OpTypeClosure:
+			closure := op.(datalog.Closure)
+			body, err := tokenExpressionToProtoExpressionV2(closure.Body)
+			if err != nil {
+				return nil, err
+			}
+			params := make([]uint32, len(closure.Params))
+			for j, p := range closure.Params {
+				params[j] = uint32(p)
+			}
+			pbExpr.Ops[i] = &pb.Op{Content: &pb.Op_Closure{Closure: &pb.OpClosure{Params: params, Ops: body.Ops}}}
 		default:
 			return nil, fmt.Errorf("biscuit: unsupported expression type: %v", op.Type())
 		}
@@ -314,6 +325,17 @@ func protoExpressionToTokenExpressionV2(input *pb.ExpressionV2) (datalog.Express
 				return nil, err
 			}
 			expr[i] = datalog.BinaryOp{BinaryOpFunc: op}
+		case *pb.Op_Closure:
+			closure := op.GetClosure()
+			body, err := protoExpressionToTokenExpressionV2(&pb.ExpressionV2{Ops: closure.GetOps()})
+			if err != nil {
+				return nil, err
+			}
+			params := make([]datalog.Variable, len(closure.GetParams()))
+			for j, p := range closure.GetParams() {
+				params[j] = datalog.Variable(p)
+			}
+			expr[i] = datalog.Closure{Params: params, Body: body}
 		default:
 			return nil, fmt.Errorf("biscuit: unsupported proto expression type: %T", op.Content)
 		}
@@ -400,6 +422,14 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_HeterogeneousEqual
 	case datalog.BinaryHeterogeneousNotEqual:
 		pbBinaryKind = pb.OpBinary_HeterogeneousNotEqual
+	case datalog.BinaryLazyAnd:
+		pbBinaryKind = pb.OpBinary_LazyAnd
+	case datalog.BinaryLazyOr:
+		pbBinaryKind = pb.OpBinary_LazyOr
+	case datalog.BinaryAll:
+		pbBinaryKind = pb.OpBinary_All
+	case datalog.BinaryAny:
+		pbBinaryKind = pb.OpBinary_Any
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -455,6 +485,14 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.HeterogeneousEqual{}
 	case pb.OpBinary_HeterogeneousNotEqual:
 		binaryOp = datalog.HeterogeneousNotEqual{}
+	case pb.OpBinary_LazyAnd:
+		binaryOp = datalog.LazyAnd{}
+	case pb.OpBinary_LazyOr:
+		binaryOp = datalog.LazyOr{}
+	case pb.OpBinary_All:
+		binaryOp = datalog.All{}
+	case pb.OpBinary_Any:
+		binaryOp = datalog.Any{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}

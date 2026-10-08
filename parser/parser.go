@@ -27,6 +27,7 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 	{Name: "PublicKey", Pattern: `\b(ed25519|secp256r1)/[0-9a-fA-F]+`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Arrow", Pattern: `<-`},
+	{Name: "ClosureArrow", Pattern: `->`},
 	{Name: "Or", Pattern: `\|\|`},
 	{Name: "And", Pattern: `&&`},
 	{Name: "Operator", Pattern: `===|==|!==|!=|>=|<=|>|<|\+|-|\*`},
@@ -44,7 +45,9 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 
 var DefaultParserOptions = []participle.Option{
 	participle.Lexer(lexer.MustSimple(BiscuitLexerRules)),
-	participle.UseLookahead(1),
+	// A method argument may be `$p -> body` or an expression starting with a
+	// variable; the second token decides.
+	participle.UseLookahead(2),
 	participle.Elide("Whitespace", "EOL"),
 	participle.Unquote("String"),
 }

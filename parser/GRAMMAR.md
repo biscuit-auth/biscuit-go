@@ -28,7 +28,7 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 - Equal: `$b == true`
 - Negation: `!$b`
-- And / Or: `$b || $c && $d`
+- And / Or: `$b || $c && $d`. The right side is evaluated only when needed (datalog v3.3).
 
 ### Integer
 
@@ -73,6 +73,8 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 - Union: `$set.union({"a"})`
 - Intersection: `$set.intersection({"a"})`
 - Length: `$set.length()`
+- All / Any (datalog v3.3): `$set.all($p -> $p > 0)`, `$set.any($p -> $p > 2)`. The closure parameter
+  may not have the name of a variable already bound in the rule.
 
 ### Operators precedence
 

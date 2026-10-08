@@ -422,10 +422,12 @@ func getRuleTestCases() []testCase {
 				Expressions: []biscuit.Expression{
 					{
 						biscuit.Value{Term: biscuit.Bool(true)},
-						biscuit.Value{Term: biscuit.Bool(false)},
-						biscuit.Value{Term: biscuit.Bool(true)},
-						biscuit.BinaryAnd,
-						biscuit.BinaryOr,
+						biscuit.Closure{Body: biscuit.Expression{
+							biscuit.Value{Term: biscuit.Bool(false)},
+							biscuit.Closure{Body: biscuit.Expression{biscuit.Value{Term: biscuit.Bool(true)}}},
+							biscuit.BinaryLazyAnd,
+						}},
+						biscuit.BinaryLazyOr,
 					},
 				},
 			},
@@ -748,4 +750,53 @@ func TestParseScopes(t *testing.T) {
 	require.ErrorContains(t, err, "invalid public key")
 	_, err = p.Rule(`r($a) <- f($a) trusting rsa/abcd`, nil)
 	require.Error(t, err)
+}
+
+// .all() and .any() take a `$param -> body` closure; && and || wrap their
+// right side in a closure.
+func TestParseClosures(t *testing.T) {
+	p := New()
+
+	check, err := p.Check(`check if {1, 2, 3}.all($p -> $p > 0)`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
+		biscuit.Closure{Params: []biscuit.Variable{"p"}, Body: biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable("p")},
+			biscuit.Value{Term: biscuit.Integer(0)},
+			biscuit.BinaryGreaterThan,
+		}},
+		biscuit.BinaryAll,
+	}, check.Queries[0].Expressions[0])
+
+	check, err = p.Check(`check if {1, 2, 3}.any($p -> $p > 1 && {3, 4, 5}.any($q -> $p == $q))`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
+		biscuit.Closure{Params: []biscuit.Variable{"p"}, Body: biscuit.Expression{
+			biscuit.Value{Term: biscuit.Variable("p")},
+			biscuit.Value{Term: biscuit.Integer(1)},
+			biscuit.BinaryGreaterThan,
+			biscuit.Closure{Body: biscuit.Expression{
+				biscuit.Value{Term: biscuit.Set{biscuit.Integer(3), biscuit.Integer(4), biscuit.Integer(5)}},
+				biscuit.Closure{Params: []biscuit.Variable{"q"}, Body: biscuit.Expression{
+					biscuit.Value{Term: biscuit.Variable("p")},
+					biscuit.Value{Term: biscuit.Variable("q")},
+					biscuit.BinaryHeterogeneousEqual,
+				}},
+				biscuit.BinaryAny,
+			}},
+			biscuit.BinaryLazyAnd,
+		}},
+		biscuit.BinaryAny,
+	}, check.Queries[0].Expressions[0])
+
+	// A method argument that is a plain expression starting with a variable.
+	check, err = p.Check(`check if {1, 2}.contains($x)`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2)}},
+		biscuit.Value{Term: biscuit.Variable("x")},
+		biscuit.BinaryContains,
+	}, check.Queries[0].Expressions[0])
 }

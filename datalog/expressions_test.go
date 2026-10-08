@@ -1340,3 +1340,69 @@ func TestPrint(t *testing.T) {
 		})
 	}
 }
+
+// Closures: the right side of && and || is evaluated only when needed, and
+// .all() / .any() bind their parameter to each element of a set.
+func TestClosures(t *testing.T) {
+	syms := &SymbolTable{}
+	p := Variable(syms.Insert("p"))
+	q := Variable(syms.Insert("q"))
+	// A closure body that errors, to observe laziness.
+	errorBody := Expression{Value{syms.Insert("x")}, Value{syms.Insert("x")}, BinaryOp{Intersection{}}}
+	closure := func(params []Variable, body Expression) Closure { return Closure{Params: params, Body: body} }
+
+	for _, tc := range []struct {
+		desc    string
+		expr    Expression
+		want    Term
+		printed string
+	}{
+		{"and short-circuits", Expression{Value{Bool(false)}, closure(nil, errorBody), BinaryOp{LazyAnd{}}}, Bool(false), `false && "x".intersection("x")`},
+		{"and evaluates", Expression{Value{Bool(true)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{LazyAnd{}}}, Bool(true), "true && true"},
+		{"or short-circuits", Expression{Value{Bool(true)}, closure(nil, errorBody), BinaryOp{LazyOr{}}}, Bool(true), `true || "x".intersection("x")`},
+		{"or evaluates", Expression{Value{Bool(false)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{LazyOr{}}}, Bool(true), "false || true"},
+		{"all true", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(0)}, BinaryOp{GreaterThan{}}}), BinaryOp{All{}}}, Bool(true), "{1, 2, 3}.all($p -> $p > 0)"},
+		{"all false", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(2)}, BinaryOp{HeterogeneousEqual{}}}), BinaryOp{All{}}}, Bool(false), "{1, 2, 3}.all($p -> $p == 2)"},
+		{"any true", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(2)}, BinaryOp{GreaterThan{}}}), BinaryOp{Any{}}}, Bool(true), "{1, 2, 3}.any($p -> $p > 2)"},
+		{"any false", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(3)}, BinaryOp{GreaterThan{}}}), BinaryOp{Any{}}}, Bool(false), "{1, 2, 3}.any($p -> $p > 3)"},
+		{"nested closures", Expression{
+			Value{Set{Integer(1), Integer(2), Integer(3)}},
+			closure([]Variable{p}, Expression{
+				Value{p}, Value{Integer(1)}, BinaryOp{GreaterThan{}},
+				closure(nil, Expression{
+					Value{Set{Integer(3), Integer(4), Integer(5)}},
+					closure([]Variable{q}, Expression{Value{p}, Value{q}, BinaryOp{HeterogeneousEqual{}}}),
+					BinaryOp{Any{}},
+				}),
+				BinaryOp{LazyAnd{}},
+			}),
+			BinaryOp{Any{}},
+		}, Bool(true), "{1, 2, 3}.any($p -> $p > 1 && {3, 4, 5}.any($q -> $p == $q))"},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			res, err := tc.expr.Evaluate(nil, syms)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, res)
+			require.Equal(t, tc.printed, tc.expr.Print(syms))
+		})
+	}
+
+	// A closure parameter may not shadow a bound variable.
+	shadow := Expression{Value{Set{Integer(1)}}, closure([]Variable{p}, Expression{Value{p}}), BinaryOp{Any{}}}
+	var one Term = Integer(1)
+	_, err := shadow.Evaluate(map[Variable]*Term{p: &one}, syms)
+	require.ErrorIs(t, err, ErrShadowedVariable)
+
+	// Errors inside an evaluated closure propagate.
+	failing := Expression{Value{Bool(true)}, closure(nil, errorBody), BinaryOp{LazyAnd{}}}
+	_, err = failing.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	// A closure where a value is expected, and a value where a closure is.
+	_, err = (&Expression{closure(nil, Expression{Value{Bool(true)}}), UnaryOp{Negate{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+	_, err = (&Expression{Value{Bool(true)}, Value{Bool(true)}, BinaryOp{LazyAnd{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+	_, err = (&Expression{Value{Bool(true)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{Add{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+}

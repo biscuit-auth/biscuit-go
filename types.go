@@ -111,7 +111,7 @@ func isV33Term(t datalog.Term) bool {
 }
 
 // containsV33Op reports whether an expression uses an operator or a term
-// introduced in datalog v3.3: the heterogeneous == and !=, null.
+// introduced in datalog v3.3: the heterogeneous == and !=, null, closures.
 func containsV33Op(expressions []datalog.Expression) bool {
 	for _, e := range expressions {
 		for _, op := range e {
@@ -120,9 +120,12 @@ func containsV33Op(expressions []datalog.Expression) bool {
 				if isV33Term(op.ID) {
 					return true
 				}
+			case datalog.Closure:
+				return true
 			case datalog.BinaryOp:
 				switch op.BinaryOpFunc.Type() {
-				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual:
+				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
+					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny:
 					return true
 				}
 			}
@@ -442,6 +445,12 @@ func fromDatalogExpression(symbols *datalog.SymbolTable, dlExpr datalog.Expressi
 				return nil, fmt.Errorf("failed to convert datalog binary expression: %w", err)
 			}
 			expr[i] = b
+		case datalog.OpTypeClosure:
+			c, err := fromDatalogClosure(symbols, dlOP.(datalog.Closure))
+			if err != nil {
+				return nil, err
+			}
+			expr[i] = c
 		default:
 			return nil, fmt.Errorf("unsupported datalog expression type: %v", dlOP.Type())
 		}
@@ -460,7 +469,40 @@ const (
 	OpTypeValue OpType = iota
 	OpTypeUnary
 	OpTypeBinary
+	// OpTypeClosure is datalog v3.3; using it makes the block version 6.
+	OpTypeClosure
 )
+
+// Closure is an expression evaluated by the operator that consumes it, with
+// Params bound by that operator: the right side of && and || (BinaryLazyAnd,
+// BinaryLazyOr), or the predicate of .all() and .any() (BinaryAll,
+// BinaryAny).
+type Closure struct {
+	Params []Variable
+	Body   Expression
+}
+
+func (Closure) Type() OpType {
+	return OpTypeClosure
+}
+func (c Closure) convert(symbols *datalog.SymbolTable) datalog.Op {
+	params := make([]datalog.Variable, len(c.Params))
+	for i, p := range c.Params {
+		params[i] = p.convert(symbols).(datalog.Variable)
+	}
+	return datalog.Closure{Params: params, Body: c.Body.convert(symbols)}
+}
+func fromDatalogClosure(symbols *datalog.SymbolTable, dlClosure datalog.Closure) (Op, error) {
+	params := make([]Variable, len(dlClosure.Params))
+	for i, p := range dlClosure.Params {
+		params[i] = Variable(symbols.Var(p))
+	}
+	body, err := fromDatalogExpression(symbols, dlClosure.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert datalog closure: %w", err)
+	}
+	return Closure{Params: params, Body: body}, nil
+}
 
 type Value struct {
 	Term Term
@@ -551,6 +593,10 @@ const (
 	// Datalog v3.3 operators; using one makes the block version 6.
 	BinaryHeterogeneousEqual
 	BinaryHeterogeneousNotEqual
+	BinaryLazyAnd
+	BinaryLazyOr
+	BinaryAll
+	BinaryAny
 )
 
 func (BinaryOp) Type() OpType {
@@ -604,6 +650,14 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousEqual{}}
 	case BinaryHeterogeneousNotEqual:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousNotEqual{}}
+	case BinaryLazyAnd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LazyAnd{}}
+	case BinaryLazyOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LazyOr{}}
+	case BinaryAll:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.All{}}
+	case BinaryAny:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Any{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -657,6 +711,14 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryHeterogeneousEqual, nil
 	case datalog.BinaryHeterogeneousNotEqual:
 		return BinaryHeterogeneousNotEqual, nil
+	case datalog.BinaryLazyAnd:
+		return BinaryLazyAnd, nil
+	case datalog.BinaryLazyOr:
+		return BinaryLazyOr, nil
+	case datalog.BinaryAll:
+		return BinaryAll, nil
+	case datalog.BinaryAny:
+		return BinaryAny, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}

@@ -331,11 +331,15 @@ const (
 	OpBitwiseXor
 	OpHeterogeneousEqual
 	OpHeterogeneousNotEqual
+	OpLazyAnd
+	OpLazyOr
+	OpAll
+	OpAny
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
-	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
+	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
 	"==": OpHeterogeneousEqual, "===": OpEqual, "!=": OpHeterogeneousNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
@@ -436,8 +440,15 @@ type Expr6 struct {
 }
 
 type OpExpr7 struct {
-	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length")`
-	Expression *Expression `"(" @@? ")"`
+	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any")`
+	Closure    *ClosureArg `"(" (@@`
+	Expression *Expression `| @@)? ")"`
+}
+
+// ClosureArg is the `$p -> body` argument of .all() and .any().
+type ClosureArg struct {
+	Param *Variable   `@Variable ClosureArrow`
+	Body  *Expression `@@`
 }
 
 type ExprTerm struct {
@@ -591,17 +602,23 @@ func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) er
 	return nil
 }
 
+// && and || evaluate their right side only when needed: it is emitted as a
+// closure without parameters (datalog v3.3).
 func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
-	if err := e.Expr1.ToExpr(expr, parameters); err != nil {
+	var right biscuit.Expression
+	if err := e.Expr1.ToExpr(&right, parameters); err != nil {
 		return err
 	}
+	*expr = append(*expr, biscuit.Closure{Body: right})
 	return e.Operator.ToExpr(expr)
 }
 
 func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
-	if err := e.Expr2.ToExpr(expr, parameters); err != nil {
+	var right biscuit.Expression
+	if err := e.Expr2.ToExpr(&right, parameters); err != nil {
 		return err
 	}
+	*expr = append(*expr, biscuit.Closure{Body: right})
 	return e.Operator.ToExpr(expr)
 }
 
@@ -627,7 +644,14 @@ func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) err
 }
 
 func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
-	if e.Expression != nil {
+	switch {
+	case e.Closure != nil:
+		var body biscuit.Expression
+		if err := e.Closure.Body.ToExpr(&body, parameters); err != nil {
+			return err
+		}
+		*expr = append(*expr, biscuit.Closure{Params: []biscuit.Variable{biscuit.Variable(*e.Closure.Param)}, Body: body})
+	case e.Expression != nil:
 		if err := e.Expression.ToExpr(expr, parameters); err != nil {
 			return err
 		}
@@ -666,6 +690,14 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 		biscuit_op = biscuit.BinaryHeterogeneousEqual
 	case OpHeterogeneousNotEqual:
 		biscuit_op = biscuit.BinaryHeterogeneousNotEqual
+	case OpLazyAnd:
+		biscuit_op = biscuit.BinaryLazyAnd
+	case OpLazyOr:
+		biscuit_op = biscuit.BinaryLazyOr
+	case OpAll:
+		biscuit_op = biscuit.BinaryAll
+	case OpAny:
+		biscuit_op = biscuit.BinaryAny
 	case OpBitwiseAnd:
 		biscuit_op = biscuit.BinaryBitwiseAnd
 	case OpBitwiseOr:

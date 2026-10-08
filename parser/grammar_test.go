@@ -352,8 +352,8 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryAdd,
 				biscuit.Value{Term: biscuit.Integer(7)},
 				biscuit.BinaryHeterogeneousEqual,
-				biscuit.Value{Term: biscuit.Bool(false)},
-				biscuit.BinaryOr,
+				biscuit.Closure{Body: biscuit.Expression{biscuit.Value{Term: biscuit.Bool(false)}}},
+				biscuit.BinaryLazyOr,
 			},
 		},
 		{
