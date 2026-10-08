@@ -107,7 +107,7 @@ func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error
 	}
 
 	switch input.GetVersion() {
-	case blockVersion3_0, blockVersion3_1:
+	case blockVersion3_0, blockVersion3_1, blockVersion3_2:
 		facts = make(datalog.FactSet, len(input.FactsV2))
 		rules = make([]datalog.Rule, len(input.RulesV2))
 		checks = make([]datalog.Check, len(input.ChecksV2))

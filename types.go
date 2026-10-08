@@ -14,14 +14,17 @@ import (
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 )
 
-// Block versions this library accepts: 3 is datalog v3.0, 4 is datalog v3.1.
+// Block versions this library accepts: 3 is datalog v3.0, 4 is datalog v3.1,
+// 5 is datalog v3.2.
 const MinSchemaVersion uint32 = 3
-const MaxSchemaVersion uint32 = 4
+const MaxSchemaVersion uint32 = 5
 
 // Block versions, by the datalog release that introduced them.
 const (
 	blockVersion3_0 uint32 = 3
 	blockVersion3_1 uint32 = 4
+	// blockVersion3_2 is the minimum for a third-party block.
+	blockVersion3_2 uint32 = 5
 )
 
 // schemaVersion is the lowest block version able to carry the given content.
@@ -80,8 +83,23 @@ type Block struct {
 	// publicKeys are the keys the scopes of this block add to the key
 	// table of the token.
 	publicKeys []datalog.PublicKey
-	context    string
-	version    uint32
+	// externalKey is the key a third party signed the block with; nil for
+	// a first-party block. A third-party block has its own symbol and key
+	// tables, which the token tables do not include.
+	externalKey *datalog.PublicKey
+	context     string
+	version     uint32
+}
+
+// symbolTable is the table the content of the block refers to: the token's
+// for a first-party block, the defaults plus its own for a third-party block.
+func (b *Block) symbolTable(token *datalog.SymbolTable) *datalog.SymbolTable {
+	if b.externalKey == nil {
+		return token
+	}
+	symbols := defaultSymbolTable.Clone()
+	symbols.Extend(b.symbols)
+	return symbols
 }
 
 func (b *Block) Code(symbols *datalog.SymbolTable) string {

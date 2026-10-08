@@ -11,10 +11,10 @@ biscuit-go is an implementation of [Biscuit](https://github.com/eclipse-biscuit/
 
 ## Specification compatibility
 
-This library currently accepts datalog `v3.0` and `v3.1` blocks (block versions `3` and `4`,
-see `MaxSchemaVersion`): `check all`, scopes (`trusting`), `!==` and the bitwise operators are
-supported. Third-party blocks (datalog `v3.2`) are not accepted yet. Support for newer datalog
-versions is landing incrementally.
+This library currently accepts datalog `v3.0` to `v3.2` blocks (block versions `3` to `5`, see
+`MaxSchemaVersion`): `check all`, scopes (`trusting`), `!==`, the bitwise operators and
+third-party blocks are supported. Datalog `v3.3` (`reject if`, `null`, closures, arrays and maps,
+`.type()`, `try`, foreign functions) is not accepted yet. Support for it is landing incrementally.
 
 The [specification sample suite](./samples) runs in CI: samples using block versions above
 `MaxSchemaVersion` are verified to be rejected and otherwise skipped, so they become active as
@@ -84,6 +84,40 @@ if err != nil {
 }
 
 // attenuatedToken is a []byte, representing an attenuated token
+```
+
+#### Append a third-party block
+
+A third party signs a block for a token without seeing the token. Facts of that block are only
+visible to rules that trust the third party's key.
+
+```go
+// Token holder: build the request for the third party.
+request, err := b.ThirdPartyRequest()
+if err != nil {
+    panic(err)
+}
+requestBytes, _ := request.Serialize()
+
+// Third party: sign a block for that request with its own key.
+request, _ = biscuit.UnmarshalThirdPartyBlockRequest(requestBytes)
+blockBuilder := biscuit.NewThirdPartyBlockBuilder()
+blockBuilder.AddFact(biscuit.Fact{Predicate: biscuit.Predicate{Name: "group", IDs: []biscuit.Term{biscuit.String("admin")}}})
+contents, err := request.CreateBlock(thirdPartyPrivateKey, blockBuilder)
+if err != nil {
+    panic(err)
+}
+contentsBytes, _ := contents.Serialize()
+
+// Token holder: append the signed block.
+contents, _ = biscuit.UnmarshalThirdPartyBlockContents(contentsBytes)
+b, err = b.AppendThirdPartyBlock(nil, thirdPartyPublicKey, contents)
+if err != nil {
+    panic(err)
+}
+
+// A check trusting the third party's key sees group("admin"):
+//   check if group("admin") trusting ed25519/<hex of thirdPartyPublicKey>
 ```
 
 #### Verify a biscuit

@@ -105,7 +105,7 @@ func newBiscuit(root crypto.Signer, baseSymbols *datalog.SymbolTable, authority 
 		return nil, err
 	}
 
-	signedBlock, proof, err := signBlock(root, options.nextKeyAlgorithm, marshalledAuthority, authority.version, nil, options.rng)
+	signedBlock, proof, err := signBlock(root, options.nextKeyAlgorithm, marshalledAuthority, authority.version, nil, nil, options.rng)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +148,8 @@ const (
 // signatureVersion picks the payload format for a new block: v1 when the spec
 // requires it, otherwise whatever the previous blocks use, so that tokens
 // which only need v0 keep the same bytes as before.
-func signatureVersion(signer, next crypto.Signer, blockVersion uint32, previous ...*pb.SignedBlock) uint32 {
-	if blockVersion >= 6 {
+func signatureVersion(signer, next crypto.Signer, blockVersion uint32, externalSignature *pb.ExternalSignature, previous ...*pb.SignedBlock) uint32 {
+	if externalSignature != nil || blockVersion >= 6 {
 		return signatureVersionV1
 	}
 	if signer.Algorithm() != pb.PublicKey_Ed25519 || next.Algorithm() != pb.PublicKey_Ed25519 {
@@ -165,9 +165,10 @@ func signatureVersion(signer, next crypto.Signer, blockVersion uint32, previous 
 // signBlock signs a serialized block with the key of the preceding block (or
 // the root key for the authority block) and returns the block with the proof
 // for the next block. The next key is generated with the given algorithm; each
-// block in a token may use a different one. previous is the signed block this
-// one is appended to, nil for the authority block.
-func signBlock(signer crypto.Signer, nextAlgorithm pb.PublicKey_Algorithm, marshalledBlock []byte, blockVersion uint32, previous []*pb.SignedBlock, rng io.Reader) (*pb.SignedBlock, *pb.Proof, error) {
+// block in a token may use a different one. previous are the signed blocks this
+// one is appended to, nil for the authority block. externalSignature is set
+// for a third-party block and becomes part of the signed payload.
+func signBlock(signer crypto.Signer, nextAlgorithm pb.PublicKey_Algorithm, marshalledBlock []byte, blockVersion uint32, externalSignature *pb.ExternalSignature, previous []*pb.SignedBlock, rng io.Reader) (*pb.SignedBlock, *pb.Proof, error) {
 	next, err := crypto.GenerateSigner(nextAlgorithm, rng)
 	if err != nil {
 		return nil, nil, err
@@ -178,8 +179,9 @@ func signBlock(signer crypto.Signer, nextAlgorithm pb.PublicKey_Algorithm, marsh
 			Algorithm: next.Algorithm().Enum(),
 			Key:       next.PublicKey(),
 		},
+		ExternalSignature: externalSignature,
 	}
-	if version := signatureVersion(signer, next, blockVersion, previous...); version != signatureVersionV0 {
+	if version := signatureVersion(signer, next, blockVersion, externalSignature, previous...); version != signatureVersionV0 {
 		signedBlock.Version = &version
 	}
 
@@ -204,18 +206,20 @@ func signBlock(signer crypto.Signer, nextAlgorithm pb.PublicKey_Algorithm, marsh
 // blockSignaturePayload is the data signed for a block. previousSignature is
 // nil for the authority block.
 //
-// v0: block || alg(le u32) || nextKey
+// v0: block [externalSig] alg(le u32) nextKey
 // v1: "\0BLOCK\0\0VERSION\0" version(le u32) "\0PAYLOAD\0" block
 //
 //	"\0ALGORITHM\0" alg(le u32) "\0NEXTKEY\0" nextKey
-//	["\0PREVSIG\0" previousSignature]
+//	["\0PREVSIG\0" previousSignature] ["\0EXTERNALSIG\0" externalSig]
 func blockSignaturePayload(block *pb.SignedBlock, previousSignature []byte) []byte {
 	algorithm := make([]byte, 4)
 	binary.LittleEndian.PutUint32(algorithm, uint32(block.GetNextKey().GetAlgorithm()))
+	externalSignature := block.GetExternalSignature().GetSignature()
 
 	if block.GetVersion() == signatureVersionV0 {
-		payload := make([]byte, 0, len(block.GetBlock())+4+len(block.GetNextKey().GetKey()))
+		payload := make([]byte, 0, len(block.GetBlock())+len(externalSignature)+4+len(block.GetNextKey().GetKey()))
 		payload = append(payload, block.GetBlock()...)
+		payload = append(payload, externalSignature...)
 		payload = append(payload, algorithm...)
 		return append(payload, block.GetNextKey().GetKey()...)
 	}
@@ -234,7 +238,39 @@ func blockSignaturePayload(block *pb.SignedBlock, previousSignature []byte) []by
 		payload = append(payload, "\x00PREVSIG\x00"...)
 		payload = append(payload, previousSignature...)
 	}
+	if externalSignature != nil {
+		payload = append(payload, "\x00EXTERNALSIG\x00"...)
+		payload = append(payload, externalSignature...)
+	}
 	return payload
+}
+
+// externalSignaturePayload is the data a third party signs for its block:
+// "\0EXTERNAL\0\0VERSION\0" version(le u32) "\0PAYLOAD\0" block "\0PREVSIG\0" previousSignature
+// where previousSignature is the signature of the block it is appended to.
+func externalSignaturePayload(marshalledBlock []byte, previousSignature []byte, version uint32) []byte {
+	v := make([]byte, 4)
+	binary.LittleEndian.PutUint32(v, version)
+	payload := []byte("\x00EXTERNAL\x00\x00VERSION\x00")
+	payload = append(payload, v...)
+	payload = append(payload, "\x00PAYLOAD\x00"...)
+	payload = append(payload, marshalledBlock...)
+	payload = append(payload, "\x00PREVSIG\x00"...)
+	return append(payload, previousSignature...)
+}
+
+// verifyExternalSignature checks the third-party signature of a block against
+// the signature of the block before it.
+func verifyExternalSignature(block *pb.SignedBlock, previousSignature []byte) error {
+	ext := block.GetExternalSignature()
+	verifier, err := crypto.ParseVerifier(ext.GetPublicKey().GetAlgorithm(), ext.GetPublicKey().GetKey())
+	if err != nil {
+		return err
+	}
+	if err := verifier.Verify(externalSignaturePayload(block.GetBlock(), previousSignature, block.GetVersion()), ext.GetSignature()); err != nil {
+		return fmt.Errorf("biscuit: invalid external signature: %w", err)
+	}
+	return nil
 }
 
 // sealSignaturePayload is the data signed for the final proof. The spec
@@ -308,7 +344,7 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 		rng = rand.Reader
 	}
 	previous := append([]*pb.SignedBlock{b.container.Authority}, b.container.Blocks...)
-	signedBlock, proof, err := signBlock(signer, signer.Algorithm(), marshalledBlock, block.version, previous, rng)
+	signedBlock, proof, err := signBlock(signer, signer.Algorithm(), marshalledBlock, block.version, nil, previous, rng)
 	if err != nil {
 		return nil, err
 	}
@@ -446,6 +482,11 @@ func (b *Biscuit) verifySignatures(root crypto.Verifier) error {
 	for _, block := range b.container.GetBlocks() {
 		if err := current.Verify(blockSignaturePayload(block, previousSignature), block.GetSignature()); err != nil {
 			return err
+		}
+		if block.GetExternalSignature() != nil {
+			if err := verifyExternalSignature(block, previousSignature); err != nil {
+				return err
+			}
 		}
 		if current, err = crypto.ParseVerifier(block.GetNextKey().GetAlgorithm(), block.GetNextKey().GetKey()); err != nil {
 			return err
@@ -597,7 +638,7 @@ func (b *Biscuit) RootKeyID() *uint32 {
 func (b *Biscuit) String() string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
-		blocks[i] = block.String(b.symbols)
+		blocks[i] = block.String(block.symbolTable(b.symbols))
 	}
 
 	return fmt.Sprintf(`
@@ -615,7 +656,7 @@ Biscuit {
 func (b *Biscuit) Code() []string {
 	blocks := make([]string, len(b.blocks))
 	for i, block := range b.blocks {
-		blocks[i] = block.Code(b.symbols)
+		blocks[i] = block.Code(block.symbolTable(b.symbols))
 	}
 	return blocks
 }

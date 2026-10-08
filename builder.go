@@ -7,6 +7,7 @@ import (
 	stdcrypto "crypto"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 
@@ -225,13 +226,23 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 			return nil, err
 		}
 
-		block, err := protoBlockToTokenBlock(pbBlock, publicKeys)
+		if sb.ExternalSignature == nil {
+			block, err := protoBlockToTokenBlock(pbBlock, publicKeys)
+			if err != nil {
+				return nil, err
+			}
+			blocks[i] = block
+			publicKeys = publicKeys.with(block.publicKeys...)
+			symbols.Extend(block.symbols)
+			continue
+		}
+
+		// A third-party block has its own tables and leaves the token's alone.
+		block, err := thirdPartyBlock(pbBlock, sb.ExternalSignature)
 		if err != nil {
 			return nil, err
 		}
 		blocks[i] = block
-		publicKeys = publicKeys.with(block.publicKeys...)
-		symbols.Extend(blocks[i].symbols)
 	}
 
 	return &Biscuit{
@@ -382,4 +393,22 @@ func checkSignedBlockFormat(sb *pb.SignedBlock) error {
 		return ErrInvalidSignatureSize
 	}
 	return nil
+}
+
+// thirdPartyBlock converts a block signed by a third party: its scopes refer
+// to its own key table, and its version must be at least datalog v3.2.
+func thirdPartyBlock(pbBlock *pb.Block, ext *pb.ExternalSignature) (*Block, error) {
+	if pbBlock.GetVersion() < blockVersion3_2 {
+		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: third-party blocks require block version %d, got %d", blockVersion3_2, pbBlock.GetVersion())
+	}
+	block, err := protoBlockToTokenBlock(pbBlock, nil)
+	if err != nil {
+		return nil, err
+	}
+	externalKey, err := protoPublicKeyToTokenPublicKey(ext.GetPublicKey())
+	if err != nil {
+		return nil, err
+	}
+	block.externalKey = &externalKey
+	return block, nil
 }

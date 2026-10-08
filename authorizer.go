@@ -84,6 +84,12 @@ func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 	for _, opt := range opts {
 		opt(a)
 	}
+	for i, block := range b.blocks {
+		if block.externalKey != nil {
+			key := block.externalKey.String()
+			a.blocksByKey[key] = append(a.blocksByKey[key], datalog.BlockID(i+1))
+		}
+	}
 
 	a.world = a.baseWorld.Clone()
 	a.symbols = a.baseSymbols.Clone()
@@ -158,8 +164,9 @@ func (v *authorizer) Authorize() error {
 	for i, block := range blocks {
 		blockID := datalog.BlockID(i)
 		blockTrusted[i] = v.trustedOrigins(block.scopes, datalog.DefaultTrustedOrigins(), blockID)
+		symbols := block.symbolTable(v.biscuit.symbols)
 		for _, fact := range *block.facts {
-			f, err := fromDatalogFact(v.biscuit.symbols, fact)
+			f, err := fromDatalogFact(symbols, fact)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
@@ -167,7 +174,7 @@ func (v *authorizer) Authorize() error {
 		}
 
 		for _, rule := range block.rules {
-			r, err := fromDatalogRule(v.biscuit.symbols, rule)
+			r, err := fromDatalogRule(symbols, rule)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
@@ -197,7 +204,7 @@ func (v *authorizer) Authorize() error {
 	}
 
 	for i, check := range v.biscuit.authority.checks {
-		ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+		ch, err := fromDatalogCheck(v.biscuit.authority.symbolTable(v.biscuit.symbols), check)
 		if err != nil {
 			return fmt.Errorf("biscuit: verification failed: %s", err)
 		}
@@ -241,7 +248,7 @@ func (v *authorizer) Authorize() error {
 	for i, block := range v.biscuit.blocks {
 		blockID := datalog.BlockID(i + 1)
 		for j, check := range block.checks {
-			ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+			ch, err := fromDatalogCheck(block.symbolTable(v.biscuit.symbols), check)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
@@ -362,7 +369,7 @@ func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
 	}
 
 	switch pbPolicies.GetVersion() {
-	case blockVersion3_0, blockVersion3_1:
+	case blockVersion3_0, blockVersion3_1, blockVersion3_2:
 		return v.loadPoliciesV2(pbPolicies)
 	default:
 		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())
