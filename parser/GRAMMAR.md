@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Term
 
-Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, or set.
+Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, null, or set.
 
 - parameter is delimited by curly brackets: `{param}`. Those are replaced by actual values before evaluation.
 - variable is prefixed with a `$` sign followed by a string or an unsigned 32bit base-10 integer,  e.g. `$0` or `$variable1`
@@ -13,6 +13,7 @@ Represents a Datalog type, can be one of: parameter, variable, integer, string, 
 - date is RFC3339 encoded, e.g. `2006-01-02T15:04:05Z`
 - bytes is an hexadecimal encoded string, prefixed with a `hex:` sequence
 - boolean is either `true` or `false`
+- null is the absence of a value, written `null` (datalog v3.3); `$x == null` tests for it
 - set is a sequence of any of the above types, except variable, between braces, e.g. `{"file1", "file2"}`; the empty set is `{,}` (sets cannot be nested). The older `["file1", "file2"]` form is still accepted.
 
 ## Predicate

@@ -172,7 +172,7 @@ func (b *builderOptions) Build() (*Biscuit, error) {
 			scopes:     b.scopes,
 			publicKeys: scopeKeys(b.scopes, b.rules, b.checks),
 			context:    b.context,
-			version:    schemaVersion(b.scopes, b.rules, b.checks),
+			version:    schemaVersion(*b.facts, b.scopes, b.rules, b.checks),
 		},
 		opts...)
 }
@@ -378,7 +378,7 @@ func (b *blockBuilder) Build() *Block {
 		scopes:     slices.Clone(b.scopes),
 		publicKeys: publicKeys,
 		context:    b.context,
-		version:    schemaVersion(b.scopes, rules, checks),
+		version:    schemaVersion(facts, b.scopes, rules, checks),
 	}
 }
 

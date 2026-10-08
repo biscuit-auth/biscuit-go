@@ -29,19 +29,24 @@ const (
 )
 
 // schemaVersion is the lowest block version able to carry the given content.
-func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalog.Check) uint32 {
+func schemaVersion(facts datalog.FactSet, scopes []datalog.Scope, rules []datalog.Rule, checks []datalog.Check) uint32 {
+	for _, f := range facts {
+		if containsV33Term(f.Predicate) {
+			return blockVersion3_3
+		}
+	}
 	for _, c := range checks {
 		if c.Kind == datalog.CheckKindReject {
 			return blockVersion3_3
 		}
 		for _, q := range c.Queries {
-			if containsV33Op(q.Expressions) {
+			if containsV33Rule(q) {
 				return blockVersion3_3
 			}
 		}
 	}
 	for _, r := range rules {
-		if containsV33Op(r.Expressions) {
+		if containsV33Rule(r) {
 			return blockVersion3_3
 		}
 	}
@@ -66,18 +71,60 @@ func schemaVersion(scopes []datalog.Scope, rules []datalog.Rule, checks []datalo
 	return blockVersion3_0
 }
 
-// containsV33Op reports whether an expression uses an operator introduced
-// in datalog v3.3: the heterogeneous == and !=.
+// containsV33Rule reports whether a rule uses a datalog v3.3 feature in its
+// predicates or expressions.
+func containsV33Rule(r datalog.Rule) bool {
+	if containsV33Term(r.Head) {
+		return true
+	}
+	for _, p := range r.Body {
+		if containsV33Term(p) {
+			return true
+		}
+	}
+	return containsV33Op(r.Expressions)
+}
+
+// containsV33Term reports whether a predicate holds a term type introduced
+// in datalog v3.3: null.
+func containsV33Term(p datalog.Predicate) bool {
+	for _, t := range p.Terms {
+		if isV33Term(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func isV33Term(t datalog.Term) bool {
+	switch t := t.(type) {
+	case datalog.Null:
+		return true
+	case datalog.Set:
+		for _, e := range t {
+			if isV33Term(e) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// containsV33Op reports whether an expression uses an operator or a term
+// introduced in datalog v3.3: the heterogeneous == and !=, null.
 func containsV33Op(expressions []datalog.Expression) bool {
 	for _, e := range expressions {
 		for _, op := range e {
-			b, ok := op.(datalog.BinaryOp)
-			if !ok {
-				continue
-			}
-			switch b.BinaryOpFunc.Type() {
-			case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual:
-				return true
+			switch op := op.(type) {
+			case datalog.Value:
+				if isV33Term(op.ID) {
+					return true
+				}
+			case datalog.BinaryOp:
+				switch op.BinaryOpFunc.Type() {
+				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual:
+					return true
+				}
 			}
 		}
 	}
@@ -285,6 +332,8 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.Term) (Term, error) 
 		a = Bytes(id.(datalog.Bytes))
 	case datalog.TermTypeBool:
 		a = Bool(id.(datalog.Bool))
+	case datalog.TermTypeNull:
+		a = Null{}
 	case datalog.TermTypeSet:
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
@@ -718,6 +767,8 @@ const (
 	TermTypeBytes
 	TermTypeBool
 	TermTypeSet
+	// TermTypeNull is datalog v3.3; using it makes the block version 6.
+	TermTypeNull
 )
 
 type Term interface {
@@ -773,6 +824,15 @@ func (b Bool) convert(symbols *datalog.SymbolTable) datalog.Term {
 	return datalog.Bool(b)
 }
 func (b Bool) String() string { return fmt.Sprintf("%t", b) }
+
+// Null is the absence of a value (datalog v3.3).
+type Null struct{}
+
+func (Null) Type() TermType { return TermTypeNull }
+func (Null) convert(symbols *datalog.SymbolTable) datalog.Term {
+	return datalog.Null{}
+}
+func (Null) String() string { return "null" }
 
 type Set []Term
 

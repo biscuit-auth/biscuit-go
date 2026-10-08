@@ -200,12 +200,11 @@ type Validation struct {
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
 var unsupported = map[string]string{
-	"test030_null.bc":                "null term",
-	"test032_laziness_closures.bc":   "closures, lazy && and ||, .any and .all",
-	"test033_typeof.bc":              ".type(), arrays, maps, null",
-	"test034_array_map.bc":           "arrays and maps",
-	"test035_ffi.bc":                 "extern:: functions",
-	"test038_try_op.bc":              ".try_or()",
+	"test032_laziness_closures.bc": "closures, lazy && and ||, .any and .all",
+	"test033_typeof.bc":            ".type(), arrays, maps, null",
+	"test034_array_map.bc":         "arrays and maps",
+	"test035_ffi.bc":               "extern:: functions",
+	"test038_try_op.bc":            ".try_or()",
 }
 
 func maxBlockVersion(c TestCase) uint32 {

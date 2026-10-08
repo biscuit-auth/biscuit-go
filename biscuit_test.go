@@ -399,6 +399,37 @@ func TestBiscuitRejectIf(t *testing.T) {
 	require.ErrorContains(t, authorize(true), "reject if")
 }
 
+// null round-trips through a token, equals only itself under ==, and makes
+// the block v6.
+func TestBiscuitNull(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{Predicate{Name: "fact", IDs: []Term{Null{}, Integer(1)}}}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{Queries: []Rule{{
+		Head:        Predicate{Name: "query"},
+		Body:        []Predicate{{Name: "fact", IDs: []Term{Null{}, Variable("v")}}},
+		Expressions: []Expression{{Value{Variable("v")}, Value{Null{}}, BinaryHeterogeneousNotEqual}},
+	}}}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "fact(null, 1)")
+	require.Contains(t, deser.String(), "check if fact(null, $v), $v != null")
+
+	ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.NoError(t, ab.Authorize())
+
+	nullOnly, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 3, nullOnly.authority.version)
+}
+
 // Blocks that do not use v3.1 features keep version 3, and a v3 block
 // declaring a check kind is rejected.
 func TestBlockVersionFromContent(t *testing.T) {

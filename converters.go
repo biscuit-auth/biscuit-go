@@ -139,7 +139,7 @@ func protoBlockToTokenBlock(input *pb.Block, keys publicKeyTable) (*Block, error
 		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.GetVersion())
 	}
 
-	if required := schemaVersion(scopes, rules, checks); input.GetVersion() < required {
+	if required := schemaVersion(facts, scopes, rules, checks); input.GetVersion() < required {
 		return nil, fmt.Errorf(
 			"biscuit: failed to convert proto block to token block: block version %d uses features of version %d",
 			input.GetVersion(),

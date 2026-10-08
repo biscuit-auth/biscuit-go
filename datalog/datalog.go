@@ -25,6 +25,8 @@ const (
 	TermTypeBytes
 	TermTypeBool
 	TermTypeSet
+	// TermTypeNull is datalog v3.3.
+	TermTypeNull
 )
 
 // Term is a value in a predicate. Implementations are value types and
@@ -46,6 +48,7 @@ var (
 	_ Term = Bytes(nil)
 	_ Term = Bool(false)
 	_ Term = Set(nil)
+	_ Term = Null{}
 )
 
 type Set []Term
@@ -162,6 +165,14 @@ func (b Bool) Equal(t Term) bool { c, ok := t.(Bool); return ok && b == c }
 func (b Bool) String() string {
 	return fmt.Sprintf("%t", b)
 }
+
+// Null is the absence of a value (datalog v3.3). It equals only itself;
+// `==` with another type is false, `===` is a type error.
+type Null struct{}
+
+func (Null) Type() TermType    { return TermTypeNull }
+func (Null) Equal(t Term) bool { _, ok := t.(Null); return ok }
+func (Null) String() string    { return "null" }
 
 type Predicate struct {
 	Name  String

@@ -95,6 +95,10 @@ func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
 		pbId = &pb.TermV2{
 			Content: &pb.TermV2_Bool{Bool: bool(input.(datalog.Bool))},
 		}
+	case datalog.TermTypeNull:
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Null{Null: &pb.Empty{}},
+		}
 	case datalog.TermTypeSet:
 		datalogSet := input.(datalog.Set)
 		protoSet := make([]*pb.TermV2, 0, len(datalogSet))
@@ -148,6 +152,8 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 		id = datalog.Bytes(input.GetBytes())
 	case *pb.TermV2_Bool:
 		id = datalog.Bool(input.GetBool())
+	case *pb.TermV2_Null:
+		id = datalog.Null{}
 	case *pb.TermV2_Set:
 		elts := input.GetSet().Set
 		datalogSet := make(datalog.Set, 0, len(elts))

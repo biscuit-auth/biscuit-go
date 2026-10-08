@@ -297,6 +297,7 @@ type Term struct {
 	Date      *string    `| @DateTime`
 	Integer   *Integer   `| @("-"? Int)`
 	Bool      *Bool      `| @Bool`
+	Null      bool       `| @"null"`
 	EmptySet  bool       `| @("{" "," "}")`
 	Set       []*Term    `| "{" @@ ("," @@)* "}"`
 	LegacySet []*Term    `| "[" @@ ("," @@)* "]"`
@@ -753,6 +754,8 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 		biscuitTerm = biscuit.Bytes(b)
 	case a.Bool != nil:
 		biscuitTerm = biscuit.Bool(*a.Bool)
+	case a.Null:
+		biscuitTerm = biscuit.Null{}
 	case a.EmptySet:
 		biscuitTerm = biscuit.Set{}
 	case a.Set != nil || a.LegacySet != nil:

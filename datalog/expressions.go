@@ -467,6 +467,7 @@ func (Equal) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	case TermTypeDate:
 	case TermTypeBool:
 	case TermTypeSet:
+	case TermTypeNull:
 
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Equal value type: %d", left.Type())
