@@ -15,6 +15,13 @@ import (
 	"go.uber.org/goleak"
 )
 
+func mustQueryRule(t *testing.T, w *World, rule Rule, syms *SymbolTable) *FactSet {
+	t.Helper()
+	res, err := w.QueryRule(rule, syms)
+	require.NoError(t, err)
+	return res
+}
+
 func hashVar(s string) Variable {
 	h := sha256.Sum256([]byte(s))
 	id := uint32(h[0]) +
@@ -67,7 +74,7 @@ func TestFamily(t *testing.T) {
 	}
 
 	t.Logf("querying r1: %s", dbg.Rule(r1))
-	queryRuleResult := w.QueryRule(r1, syms)
+	queryRuleResult := mustQueryRule(t, w, r1, syms)
 	t.Logf("r1 query: %s", dbg.FactSet(queryRuleResult))
 	t.Logf("current facts: %s", dbg.FactSet(w.facts))
 
@@ -129,7 +136,7 @@ func TestNumbers(t *testing.T) {
 	w.AddFact(Fact{Predicate{t2, []Term{Integer(1), bbb, Integer(0)}}})
 	w.AddFact(Fact{Predicate{t2, []Term{Integer(2), ccc, Integer(1)}}})
 
-	res := w.QueryRule(Rule{
+	res := mustQueryRule(t, w, Rule{
 		Head: Predicate{join, []Term{hashVar("left"), hashVar("right")}},
 		Body: []Predicate{
 			{t1, []Term{hashVar("id"), hashVar("left")}},
@@ -145,7 +152,7 @@ func TestNumbers(t *testing.T) {
 		t.Errorf("query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
-	res = w.QueryRule(Rule{
+	res = mustQueryRule(t, w, Rule{
 		Head: Predicate{join, []Term{hashVar("left"), hashVar("right")}},
 		Body: []Predicate{
 			{t1, []Term{Variable(1234), hashVar("left")}},
@@ -184,7 +191,7 @@ func TestString(t *testing.T) {
 	w.AddFact(Fact{Predicate{route, []Term{Integer(4), app1, syms.Insert("mx.example.com")}}})
 
 	testSuffix := func(suffix string, syms *SymbolTable) *FactSet {
-		return w.QueryRule(Rule{
+		return mustQueryRule(t, w, Rule{
 			Head: Predicate{suff, []Term{hashVar("app_id"), Variable(1234)}},
 			Body: []Predicate{{route, []Term{Variable(0), hashVar("app_id"), Variable(1234)}}},
 			Expressions: []Expression{{
@@ -230,7 +237,7 @@ func TestDate(t *testing.T) {
 	w.AddFact(Fact{Predicate{x, []Term{Date(t1.Unix()), abc}}})
 	w.AddFact(Fact{Predicate{x, []Term{Date(t3.Unix()), def}}})
 
-	res := w.QueryRule(Rule{
+	res := mustQueryRule(t, w, Rule{
 		Head: Predicate{before, []Term{Variable(1234), hashVar("val")}},
 		Body: []Predicate{{x, []Term{Variable(1234), hashVar("val")}}},
 		Expressions: []Expression{{
@@ -248,7 +255,7 @@ func TestDate(t *testing.T) {
 		t.Errorf("before query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
-	res = w.QueryRule(Rule{
+	res = mustQueryRule(t, w, Rule{
 		Head: Predicate{after, []Term{Variable(1234), hashVar("val")}},
 		Body: []Predicate{{x, []Term{Variable(1234), hashVar("val")}}},
 		Expressions: []Expression{{
@@ -301,7 +308,7 @@ func TestBytes(t *testing.T) {
 	w.AddFact(Fact{Predicate{key, []Term{usr2, Bytes(k2)}}})
 	w.AddFact(Fact{Predicate{key, []Term{usr3, Bytes(k3)}}})
 
-	res := w.QueryRule(Rule{
+	res := mustQueryRule(t, w, Rule{
 		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
 		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
@@ -317,7 +324,7 @@ func TestBytes(t *testing.T) {
 		t.Errorf("key equal query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
-	res = w.QueryRule(Rule{
+	res = mustQueryRule(t, w, Rule{
 		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
 		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
@@ -334,7 +341,7 @@ func TestBytes(t *testing.T) {
 		t.Errorf("key in query failed:\n have: %s\n want: %s", dbg.FactSet(res), dbg.FactSet(expected))
 	}
 
-	res = w.QueryRule(Rule{
+	res = mustQueryRule(t, w, Rule{
 		Head: Predicate{keyMatch, []Term{hashVar("usr"), Variable(1)}},
 		Body: []Predicate{{key, []Term{hashVar("usr"), Variable(1)}}},
 		Expressions: []Expression{{
@@ -375,7 +382,7 @@ func TestResource(t *testing.T) {
 	w.AddFact(Fact{Predicate{right, []Term{authority, file1, write}}})
 
 	check1 := syms.Insert("check1")
-	res := w.QueryRule(Rule{
+	res := mustQueryRule(t, w, Rule{
 		Head: Predicate{check1, []Term{file1}},
 		Body: []Predicate{{resource, []Term{ambient, file1}}},
 	}, syms)
@@ -394,7 +401,7 @@ func TestResource(t *testing.T) {
 		},
 	}
 	t.Logf("r2 = %s", dbg.Rule(r2))
-	res = w.QueryRule(r2, syms)
+	res = mustQueryRule(t, w, r2, syms)
 	if len(*res) > 0 {
 		t.Errorf("unexpected facts: %s", dbg.FactSet(res))
 	}

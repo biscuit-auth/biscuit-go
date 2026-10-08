@@ -17,6 +17,10 @@ var (
 	ErrMissingSymbols   = errors.New("biscuit: missing symbols")
 	ErrPolicyDenied     = errors.New("biscuit: denied by policy")
 	ErrNoMatchingPolicy = errors.New("biscuit: denied by no matching policies")
+	// ErrExecution wraps an error raised while evaluating an expression
+	// (integer overflow, division by zero, type mismatch). Authorization
+	// stops at the first one, as the spec requires.
+	ErrExecution = errors.New("biscuit: execution error")
 )
 
 type Authorizer interface {
@@ -147,7 +151,7 @@ func (v *authorizer) Authorize() error {
 		c := check.convert(v.symbols)
 		successful, err := v.checkPasses(v.world, c)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
 		if !successful {
 			debug := datalog.SymbolDebugger{
@@ -166,7 +170,7 @@ func (v *authorizer) Authorize() error {
 
 		successful, err := v.checkPasses(v.world, c)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
 		if !successful {
 			debug := datalog.SymbolDebugger{
@@ -183,7 +187,10 @@ func (v *authorizer) Authorize() error {
 			break
 		}
 		for _, query := range policy.Queries {
-			res := v.world.QueryRule(query.convert(v.symbols), v.symbols)
+			res, err := v.world.QueryRule(query.convert(v.symbols), v.symbols)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrExecution, err)
+			}
 			if len(*res) != 0 {
 				switch policy.Kind {
 				case PolicyKindAllow:
@@ -234,7 +241,7 @@ func (v *authorizer) Authorize() error {
 
 			successful, err := v.checkPasses(block_world, c)
 			if err != nil {
-				return err
+				return fmt.Errorf("%w: %w", ErrExecution, err)
 			}
 			if !successful {
 				debug := datalog.SymbolDebugger{
@@ -281,7 +288,11 @@ func (v *authorizer) checkPasses(world *datalog.World, c datalog.Check) (bool, e
 				return true, nil
 			}
 		default:
-			if res := world.QueryRule(query, v.symbols); len(*res) != 0 {
+			res, err := world.QueryRule(query, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if len(*res) != 0 {
 				return true, nil
 			}
 		}
@@ -295,7 +306,10 @@ func (v *authorizer) Query(rule Rule) (FactSet, error) {
 	}
 	v.dirty = true
 
-	facts := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
+	facts, err := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrExecution, err)
+	}
 
 	result := make([]Fact, 0, len(*facts))
 	for _, fact := range *facts {

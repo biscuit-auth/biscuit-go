@@ -306,6 +306,45 @@ func TestBiscuitCheckAll(t *testing.T) {
 	require.ErrorContains(t, authorize(), "check all")
 }
 
+// An expression that cannot be evaluated stops authorization with an
+// execution error instead of counting as a failed check.
+func TestAuthorizeExecutionError(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	overflow := Check{Queries: []Rule{{
+		Head:        Predicate{Name: "overflow"},
+		Expressions: []Expression{{Value{Integer(9223372036854775807)}, Value{Integer(1)}, BinaryAdd, Value{Integer(0)}, BinaryEqual}},
+	}}}
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityCheck(overflow))
+	b, err := builder.Build()
+	require.NoError(t, err)
+
+	ab, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	err = ab.Authorize()
+	require.ErrorIs(t, err, ErrExecution)
+	require.ErrorIs(t, err, datalog.ErrInt64Overflow)
+
+	// The same from an authorizer check and from a policy, on a token
+	// without checks of its own.
+	plain, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+
+	ab, err = plain.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddCheck(overflow)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.ErrorIs(t, ab.Authorize(), ErrExecution)
+
+	ab, err = plain.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: overflow.Queries})
+	require.ErrorIs(t, ab.Authorize(), ErrExecution)
+}
+
 // Blocks that do not use v3.1 features keep version 3, and a v3 block
 // declaring a check kind is rejected.
 func TestBlockVersionFromContent(t *testing.T) {

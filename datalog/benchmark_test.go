@@ -113,8 +113,9 @@ func BenchmarkWorldQueryRule(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if res := w.QueryRule(query, syms); len(*res) != 1 {
-					b.Fatalf("got %d results, want 1", len(*res))
+				res, err := w.QueryRule(query, syms)
+				if err != nil || len(*res) != 1 {
+					b.Fatalf("got %d results (%v), want 1", len(*res), err)
 				}
 			}
 		})
