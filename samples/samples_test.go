@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -200,7 +201,6 @@ type Validation struct {
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
 var unsupported = map[string]string{
-	"test035_ffi.bc":    "extern:: functions",
 	"test038_try_op.bc": ".try_or()",
 }
 
@@ -278,11 +278,30 @@ func CompareBlocks(token biscuit.Biscuit, blocks []Block, t *testing.T) {
 	require.Equal(t, sample, rebuilt.Code())
 }
 
+// sampleExternFuncs mirrors the extern functions registered by the sample
+// generator (biscuit-rust examples/testcases.rs).
+var sampleExternFuncs = map[string]biscuit.ExternFunc{
+	"test": func(left biscuit.Term, right biscuit.Term) (biscuit.Term, error) {
+		if right == nil {
+			return left, nil
+		}
+		l, lok := left.(biscuit.String)
+		r, rok := right.(biscuit.String)
+		if !lok || !rok {
+			return nil, errors.New("unsupported operands")
+		}
+		if l == r {
+			return biscuit.String("equal strings"), nil
+		}
+		return biscuit.String("different strings"), nil
+	},
+}
+
 func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Biscuit, v Validation, t *testing.T) {
 	p := parser.New()
 	authorizer_code, err := p.Authorizer(v.AuthorizerCode, nil)
 	require.NoError(t, err)
-	authorizer, err := token.Authorizer(root_key)
+	authorizer, err := token.Authorizer(root_key, biscuit.WithExternFuncs(sampleExternFuncs))
 
 	if err != nil {
 		CompareError(err, v.Result.Err, t)

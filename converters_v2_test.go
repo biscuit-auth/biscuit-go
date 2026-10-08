@@ -454,6 +454,23 @@ func TestExpressionConvertV2(t *testing.T) {
 				},
 			},
 		},
+		{
+			Desc: "extern functions",
+			Input: datalog.Expression{
+				datalog.Value{ID: datalog.Variable(1)},
+				datalog.UnaryOp{UnaryOpFunc: datalog.Ffi{Name: datalog.String(1024)}},
+				datalog.Value{ID: datalog.Integer(1)},
+				datalog.BinaryOp{BinaryOpFunc: datalog.FfiBinary{Name: datalog.String(1025)}},
+			},
+			Expected: &pb.ExpressionV2{
+				Ops: []*pb.Op{
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Variable{Variable: 1}}}},
+					{Content: &pb.Op_Unary{Unary: &pb.OpUnary{Kind: pb.OpUnary_Ffi.Enum(), FfiName: proto.Uint64(1024)}}},
+					{Content: &pb.Op_Value{Value: &pb.TermV2{Content: &pb.TermV2_Integer{Integer: 1}}}},
+					{Content: &pb.Op_Binary{Binary: &pb.OpBinary{Kind: pb.OpBinary_Ffi.Enum(), FfiName: proto.Uint64(1025)}}},
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

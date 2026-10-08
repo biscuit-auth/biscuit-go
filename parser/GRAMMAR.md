@@ -98,6 +98,9 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 
 - Type name: `$x.type()` returns one of `"integer"`, `"string"`, `"date"`, `"bytes"`, `"bool"`,
   `"set"`, `"null"`, `"array"` or `"map"`, e.g. `$x.type() == "integer"`
+- Extern function call: `$x.extern::name()` or `$x.extern::name($y)`, where `name` is a function
+  registered on the authorizer with `biscuit.WithExternFuncs`. A call to a name that is not
+  registered fails the evaluation.
 
 ### Operators precedence
 

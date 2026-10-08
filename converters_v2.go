@@ -432,6 +432,10 @@ func tokenExprUnaryToProtoExprUnary(op datalog.UnaryOp) (*pb.OpUnary, error) {
 		pbUnaryKind = pb.OpUnary_Length
 	case datalog.UnaryTypeOf:
 		pbUnaryKind = pb.OpUnary_TypeOf
+	case datalog.UnaryFfi:
+		pbUnaryKind = pb.OpUnary_Ffi
+		name := uint64(op.UnaryOpFunc.(datalog.Ffi).Name)
+		return &pb.OpUnary{Kind: &pbUnaryKind, FfiName: &name}, nil
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported UnaryOpFunc type: %v", op.UnaryOpFunc.Type())
 	}
@@ -449,6 +453,11 @@ func protoExprUnaryToTokenExprUnary(op *pb.OpUnary) (datalog.UnaryOpFunc, error)
 		unaryOp = datalog.Length{}
 	case pb.OpUnary_TypeOf:
 		unaryOp = datalog.TypeOf{}
+	case pb.OpUnary_Ffi:
+		if op.FfiName == nil {
+			return nil, errors.New("biscuit: proto OpUnary Ffi without a name")
+		}
+		unaryOp = datalog.Ffi{Name: datalog.String(op.GetFfiName())}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpUnary type: %v", op.Kind)
 	}
@@ -514,6 +523,10 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_Any
 	case datalog.BinaryGet:
 		pbBinaryKind = pb.OpBinary_Get
+	case datalog.BinaryFfi:
+		pbBinaryKind = pb.OpBinary_Ffi
+		name := uint64(op.BinaryOpFunc.(datalog.FfiBinary).Name)
+		return &pb.OpBinary{Kind: &pbBinaryKind, FfiName: &name}, nil
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -579,6 +592,11 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.Any{}
 	case pb.OpBinary_Get:
 		binaryOp = datalog.Get{}
+	case pb.OpBinary_Ffi:
+		if op.FfiName == nil {
+			return nil, errors.New("biscuit: proto OpBinary Ffi without a name")
+		}
+		binaryOp = datalog.FfiBinary{Name: datalog.String(op.GetFfiName())}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}

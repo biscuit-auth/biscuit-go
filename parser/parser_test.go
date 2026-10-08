@@ -791,6 +791,27 @@ func TestParseClosures(t *testing.T) {
 		biscuit.BinaryAny,
 	}, check.Queries[0].Expressions[0])
 
+	// Extern functions, unary and binary.
+	check, err = p.Check(`check if $x.extern::check(), $x.extern::compare("a") == "equal strings"`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Variable("x")},
+		biscuit.ExternUnary{Name: "check"},
+	}, check.Queries[0].Expressions[0])
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Variable("x")},
+		biscuit.Value{Term: biscuit.String("a")},
+		biscuit.ExternBinary{Name: "compare"},
+		biscuit.Value{Term: biscuit.String("equal strings")},
+		biscuit.BinaryHeterogeneousEqual,
+	}, check.Queries[0].Expressions[1])
+	_, err = p.Check(`check if $x.extern::()`, nil)
+	require.Error(t, err)
+	_, err = p.Check(`check if $x.unknown()`, nil)
+	require.Error(t, err)
+	_, err = p.Check(`check if $x.extern::f($p -> $p)`, nil)
+	require.ErrorContains(t, err, "does not take a closure")
+
 	// A method argument that is a plain expression starting with a variable.
 	check, err = p.Check(`check if {1, 2}.contains($x)`, nil)
 	require.NoError(t, err)

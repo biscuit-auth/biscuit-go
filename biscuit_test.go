@@ -777,3 +777,51 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	t.Log(verifier.PrintWorld())
 	require.Error(t, err)
 }
+
+func TestBiscuitExternFuncs(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{Predicate{Name: "user", IDs: []Term{String("alice")}}}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{Queries: []Rule{{
+		Head: Predicate{Name: "query"},
+		Body: []Predicate{{Name: "user", IDs: []Term{Variable("u")}}},
+		Expressions: []Expression{
+			{Value{Variable("u")}, ExternUnary{Name: "known"}},
+			{Value{Variable("u")}, Value{String("alice")}, ExternBinary{Name: "same"}, Value{String("yes")}, BinaryHeterogeneousEqual},
+		},
+	}}}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), `check if user($u), $u.extern::known(), $u.extern::same("alice") == "yes"`)
+
+	funcs := map[string]ExternFunc{
+		"known": func(left Term, right Term) (Term, error) {
+			require.Nil(t, right)
+			return Bool(left == String("alice")), nil
+		},
+		"same": func(left Term, right Term) (Term, error) {
+			if left == right {
+				return String("yes"), nil
+			}
+			return String("no"), nil
+		},
+	}
+
+	ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot), WithExternFuncs(funcs))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.NoError(t, ab.Authorize())
+
+	// Without the functions the check fails with an execution error.
+	ab, err = deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	err = ab.Authorize()
+	require.ErrorIs(t, err, ErrExecution)
+	require.ErrorIs(t, err, datalog.ErrUndefinedExtern)
+}

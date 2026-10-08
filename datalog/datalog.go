@@ -256,8 +256,8 @@ func (r Rule) variables() MatchedVariables {
 // apply derives the facts of the rule from the visible facts and calls emit
 // for each, with its origin: the origins of the matched facts plus blockID,
 // the block the rule belongs to.
-func (r Rule) apply(blockID BlockID, facts []factWithOrigin, syms *SymbolTable, emit func(Origin, Fact)) error {
-	matches, err := combine(r.variables(), r.Body, r.Expressions, facts, syms)
+func (r Rule) apply(blockID BlockID, facts []factWithOrigin, syms *SymbolTable, externs ExternFuncs, emit func(Origin, Fact)) error {
+	matches, err := combine(r.variables(), r.Body, r.Expressions, facts, syms, externs)
 	if err != nil {
 		return err
 	}
@@ -357,6 +357,13 @@ var (
 
 type WorldOption func(w *World)
 
+// WithExternFuncs registers the functions that extern::name calls resolve to.
+func WithExternFuncs(externs ExternFuncs) WorldOption {
+	return func(w *World) {
+		w.externs = externs
+	}
+}
+
 func WithMaxFacts(maxFacts int) WorldOption {
 	return func(w *World) {
 		w.runLimits.maxFacts = maxFacts
@@ -400,6 +407,7 @@ type World struct {
 	rules []scopedRule
 
 	runLimits runLimits
+	externs   ExternFuncs
 }
 
 func NewWorld(opts ...WorldOption) *World {
@@ -507,7 +515,7 @@ func (w *World) Run(syms *SymbolTable) error {
 				return ErrWorldRunLimitTimeout
 			}
 			visible := w.visibleFacts(sr.trusted)
-			err := sr.rule.apply(sr.blockID, visible, syms, func(origin Origin, f Fact) {
+			err := sr.rule.apply(sr.blockID, visible, syms, w.externs, func(origin Origin, f Fact) {
 				newFacts = append(newFacts, factWithOrigin{origin, f})
 			})
 			if err != nil {
@@ -564,7 +572,7 @@ func (w *World) Query(trusted TrustedOrigins, pred Predicate) *FactSet {
 // non-match.
 func (w *World) QueryRule(rule Rule, blockID BlockID, trusted TrustedOrigins, syms *SymbolTable) (*FactSet, error) {
 	newFacts := &FactSet{}
-	err := rule.apply(blockID, w.visibleFacts(trusted), syms, func(_ Origin, f Fact) {
+	err := rule.apply(blockID, w.visibleFacts(trusted), syms, w.externs, func(_ Origin, f Fact) {
 		newFacts.Insert(f)
 	})
 	if err != nil {
@@ -579,13 +587,13 @@ func (w *World) QueryRule(rule Rule, blockID BlockID, trusted TrustedOrigins, sy
 func (w *World) QueryMatchAll(rule Rule, trusted TrustedOrigins, syms *SymbolTable) (bool, error) {
 	// The expressions are evaluated here rather than passed to combine, which
 	// would filter the matches instead of reporting those that fail.
-	matches, err := combine(rule.variables(), rule.Body, nil, w.visibleFacts(trusted), syms)
+	matches, err := combine(rule.variables(), rule.Body, nil, w.visibleFacts(trusted), syms, w.externs)
 	if err != nil {
 		return false, err
 	}
 	for _, res := range matches {
 		for _, e := range rule.Expressions {
-			v, err := e.Evaluate(res.vars, syms)
+			v, err := e.EvaluateWith(res.vars, syms, w.externs)
 			if err != nil {
 				return false, err
 			}
@@ -606,6 +614,7 @@ func (w *World) Clone() *World {
 		facts:     facts,
 		rules:     slices.Clone(w.rules),
 		runLimits: w.runLimits,
+		externs:   w.externs,
 	}
 }
 
@@ -651,6 +660,7 @@ func combine(
 	expressions []Expression,
 	facts []factWithOrigin,
 	syms *SymbolTable,
+	externs ExternFuncs,
 ) ([]match, error) {
 	var res []match
 
@@ -717,7 +727,7 @@ func combine(
 			if complete_vars := vars.Complete(); complete_vars != nil {
 				valid := true
 				for _, e := range expressions {
-					r, err := e.Evaluate(complete_vars, syms)
+					r, err := e.EvaluateWith(complete_vars, syms, externs)
 					if err != nil {
 						return nil, err
 					}

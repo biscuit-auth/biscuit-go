@@ -785,7 +785,7 @@ func TestApplyInvalidRuleNoGoroutineLeak(t *testing.T) {
 	}
 
 	for range 100 {
-		err := r.apply(0, facts, syms, func(Origin, Fact) {})
+		err := r.apply(0, facts, syms, nil, func(Origin, Fact) {})
 		require.IsType(t, InvalidRuleError{}, err)
 	}
 }

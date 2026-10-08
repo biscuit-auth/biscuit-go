@@ -1443,3 +1443,53 @@ func TestUnaryTypeOf(t *testing.T) {
 func dbgTerm(syms *SymbolTable, t Term) string {
 	return SymbolDebugger{SymbolTable: syms}.Term(t)
 }
+
+func TestExternFuncs(t *testing.T) {
+	syms := &SymbolTable{}
+	name := syms.Insert("test")
+	externs := ExternFuncs{
+		"test": func(symbols *SymbolTable, left Term, right Term) (Term, error) {
+			if right == nil {
+				return left, nil
+			}
+			if left == right {
+				return symbols.Insert("equal"), nil
+			}
+			return nil, errors.New("unsupported operands")
+		},
+	}
+
+	unary := Expression{Value{Bool(true)}, UnaryOp{Ffi{Name: name}}}
+	require.Equal(t, "true.extern::test()", unary.Print(syms))
+	res, err := unary.EvaluateWith(nil, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	binary := Expression{Value{syms.Insert("a")}, Value{syms.Insert("a")}, BinaryOp{FfiBinary{Name: name}}}
+	require.Equal(t, `"a".extern::test("a")`, binary.Print(syms))
+	res, err = binary.EvaluateWith(nil, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, syms.Insert("equal"), res)
+
+	// The function error is reported.
+	failing := Expression{Value{Integer(1)}, Value{Integer(2)}, BinaryOp{FfiBinary{Name: name}}}
+	_, err = failing.EvaluateWith(nil, syms, externs)
+	require.ErrorContains(t, err, "unsupported operands")
+
+	// Unknown name, and no registry at all.
+	unknown := Expression{Value{Bool(true)}, UnaryOp{Ffi{Name: syms.Insert("other")}}}
+	_, err = unknown.EvaluateWith(nil, syms, externs)
+	require.ErrorIs(t, err, ErrUndefinedExtern)
+	_, err = unary.Evaluate(nil, syms)
+	require.ErrorIs(t, err, ErrUndefinedExtern)
+
+	// Extern functions are visible inside closures.
+	inClosure := Expression{
+		Value{Set{Bool(true)}},
+		Closure{Params: []Variable{Variable(syms.Insert("p"))}, Body: Expression{Value{Variable(syms.Insert("p"))}, UnaryOp{Ffi{Name: name}}}},
+		BinaryOp{All{}},
+	}
+	res, err = inClosure.EvaluateWith(map[Variable]*Term{}, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+}

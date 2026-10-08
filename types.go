@@ -123,13 +123,15 @@ func containsV33Op(expressions []datalog.Expression) bool {
 			case datalog.Closure:
 				return true
 			case datalog.UnaryOp:
-				if op.UnaryOpFunc.Type() == datalog.UnaryTypeOf {
+				switch op.UnaryOpFunc.Type() {
+				case datalog.UnaryTypeOf, datalog.UnaryFfi:
 					return true
 				}
 			case datalog.BinaryOp:
 				switch op.BinaryOpFunc.Type() {
 				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
-					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny, datalog.BinaryGet:
+					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny, datalog.BinaryGet,
+					datalog.BinaryFfi:
 					return true
 				}
 			}
@@ -593,9 +595,39 @@ func fromDatalogUnaryOp(symbols *datalog.SymbolTable, dlUnary datalog.UnaryOp) (
 		return UnaryLength, nil
 	case datalog.UnaryTypeOf:
 		return UnaryTypeOf, nil
+	case datalog.UnaryFfi:
+		return ExternUnary{Name: symbols.Str(dlUnary.UnaryOpFunc.(datalog.Ffi).Name)}, nil
 	default:
 		return UnaryUndefined, fmt.Errorf("unsupported datalog unary op: %v", dlUnary.UnaryOpFunc.Type())
 	}
+}
+
+// ExternUnary is the datalog v3.3 call `$value.extern::name()` of a function
+// registered on the authorizer with WithExternFuncs; using it makes the block
+// version 6.
+type ExternUnary struct {
+	Name string
+}
+
+func (ExternUnary) Type() OpType {
+	return OpTypeUnary
+}
+func (op ExternUnary) convert(symbols *datalog.SymbolTable) datalog.Op {
+	return datalog.UnaryOp{UnaryOpFunc: datalog.Ffi{Name: symbols.Insert(op.Name)}}
+}
+
+// ExternBinary is the datalog v3.3 call `$left.extern::name($right)` of a
+// function registered on the authorizer with WithExternFuncs; using it makes
+// the block version 6.
+type ExternBinary struct {
+	Name string
+}
+
+func (ExternBinary) Type() OpType {
+	return OpTypeBinary
+}
+func (op ExternBinary) convert(symbols *datalog.SymbolTable) datalog.Op {
+	return datalog.BinaryOp{BinaryOpFunc: datalog.FfiBinary{Name: symbols.Insert(op.Name)}}
 }
 
 type binaryOpType byte
@@ -760,6 +792,8 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryAny, nil
 	case datalog.BinaryGet:
 		return BinaryGet, nil
+	case datalog.BinaryFfi:
+		return ExternBinary{Name: symbols.Str(dbBinary.BinaryOpFunc.(datalog.FfiBinary).Name)}, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}

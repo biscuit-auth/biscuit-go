@@ -508,10 +508,13 @@ type Expr6 struct {
 }
 
 type OpExpr7 struct {
-	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get" | "type")`
+	Operator   Operator    `Dot (@("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get" | "type")`
+	Extern     string      `| @Ident)`
 	Closure    *ClosureArg `"(" (@@`
 	Expression *Expression `| @@)? ")"`
 }
+
+const externPrefix = "extern::"
 
 // ClosureArg is the `$p -> body` argument of .all() and .any().
 type ClosureArg struct {
@@ -712,6 +715,24 @@ func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) err
 }
 
 func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if e.Extern != "" {
+		name := strings.TrimPrefix(e.Extern, externPrefix)
+		if name == "" || name == e.Extern {
+			return fmt.Errorf("parser: unknown method .%s()", e.Extern)
+		}
+		if e.Closure != nil {
+			return fmt.Errorf("parser: .%s() does not take a closure", e.Extern)
+		}
+		if e.Expression == nil {
+			*expr = append(*expr, biscuit.ExternUnary{Name: name})
+			return nil
+		}
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		*expr = append(*expr, biscuit.ExternBinary{Name: name})
+		return nil
+	}
 	switch {
 	case e.Closure != nil:
 		var body biscuit.Expression

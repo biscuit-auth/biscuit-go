@@ -58,6 +58,8 @@ type authorizer struct {
 	// resolves to those blocks.
 	blocksByKey map[string][]datalog.BlockID
 
+	externs datalog.ExternFuncs
+
 	dirty bool
 }
 
@@ -71,6 +73,45 @@ func WithWorldOptions(opts ...datalog.WorldOption) AuthorizerOption {
 	}
 }
 
+// ExternFunc is a function that datalog v3.3 expressions call with
+// `$left.extern::name()` (right is nil) or `$left.extern::name($right)`.
+// It returns the value of the call.
+type ExternFunc func(left Term, right Term) (Term, error)
+
+// WithExternFuncs registers the functions available to extern:: calls, by
+// name. A call to a name that is not registered fails the check or rule that
+// makes it with ErrExecution.
+func WithExternFuncs(funcs map[string]ExternFunc) AuthorizerOption {
+	return func(a *authorizer) {
+		for name, f := range funcs {
+			a.externs[name] = wrapExternFunc(f)
+		}
+	}
+}
+
+func wrapExternFunc(f ExternFunc) datalog.ExternFunc {
+	return func(symbols *datalog.SymbolTable, left datalog.Term, right datalog.Term) (datalog.Term, error) {
+		l, err := fromDatalogID(symbols, left)
+		if err != nil {
+			return nil, err
+		}
+		var r Term
+		if right != nil {
+			if r, err = fromDatalogID(symbols, right); err != nil {
+				return nil, err
+			}
+		}
+		res, err := f(l, r)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil {
+			return nil, errors.New("biscuit: extern function returned no value")
+		}
+		return res.convert(symbols), nil
+	}
+}
+
 func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 	a := &authorizer{
 		biscuit:     b,
@@ -79,11 +120,13 @@ func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 		checks:      []Check{},
 		policies:    []Policy{},
 		blocksByKey: map[string][]datalog.BlockID{},
+		externs:     datalog.ExternFuncs{},
 	}
 
 	for _, opt := range opts {
 		opt(a)
 	}
+	datalog.WithExternFuncs(a.externs)(a.baseWorld)
 	for i, block := range b.blocks {
 		if block.externalKey != nil {
 			key := block.externalKey.String()

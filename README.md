@@ -13,9 +13,9 @@ biscuit-go is an implementation of [Biscuit](https://github.com/eclipse-biscuit/
 
 This library currently accepts datalog `v3.0` to `v3.3` blocks (block versions `3` to `6`, see
 `MaxSchemaVersion`). Of datalog `v3.3`, `reject if`, the heterogeneous `==` and `!=`, `null`,
-the lazy `&&` and `||`, the `.all()` / `.any()` closures, arrays, maps and `.type()` are
-supported; blocks using `.try_or()` or foreign functions are rejected. Support for them is
-landing incrementally.
+the lazy `&&` and `||`, the `.all()` / `.any()` closures, arrays, maps, `.type()` and
+`extern::` function calls (registered with `WithExternFuncs`) are supported; blocks using
+`.try_or()` are rejected. Support for it is landing incrementally.
 
 The [specification sample suite](./samples) runs in CI: samples using block versions above
 `MaxSchemaVersion` are verified to be rejected and otherwise skipped, so they become active as
