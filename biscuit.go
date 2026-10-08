@@ -351,6 +351,7 @@ func (b *Biscuit) Append(rng io.Reader, block *Block) (*Biscuit, error) {
 
 	// clone container and append new marshalled block and public key
 	container := &pb.Biscuit{
+		RootKeyId: b.container.RootKeyId,
 		Authority: b.container.Authority,
 		Blocks:    append([]*pb.SignedBlock{}, b.container.Blocks...),
 		Proof:     proof,
@@ -400,6 +401,7 @@ func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
 
 	// clone container and append new marshalled block and public key
 	container := &pb.Biscuit{
+		RootKeyId: b.container.RootKeyId,
 		Authority: b.container.Authority,
 		Blocks:    append([]*pb.SignedBlock{}, b.container.Blocks...),
 		Proof:     proof,

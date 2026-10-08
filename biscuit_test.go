@@ -264,6 +264,28 @@ func TestBiscuitRules(t *testing.T) {
 }
 
 // A check that compares two sets of byte arrays used to crash the authorizer.
+// The root key id identifies the verification key for the whole token; it
+// must survive attenuation and sealing.
+func TestRootKeyIDSurvivesAppendAndSeal(t *testing.T) {
+	_, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+	b1, err := NewBuilder(privateRoot, WithRootKeyID(42)).Build()
+	require.NoError(t, err)
+
+	b2, err := b1.Append(rand.Reader, b1.CreateBlock().Build())
+	require.NoError(t, err)
+	require.NotNil(t, b2.RootKeyID())
+	require.EqualValues(t, 42, *b2.RootKeyID())
+
+	sealed, err := b2.Seal(rand.Reader)
+	require.NoError(t, err)
+	require.NotNil(t, sealed.RootKeyID())
+	require.EqualValues(t, 42, *sealed.RootKeyID())
+
+	deser, err := Unmarshal(mustSerialize(t, sealed))
+	require.NoError(t, err)
+	require.EqualValues(t, 42, *deser.RootKeyID())
+}
+
 // check all passes only when every matching operation is allowed.
 func TestBiscuitCheckAll(t *testing.T) {
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
