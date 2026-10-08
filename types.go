@@ -13,8 +13,25 @@ import (
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 )
 
+// Block versions this library accepts: 3 is datalog v3.0, 4 is datalog v3.1.
 const MinSchemaVersion uint32 = 3
-const MaxSchemaVersion uint32 = 3
+const MaxSchemaVersion uint32 = 4
+
+// Block versions, by the datalog release that introduced them.
+const (
+	blockVersion3_0 uint32 = 3
+	blockVersion3_1 uint32 = 4
+)
+
+// schemaVersion is the lowest block version able to carry the given content.
+func schemaVersion(checks []datalog.Check) uint32 {
+	for _, c := range checks {
+		if c.Kind != datalog.CheckKindOne {
+			return blockVersion3_1
+		}
+	}
+	return blockVersion3_0
+}
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
@@ -463,8 +480,39 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 	}
 }
 
+// CheckKind selects how the queries of a Check are evaluated.
+type CheckKind byte
+
+const (
+	// CheckKindOne (`check if`) passes when one query has at least one match.
+	CheckKindOne CheckKind = iota
+	// CheckKindAll (`check all`) passes when one query has at least one match
+	// and every match of that query satisfies its expressions. Requires a
+	// datalog v3.1 block (version 4).
+	CheckKindAll
+)
+
+func (k CheckKind) convert() datalog.CheckKind {
+	switch k {
+	case CheckKindAll:
+		return datalog.CheckKindAll
+	default:
+		return datalog.CheckKindOne
+	}
+}
+
+func fromDatalogCheckKind(k datalog.CheckKind) CheckKind {
+	switch k {
+	case datalog.CheckKindAll:
+		return CheckKindAll
+	default:
+		return CheckKindOne
+	}
+}
+
 type Check struct {
 	Queries []Rule
+	Kind    CheckKind
 }
 
 func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
@@ -475,6 +523,7 @@ func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
 
 	return datalog.Check{
 		Queries: queries,
+		Kind:    c.Kind.convert(),
 	}
 }
 
@@ -490,6 +539,7 @@ func fromDatalogCheck(symbols *datalog.SymbolTable, dlCheck datalog.Check) (*Che
 
 	return &Check{
 		Queries: queries,
+		Kind:    fromDatalogCheckKind(dlCheck.Kind),
 	}, nil
 }
 

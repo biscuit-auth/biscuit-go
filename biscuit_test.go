@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
+	"github.com/eclipse-biscuit/biscuit-go/v2/pb"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestBiscuit(t *testing.T) {
@@ -262,6 +264,70 @@ func TestBiscuitRules(t *testing.T) {
 }
 
 // A check that compares two sets of byte arrays used to crash the authorizer.
+// check all passes only when every matching operation is allowed.
+func TestBiscuitCheckAll(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "allowed_operations", IDs: []Term{Set{String("A"), String("B")}}},
+	}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{
+		Kind: CheckKindAll,
+		Queries: []Rule{{
+			Head: Predicate{Name: "allowed", IDs: []Term{Variable("op")}},
+			Body: []Predicate{
+				{Name: "operation", IDs: []Term{Variable("op")}},
+				{Name: "allowed_operations", IDs: []Term{Variable("allowed")}},
+			},
+			Expressions: []Expression{{Value{Variable("allowed")}, Value{Variable("op")}, BinaryContains}},
+		}},
+	}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	// check all needs a datalog v3.1 block.
+	require.EqualValues(t, 4, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "check all operation($op), allowed_operations($allowed), $allowed.contains($op)")
+
+	authorize := func(ops ...string) error {
+		ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		require.NoError(t, err)
+		for _, op := range ops {
+			ab.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String(op)}}})
+		}
+		ab.AddPolicy(DefaultAllowPolicy)
+		return ab.Authorize()
+	}
+	require.NoError(t, authorize("A", "B"))
+	require.ErrorContains(t, authorize("A", "invalid"), "check all")
+	require.ErrorContains(t, authorize(), "check all")
+}
+
+// Blocks that do not use v3.1 features keep version 3, and a v3 block
+// declaring a check kind is rejected.
+func TestBlockVersionFromContent(t *testing.T) {
+	_, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+	b, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 3, b.authority.version)
+
+	kind := pb.CheckV2_All
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version:  proto.Uint32(3),
+		ChecksV2: []*pb.CheckV2{{Kind: &kind}},
+	})
+	require.ErrorContains(t, err, "check kinds require block version 4")
+
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version: proto.Uint32(4),
+		Scope:   []*pb.Scope{{}},
+	})
+	require.ErrorContains(t, err, "scopes are not supported")
+}
+
 func TestBiscuitBytesSetEquality(t *testing.T) {
 	rng := rand.Reader
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)

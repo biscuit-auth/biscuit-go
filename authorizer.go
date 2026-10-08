@@ -145,13 +145,9 @@ func (v *authorizer) Authorize() error {
 
 	for i, check := range v.checks {
 		c := check.convert(v.symbols)
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
+		successful, err := v.checkPasses(v.world, c)
+		if err != nil {
+			return err
 		}
 		if !successful {
 			debug := datalog.SymbolDebugger{
@@ -168,13 +164,9 @@ func (v *authorizer) Authorize() error {
 		}
 		c := ch.convert(v.symbols)
 
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
+		successful, err := v.checkPasses(v.world, c)
+		if err != nil {
+			return err
 		}
 		if !successful {
 			debug := datalog.SymbolDebugger{
@@ -240,14 +232,9 @@ func (v *authorizer) Authorize() error {
 			}
 			c := ch.convert(v.symbols)
 
-			successful := false
-			for _, query := range c.Queries {
-				res := block_world.QueryRule(query, v.symbols)
-
-				if len(*res) != 0 {
-					successful = true
-					break
-				}
+			successful, err := v.checkPasses(block_world, c)
+			if err != nil {
+				return err
 			}
 			if !successful {
 				debug := datalog.SymbolDebugger{
@@ -278,6 +265,28 @@ func (v *authorizer) Authorize() error {
 	} else {
 		return ErrNoMatchingPolicy
 	}
+}
+
+// checkPasses evaluates the queries of a check against a world: a check
+// passes when one of its queries does, under the semantics of its kind.
+func (v *authorizer) checkPasses(world *datalog.World, c datalog.Check) (bool, error) {
+	for _, query := range c.Queries {
+		switch c.Kind {
+		case datalog.CheckKindAll:
+			ok, err := world.QueryMatchAll(query, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if ok {
+				return true, nil
+			}
+		default:
+			if res := world.QueryRule(query, v.symbols); len(*res) != 0 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func (v *authorizer) Query(rule Rule) (FactSet, error) {
@@ -331,7 +340,7 @@ func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
 	}
 
 	switch pbPolicies.GetVersion() {
-	case 3:
+	case blockVersion3_0, blockVersion3_1:
 		return v.loadPoliciesV2(pbPolicies)
 	default:
 		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())

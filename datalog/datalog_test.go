@@ -590,6 +590,58 @@ func TestWorldFactsWithBytesSets(t *testing.T) {
 }
 
 // Query used to compare terms with ==, which panics on slice-backed terms.
+// check all: every match must satisfy the expressions, and there must be one.
+func TestWorldQueryMatchAll(t *testing.T) {
+	syms := &SymbolTable{}
+	operation := syms.Insert("operation")
+	allowed := syms.Insert("allowed_operations")
+	a, b, invalid := syms.Insert("A"), syms.Insert("B"), syms.Insert("invalid")
+
+	rule := Rule{
+		Head: Predicate{syms.Insert("ok"), nil},
+		Body: []Predicate{
+			{operation, []Term{Variable(0)}},
+			{allowed, []Term{Variable(1)}},
+		},
+		Expressions: []Expression{{
+			Value{Variable(1)},
+			Value{Variable(0)},
+			BinaryOp{Contains{}},
+		}},
+	}
+
+	world := func(ops ...Term) *World {
+		w := NewWorld()
+		w.AddFact(Fact{Predicate{allowed, []Term{Set{a, b}}}})
+		for _, op := range ops {
+			w.AddFact(Fact{Predicate{operation, []Term{op}}})
+		}
+		return w
+	}
+
+	for _, tc := range []struct {
+		desc string
+		ops  []Term
+		want bool
+	}{
+		{"all allowed", []Term{a, b}, true},
+		{"one not allowed", []Term{a, invalid}, false},
+		{"no match", nil, false},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := world(tc.ops...).QueryMatchAll(rule, syms)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+
+	// Without body predicates the expressions are evaluated once.
+	constant := Rule{Head: Predicate{syms.Insert("ok"), nil}, Expressions: []Expression{{Value{Bool(false)}}}}
+	got, err := NewWorld().QueryMatchAll(constant, syms)
+	require.NoError(t, err)
+	require.False(t, got)
+}
+
 func TestWorldQueryBytesAndSetTerms(t *testing.T) {
 	w := NewWorld()
 	syms := &SymbolTable{}

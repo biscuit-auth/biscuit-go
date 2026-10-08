@@ -176,8 +176,23 @@ type Predicate struct {
 	IDs  []*Term `"(" (@@ ("," @@)*)? ")"`
 }
 
+type CheckKind biscuit.CheckKind
+
+func (k *CheckKind) Capture(values []string) error {
+	switch strings.Join(values, " ") {
+	case "check if":
+		*k = CheckKind(biscuit.CheckKindOne)
+	case "check all":
+		*k = CheckKind(biscuit.CheckKindAll)
+	default:
+		return fmt.Errorf("parser: invalid check kind %q", values)
+	}
+	return nil
+}
+
 type Check struct {
-	Queries []*CheckQuery `"check if" @@ ( "or" @@ )*`
+	Kind    CheckKind     `@("check if" | "check all")`
+	Queries []*CheckQuery `@@ ( "or" @@ )*`
 }
 
 type CheckQuery struct {
@@ -653,6 +668,7 @@ func (c *Check) ToBiscuit(parameters ParametersMap) (*biscuit.Check, error) {
 
 	return &biscuit.Check{
 		Queries: queries,
+		Kind:    biscuit.CheckKind(c.Kind),
 	}, nil
 }
 

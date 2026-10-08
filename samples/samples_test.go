@@ -147,7 +147,10 @@ type Validation struct {
 //
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
-var unsupported = map[string]string{}
+var unsupported = map[string]string{
+	"test027_integer_wraparound.bc": "integer overflow detection, !== operator",
+	"test028_expressions_v4.bc":     "v3.1 expression operators (!=, bitwise)",
+}
 
 func maxBlockVersion(c TestCase) uint32 {
 	var v uint32

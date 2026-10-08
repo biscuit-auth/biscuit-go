@@ -250,7 +250,11 @@ func (d SymbolDebugger) Check(c Check) string {
 	for i, q := range c.Queries {
 		queries[i] = d.CheckQuery(q)
 	}
-	return fmt.Sprintf("check if %s", strings.Join(queries, " or "))
+	kind := "check if"
+	if c.Kind == CheckKindAll {
+		kind = "check all"
+	}
+	return fmt.Sprintf("%s %s", kind, strings.Join(queries, " or "))
 }
 
 func (d SymbolDebugger) World(w *World) string {

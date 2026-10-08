@@ -428,9 +428,18 @@ func tokenCheckToProtoCheckV2(input datalog.Check) (*pb.CheckV2, error) {
 		pbQueries[i] = q
 	}
 
-	return &pb.CheckV2{
+	pbCheck := &pb.CheckV2{
 		Queries: pbQueries,
-	}, nil
+	}
+	// `check if` is the default and stays unset, as other implementations do.
+	switch input.Kind {
+	case datalog.CheckKindOne:
+	case datalog.CheckKindAll:
+		pbCheck.Kind = pb.CheckV2_All.Enum()
+	default:
+		return nil, fmt.Errorf("biscuit: unsupported check kind: %d", input.Kind)
+	}
+	return pbCheck, nil
 }
 
 func protoCheckToTokenCheckV2(input *pb.CheckV2) (*datalog.Check, error) {
@@ -443,7 +452,15 @@ func protoCheckToTokenCheckV2(input *pb.CheckV2) (*datalog.Check, error) {
 		queries[i] = *q
 	}
 
-	return &datalog.Check{
+	check := &datalog.Check{
 		Queries: queries,
-	}, nil
+	}
+	switch input.GetKind() {
+	case pb.CheckV2_One:
+	case pb.CheckV2_All:
+		check.Kind = datalog.CheckKindAll
+	default:
+		return nil, fmt.Errorf("biscuit: unsupported check kind: %s", input.GetKind())
+	}
+	return check, nil
 }

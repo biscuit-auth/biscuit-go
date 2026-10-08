@@ -4,6 +4,7 @@
 package biscuit
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
@@ -80,7 +81,10 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	}
 
 	switch input.GetVersion() {
-	case 3:
+	case blockVersion3_0, blockVersion3_1:
+		if err := checkBlockVersionFeatures(input); err != nil {
+			return nil, err
+		}
 		facts = make(datalog.FactSet, len(input.FactsV2))
 		rules = make([]datalog.Rule, len(input.RulesV2))
 		checks = make([]datalog.Check, len(input.ChecksV2))
@@ -120,6 +124,35 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		context: input.GetContext(),
 		version: input.GetVersion(),
 	}, nil
+}
+
+// checkBlockVersionFeatures rejects a block that uses a feature its declared
+// version does not have, and the v3.1 features this library does not support
+// yet (scopes), so that no token is accepted with altered semantics.
+func checkBlockVersionFeatures(input *pb.Block) error {
+	if input.GetVersion() < blockVersion3_1 {
+		for _, c := range input.ChecksV2 {
+			if c.Kind != nil {
+				return errors.New("biscuit: failed to convert proto block to token block: check kinds require block version 4")
+			}
+		}
+	}
+	if len(input.Scope) > 0 {
+		return errors.New("biscuit: failed to convert proto block to token block: block scopes are not supported")
+	}
+	for _, r := range input.RulesV2 {
+		if len(r.Scope) > 0 {
+			return errors.New("biscuit: failed to convert proto block to token block: rule scopes are not supported")
+		}
+	}
+	for _, c := range input.ChecksV2 {
+		for _, q := range c.Queries {
+			if len(q.Scope) > 0 {
+				return errors.New("biscuit: failed to convert proto block to token block: rule scopes are not supported")
+			}
+		}
+	}
+	return nil
 }
 
 /*func tokenSignatureToProtoSignature(ts *sig.TokenSignature) *pb.Signature {
