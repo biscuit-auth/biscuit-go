@@ -506,7 +506,7 @@ func TestGrammarCheck(t *testing.T) {
 								Expression: &Expression{
 									Left: &Expr1{
 										Left: &Expr2{
-											Left: &Expr3{
+											Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
 														Expr6: &Expr6{
@@ -518,10 +518,10 @@ func TestGrammarCheck(t *testing.T) {
 														},
 													},
 												},
-											},
+											}}}},
 											Right: &OpExpr3{
 												Operator: OpGreaterThan,
-												Expr3: &Expr3{
+												Expr3: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 													Left: &Expr4{
 														Left: &Expr5{
 															Expr6: &Expr6{
@@ -533,7 +533,7 @@ func TestGrammarCheck(t *testing.T) {
 															},
 														},
 													},
-												},
+												}}}},
 											},
 										},
 									},
@@ -543,7 +543,7 @@ func TestGrammarCheck(t *testing.T) {
 								Expression: &Expression{
 									Left: &Expr1{
 										Left: &Expr2{
-											Left: &Expr3{
+											Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
 														Expr6: &Expr6{
@@ -558,7 +558,7 @@ func TestGrammarCheck(t *testing.T) {
 																	Expression: &Expression{
 																		Left: &Expr1{
 																			Left: &Expr2{
-																				Left: &Expr3{
+																				Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 																					Left: &Expr4{
 																						Left: &Expr5{
 																							Expr6: &Expr6{
@@ -570,7 +570,7 @@ func TestGrammarCheck(t *testing.T) {
 																							},
 																						},
 																					},
-																				},
+																				}}}},
 																			},
 																		},
 																	},
@@ -579,7 +579,7 @@ func TestGrammarCheck(t *testing.T) {
 														},
 													},
 												},
-											},
+											}}}},
 										},
 									},
 								},
@@ -788,8 +788,9 @@ func sptr(s string) *string {
 	return &s
 }
 
-func i64ptr(i int64) *int64 {
-	return &i
+func i64ptr(i int64) *Integer {
+	v := Integer(i)
+	return &v
 }
 
 func hexsptr(s string) *HexString {

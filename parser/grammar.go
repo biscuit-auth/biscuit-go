@@ -44,6 +44,20 @@ func (v *Variable) Capture(values []string) error {
 
 type Parameter string
 
+// Integer is an int64 literal with an optional leading minus sign. The sign
+// is a separate token, so "1 -2" is still a subtraction, and the full text
+// is parsed so that the smallest int64 is accepted.
+type Integer int64
+
+func (i *Integer) Capture(values []string) error {
+	v, err := strconv.ParseInt(strings.Join(values, ""), 10, 64)
+	if err != nil {
+		return err
+	}
+	*i = Integer(v)
+	return nil
+}
+
 type Bool bool
 
 func (b *Bool) Capture(values []string) error {
@@ -220,7 +234,7 @@ type Term struct {
 	Bytes     *HexString `| @@`
 	String    *string    `| @String`
 	Date      *string    `| @DateTime`
-	Integer   *int64     `| @Int`
+	Integer   *Integer   `| @("-"? Int)`
 	Bool      *Bool      `| @Bool`
 	EmptySet  bool       `| @("{" "," "}")`
 	Set       []*Term    `| "{" @@ ("," @@)* "}"`
@@ -249,12 +263,16 @@ const (
 	OpUnion
 	OpLength
 	OpNegate
+	OpNotEqual
+	OpBitwiseAnd
+	OpBitwiseOr
+	OpBitwiseXor
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
 	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "===": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"==": OpEqual, "===": OpEqual, "!=": OpNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -282,13 +300,45 @@ type OpExpr2 struct {
 }
 
 type Expr2 struct {
-	Left  *Expr3   `@@`
+	Left  *ExprXor `@@`
 	Right *OpExpr3 `@@?`
 }
 
 type OpExpr3 struct {
-	Operator Operator `@("<=" | ">=" | "<" | ">" | "===" | "==")`
-	Expr3    *Expr3   `@@`
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "===" | "==" | "!==" | "!=")`
+	Expr3    *ExprXor `@@`
+}
+
+// Bitwise operators sit between comparisons and arithmetic, in the order of
+// the spec: ^ binds loosest, then |, then &.
+type ExprXor struct {
+	Left  *ExprBitOr   `@@`
+	Right []*OpExprXor `@@*`
+}
+
+type OpExprXor struct {
+	Operator Operator   `@("^")`
+	Expr     *ExprBitOr `@@`
+}
+
+type ExprBitOr struct {
+	Left  *ExprBitAnd    `@@`
+	Right []*OpExprBitOr `@@*`
+}
+
+type OpExprBitOr struct {
+	Operator Operator    `@("|")`
+	Expr     *ExprBitAnd `@@`
+}
+
+type ExprBitAnd struct {
+	Left  *Expr3          `@@`
+	Right []*OpExprBitAnd `@@*`
+}
+
+type OpExprBitAnd struct {
+	Operator Operator `@("&")`
+	Expr     *Expr3   `@@`
 }
 
 type Expr3 struct {
@@ -363,6 +413,51 @@ func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error
 	}
 	if e.Right != nil {
 		return e.Right.ToExpr(expr, parameters)
+	}
+	return nil
+}
+
+func (e *ExprXor) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *ExprBitOr) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *ExprBitAnd) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -501,6 +596,14 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 		biscuit_op = biscuit.BinaryGreaterThan
 	case OpEqual:
 		biscuit_op = biscuit.BinaryEqual
+	case OpNotEqual:
+		biscuit_op = biscuit.BinaryNotEqual
+	case OpBitwiseAnd:
+		biscuit_op = biscuit.BinaryBitwiseAnd
+	case OpBitwiseOr:
+		biscuit_op = biscuit.BinaryBitwiseOr
+	case OpBitwiseXor:
+		biscuit_op = biscuit.BinaryBitwiseXor
 	case OpContains:
 		biscuit_op = biscuit.BinaryContains
 	case OpPrefix:

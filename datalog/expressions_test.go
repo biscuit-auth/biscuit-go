@@ -428,6 +428,68 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 	}
 }
 
+func TestBinaryNotEqual(t *testing.T) {
+	require.Equal(t, BinaryNotEqual, NotEqual{}.Type())
+	syms := &SymbolTable{}
+
+	for _, tc := range []struct {
+		desc        string
+		left, right Term
+		res         Bool
+		expectedErr bool
+	}{
+		{desc: "different integers", left: Integer(1), right: Integer(3), res: true},
+		{desc: "same integers", left: Integer(3), right: Integer(3), res: false},
+		{desc: "different strings", left: syms.Insert("abcD12x"), right: syms.Insert("abcD12"), res: true},
+		{desc: "different bytes", left: Bytes{0x12, 0xab, 0xcd}, right: Bytes{0x12, 0xab}, res: true},
+		{desc: "different dates", left: Date(2), right: Date(1), res: true},
+		{desc: "different bools", left: Bool(true), right: Bool(false), res: true},
+		{desc: "different sets", left: Set{Integer(1), Integer(4)}, right: Set{Integer(1), Integer(2)}, res: true},
+		{desc: "same sets", left: Set{Integer(1), Integer(2)}, right: Set{Integer(2), Integer(1)}, res: false},
+		{desc: "type mismatch errors", left: Integer(1), right: syms.Insert("1"), expectedErr: true},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			expr := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{NotEqual{}}}
+			res, err := expr.Evaluate(nil, syms)
+			if tc.expectedErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.res, res)
+		})
+	}
+}
+
+func TestBinaryBitwise(t *testing.T) {
+	syms := &SymbolTable{}
+	for _, tc := range []struct {
+		op          BinaryOpFunc
+		opType      BinaryOpType
+		left, right Term
+		res         Integer
+		printed     string
+	}{
+		{BitwiseAnd{}, BinaryBitwiseAnd, Integer(6), Integer(3), 2, "6 & 3"},
+		{BitwiseOr{}, BinaryBitwiseOr, Integer(1), Integer(2), 3, "1 | 2"},
+		{BitwiseXor{}, BinaryBitwiseXor, Integer(3), Integer(3), 0, "3 ^ 3"},
+		{BitwiseAnd{}, BinaryBitwiseAnd, Integer(-1), Integer(255), 255, "-1 & 255"},
+	} {
+		t.Run(tc.printed, func(t *testing.T) {
+			require.Equal(t, tc.opType, tc.op.Type())
+			expr := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{tc.op}}
+			res, err := expr.Evaluate(nil, syms)
+			require.NoError(t, err)
+			require.Equal(t, tc.res, res)
+			require.Equal(t, tc.printed, expr.Print(syms))
+
+			mismatch := Expression{Value{tc.left}, Value{Bool(true)}, BinaryOp{tc.op}}
+			_, err = mismatch.Evaluate(nil, syms)
+			require.Error(t, err)
+		})
+	}
+}
+
 func TestBinaryEqual(t *testing.T) {
 	require.Equal(t, BinaryEqual, Equal{}.Type())
 	syms := &SymbolTable{}

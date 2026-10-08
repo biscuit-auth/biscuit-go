@@ -358,7 +358,7 @@ func TestBlockVersionFromContent(t *testing.T) {
 		Version:  proto.Uint32(3),
 		ChecksV2: []*pb.CheckV2{{Kind: &kind}},
 	})
-	require.ErrorContains(t, err, "check kinds require block version 4")
+	require.ErrorContains(t, err, "block version 3 uses features of version 4")
 
 	_, err = protoBlockToTokenBlock(&pb.Block{
 		Version: proto.Uint32(4),

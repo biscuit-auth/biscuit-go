@@ -116,6 +116,14 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: unsupported version: %d", input.GetVersion())
 	}
 
+	if required := schemaVersion(rules, checks); input.GetVersion() < required {
+		return nil, fmt.Errorf(
+			"biscuit: failed to convert proto block to token block: block version %d uses features of version %d",
+			input.GetVersion(),
+			required,
+		)
+	}
+
 	return &Block{
 		symbols: &symbols,
 		facts:   &facts,
@@ -126,17 +134,11 @@ func protoBlockToTokenBlock(input *pb.Block) (*Block, error) {
 	}, nil
 }
 
-// checkBlockVersionFeatures rejects a block that uses a feature its declared
-// version does not have, and the v3.1 features this library does not support
-// yet (scopes), so that no token is accepted with altered semantics.
+// checkBlockVersionFeatures rejects a block using the v3.1 features this
+// library does not support yet (scopes), so that no token is accepted with
+// altered semantics. Features the declared version does not have are
+// rejected after conversion, through schemaVersion.
 func checkBlockVersionFeatures(input *pb.Block) error {
-	if input.GetVersion() < blockVersion3_1 {
-		for _, c := range input.ChecksV2 {
-			if c.Kind != nil {
-				return errors.New("biscuit: failed to convert proto block to token block: check kinds require block version 4")
-			}
-		}
-	}
 	if len(input.Scope) > 0 {
 		return errors.New("biscuit: failed to convert proto block to token block: block scopes are not supported")
 	}

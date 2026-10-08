@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2"
+	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 	"github.com/eclipse-biscuit/biscuit-go/v2/parser"
 	"github.com/stretchr/testify/require"
 )
@@ -147,10 +148,7 @@ type Validation struct {
 //
 // unsupported lists the samples inside the supported version range that
 // cannot pass yet; each entry is removed by the change that closes the gap.
-var unsupported = map[string]string{
-	"test027_integer_wraparound.bc": "integer overflow detection, !== operator",
-	"test028_expressions_v4.bc":     "v3.1 expression operators (!=, bitwise)",
-}
+var unsupported = map[string]string{}
 
 func maxBlockVersion(c TestCase) uint32 {
 	var v uint32
@@ -262,6 +260,14 @@ func CompareError(authorization_error error, sample_error *BiscuitError, t *test
 			require.Regexp(t, "^biscuit: verification failed: failed to verify", error_string)
 		} else {
 			require.Fail(t, error_string)
+		}
+	} else if sample_error.Execution != nil {
+		require.ErrorIs(t, authorization_error, biscuit.ErrExecution)
+		switch *sample_error.Execution {
+		case "Overflow":
+			require.ErrorIs(t, authorization_error, datalog.ErrInt64Overflow)
+		default:
+			require.Fail(t, "unknown execution error kind", *sample_error.Execution)
 		}
 	} else {
 		fmt.Println(sample_error)

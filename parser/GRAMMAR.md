@@ -31,7 +31,11 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 ### Integer
 
-- Equal: `$i == 1`
+Integer literals are signed 64-bit; an operation that overflows is an execution error.
+
+- Equal: `$i === 1`
+- Not equal: `$i !== 1`
+- Bitwise and / or / xor: `$i & 1`, `$i | 1`, `$i ^ 1`
 - Greater than: `$i > 1`
 - Greater than or equal: `$i >= 1`
 - Less than: `$i < 1`
@@ -79,7 +83,10 @@ The operators have the following precedence (highest to lowest):
 | `!` (prefix)                | not associative  |
 | `*`, `/`                    | left-associative |
 | `+`, `-`                    | left-associative |
-| `>`, `>=`, `<`, `<=`, `===`, `==`  | not associative  |
+| `&`                         | left-associative |
+| `|`                         | left-associative |
+| `^`                         | left-associative |
+| `>`, `>=`, `<`, `<=`, `===`, `==`, `!==`, `!=` | not associative |
 | `&&`                        | left-associative |
 | `||`                        | left-associative |
 

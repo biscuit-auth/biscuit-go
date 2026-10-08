@@ -160,7 +160,7 @@ func (b *builderOptions) Build() (*Biscuit, error) {
 			rules:   b.rules,
 			checks:  b.checks,
 			context: b.context,
-			version: schemaVersion(b.checks),
+			version: schemaVersion(b.rules, b.checks),
 		},
 		opts...)
 }
@@ -324,7 +324,7 @@ func (b *blockBuilder) Build() *Block {
 		rules:   rules,
 		checks:  checks,
 		context: b.context,
-		version: schemaVersion(checks),
+		version: schemaVersion(rules, checks),
 	}
 }
 

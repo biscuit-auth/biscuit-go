@@ -290,6 +290,14 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s.intersection(%s)", left, right)
 	case BinaryUnion:
 		out = fmt.Sprintf("%s.union(%s)", left, right)
+	case BinaryBitwiseAnd:
+		out = fmt.Sprintf("%s & %s", left, right)
+	case BinaryBitwiseOr:
+		out = fmt.Sprintf("%s | %s", left, right)
+	case BinaryBitwiseXor:
+		out = fmt.Sprintf("%s ^ %s", left, right)
+	case BinaryNotEqual:
+		out = fmt.Sprintf("%s !== %s", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
@@ -321,6 +329,11 @@ const (
 	BinaryOr
 	BinaryIntersection
 	BinaryUnion
+	// Datalog v3.1 operators.
+	BinaryBitwiseAnd
+	BinaryBitwiseOr
+	BinaryBitwiseXor
+	BinaryNotEqual
 )
 
 // LessThan returns true when left is less than right.
@@ -453,6 +466,20 @@ func (Equal) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	}
 
 	return Bool(left.Equal(right)), nil
+}
+
+// NotEqual is the negation of Equal, with the same type requirements.
+type NotEqual struct{}
+
+func (NotEqual) Type() BinaryOpType {
+	return BinaryNotEqual
+}
+func (NotEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	equal, err := Equal{}.Eval(left, right, symbols)
+	if err != nil {
+		return nil, err
+	}
+	return Bool(!equal.(Bool)), nil
 }
 
 // Contains returns true when the right value exists in the left Set.
@@ -757,6 +784,58 @@ func (And) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	}
 
 	return Bool(bleft && bright), nil
+}
+
+// BitwiseAnd, BitwiseOr and BitwiseXor operate on two Integers.
+type BitwiseAnd struct{}
+
+func (BitwiseAnd) Type() BinaryOpType {
+	return BinaryBitwiseAnd
+}
+func (BitwiseAnd) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseAnd", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l & r, nil
+}
+
+type BitwiseOr struct{}
+
+func (BitwiseOr) Type() BinaryOpType {
+	return BinaryBitwiseOr
+}
+func (BitwiseOr) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseOr", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l | r, nil
+}
+
+type BitwiseXor struct{}
+
+func (BitwiseXor) Type() BinaryOpType {
+	return BinaryBitwiseXor
+}
+func (BitwiseXor) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseXor", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l ^ r, nil
+}
+
+func integerOperands(op string, left, right Term) (Integer, Integer, error) {
+	l, ok := left.(Integer)
+	if !ok {
+		return 0, 0, fmt.Errorf("datalog: %s requires left value to be an Integer, got %T", op, left)
+	}
+	r, ok := right.(Integer)
+	if !ok {
+		return 0, 0, fmt.Errorf("datalog: %s requires right value to be an Integer, got %T", op, right)
+	}
+	return l, r, nil
 }
 
 // Or performs a logical OR between left and right and returns a Bool.
