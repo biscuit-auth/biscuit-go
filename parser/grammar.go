@@ -287,20 +287,86 @@ type Deny struct {
 	Queries []*CheckQuery `"deny if" @@ ( "or" @@ )*`
 }
 
-// A set literal is written {a, b} and the empty set {,}. The [a, b] form
-// predates the spec syntax and is still accepted.
+// Braces hold a parameter {name}, the empty set {,}, the empty map {}, a set
+// {a, b} or a map {k: v}; brackets hold an array [a, b].
 type Term struct {
-	Parameter *Parameter `"{" @Ident "}"`
-	Variable  *Variable  `| @Variable`
-	Bytes     *HexString `| @@`
-	String    *string    `| @String`
-	Date      *string    `| @DateTime`
-	Integer   *Integer   `| @("-"? Int)`
-	Bool      *Bool      `| @Bool`
-	Null      bool       `| @"null"`
-	EmptySet  bool       `| @("{" "," "}")`
-	Set       []*Term    `| "{" @@ ("," @@)* "}"`
-	LegacySet []*Term    `| "[" @@ ("," @@)* "]"`
+	Parameter  *Parameter `"{" @Ident "}"`
+	Variable   *Variable  `| @Variable`
+	Bytes      *HexString `| @@`
+	String     *string    `| @String`
+	Date       *string    `| @DateTime`
+	Integer    *Integer   `| @("-"? Int)`
+	Bool       *Bool      `| @Bool`
+	Null       bool       `| @"null"`
+	Braces     *Braces    `| @@`
+	EmptyArray bool       `| @("[" "]")`
+	Array      []*Term    `| "[" @@ ("," @@)* "]"`
+}
+
+// Braces is a set or a map: entries with a value make a map, entries
+// without make a set. {,} is the empty set and {} the empty map.
+type Braces struct {
+	EmptySet bool          `"{" ( @("," "}")`
+	EmptyMap bool          `| @"}"`
+	Entries  []*BraceEntry `| @@ ("," @@)* "}" )`
+}
+
+type BraceEntry struct {
+	Key   *Term `@@`
+	Value *Term `(":" @@)?`
+}
+
+func (b *Braces) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
+	switch {
+	case b.EmptySet:
+		return biscuit.Set{}, nil
+	case b.EmptyMap:
+		return biscuit.Map{}, nil
+	}
+
+	isMap := b.Entries[0].Value != nil
+	if isMap {
+		m := make(biscuit.Map, 0, len(b.Entries))
+		for _, e := range b.Entries {
+			if e.Value == nil {
+				return nil, errors.New("parser: map entry without a value")
+			}
+			key, err := e.Key.ToBiscuit(parameters)
+			if err != nil {
+				return nil, err
+			}
+			switch key.Type() {
+			case biscuit.TermTypeInteger, biscuit.TermTypeString:
+			default:
+				return nil, fmt.Errorf("parser: map key must be an integer or a string, got %s", key)
+			}
+			value, err := e.Value.ToBiscuit(parameters)
+			if err != nil {
+				return nil, err
+			}
+			if value.Type() == biscuit.TermTypeVariable {
+				return nil, errors.New("parser: a map cannot contain variables")
+			}
+			m = append(m, biscuit.MapEntry{Key: key, Value: value})
+		}
+		return m, nil
+	}
+
+	set := make(biscuit.Set, 0, len(b.Entries))
+	for _, e := range b.Entries {
+		if e.Value != nil {
+			return nil, errors.New("parser: set element with a value")
+		}
+		elt, err := e.Key.ToBiscuit(parameters)
+		if err != nil {
+			return nil, err
+		}
+		if elt.Type() == biscuit.TermTypeVariable {
+			return nil, ErrVariableInSet
+		}
+		set = append(set, elt)
+	}
+	return set, nil
 }
 
 type Operator int
@@ -335,11 +401,12 @@ const (
 	OpLazyOr
 	OpAll
 	OpAny
+	OpGet
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
-	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
+	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "get": OpGet, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
 	"==": OpHeterogeneousEqual, "===": OpEqual, "!=": OpHeterogeneousNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
 
 func (o *Operator) Capture(s []string) error {
@@ -440,7 +507,7 @@ type Expr6 struct {
 }
 
 type OpExpr7 struct {
-	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any")`
+	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get")`
 	Closure    *ClosureArg `"(" (@@`
 	Expression *Expression `| @@)? ")"`
 }
@@ -698,6 +765,8 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 		biscuit_op = biscuit.BinaryAll
 	case OpAny:
 		biscuit_op = biscuit.BinaryAny
+	case OpGet:
+		biscuit_op = biscuit.BinaryGet
 	case OpBitwiseAnd:
 		biscuit_op = biscuit.BinaryBitwiseAnd
 	case OpBitwiseOr:
@@ -788,25 +857,27 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 		biscuitTerm = biscuit.Bool(*a.Bool)
 	case a.Null:
 		biscuitTerm = biscuit.Null{}
-	case a.EmptySet:
-		biscuitTerm = biscuit.Set{}
-	case a.Set != nil || a.LegacySet != nil:
-		elts := a.Set
-		if elts == nil {
-			elts = a.LegacySet
+	case a.Braces != nil:
+		t, err := a.Braces.ToBiscuit(parameters)
+		if err != nil {
+			return nil, err
 		}
-		biscuitSet := make(biscuit.Set, 0, len(elts))
-		for _, term := range elts {
-			setTerm, err := term.ToBiscuit(parameters)
+		biscuitTerm = t
+	case a.EmptyArray:
+		biscuitTerm = biscuit.Array{}
+	case a.Array != nil:
+		array := make(biscuit.Array, 0, len(a.Array))
+		for _, term := range a.Array {
+			elt, err := term.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
-			if setTerm.Type() == biscuit.TermTypeVariable {
-				return nil, ErrVariableInSet
+			if elt.Type() == biscuit.TermTypeVariable {
+				return nil, errors.New("parser: an array cannot contain variables")
 			}
-			biscuitSet = append(biscuitSet, setTerm)
+			array = append(array, elt)
 		}
-		biscuitTerm = biscuitSet
+		biscuitTerm = array
 	case a.Parameter != nil:
 		paramName := string(*(a.Parameter))
 		paramValue := parameters[paramName]

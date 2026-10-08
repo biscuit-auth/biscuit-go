@@ -192,6 +192,18 @@ func (d SymbolDebugger) Term(t Term) string {
 		}
 		sort.Strings(elts)
 		return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
+	case Array:
+		elts := make([]string, len(t))
+		for i, e := range t {
+			elts[i] = d.Term(e)
+		}
+		return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+	case Map:
+		entries := make([]string, len(t))
+		for i, e := range t {
+			entries[i] = fmt.Sprintf("%s: %s", d.Term(e.Key), d.Term(e.Value))
+		}
+		return fmt.Sprintf("{%s}", strings.Join(entries, ", "))
 	default:
 		return t.String()
 	}

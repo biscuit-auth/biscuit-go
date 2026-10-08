@@ -23,7 +23,7 @@ type testCase struct {
 func getFactTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `right("/a/file1.txt", "read", ["read", "/a/file2.txt"])`,
+			Input: `right("/a/file1.txt", "read", {"read", "/a/file2.txt"})`,
 			Expected: biscuit.Fact{
 				Predicate: biscuit.Predicate{
 					Name: "right",
@@ -200,7 +200,7 @@ func getRuleTestCases() []testCase {
 			ExpectFailure: true,
 		},
 		{
-			Input: `rule1("a") <- body1("b"), $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, [1, 2, 3].contains($5), ![4,5,6].contains($6)`,
+			Input: `rule1("a") <- body1("b"), $0 > 0, $1 < 1, $2 >= 2, $3 <= 3, $4 == 4, {1, 2, 3}.contains($5), !{4,5,6}.contains($6)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -251,7 +251,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `rule1("a") <- body1("b"), $0 == "abc", $1.starts_with("def"), $2.ends_with("ghi"), $3.matches("file[0-9]+.txt"), ["a","b"].contains($4), !["c", "d"].contains($5)`,
+			Input: `rule1("a") <- body1("b"), $0 == "abc", $1.starts_with("def"), $2.ends_with("ghi"), $3.matches("file[0-9]+.txt"), {"a","b"}.contains($4), !{"c", "d"}.contains($5)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -297,7 +297,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `rule1("a") <- body1("b"), ["a", "b"].contains($0), !["c", "d"].contains($1)`,
+			Input: `rule1("a") <- body1("b"), {"a", "b"}.contains($0), !{"c", "d"}.contains($1)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -357,7 +357,7 @@ func getRuleTestCases() []testCase {
 			},
 		},
 		{
-			Input: `rule1("a") <- body1($0, $1), ["abc", "def"].contains($0), ! [41, 42].contains($1)`,
+			Input: `rule1("a") <- body1($0, $1), {"abc", "def"}.contains($0), ! {41, 42}.contains($1)`,
 			Expected: biscuit.Rule{
 				Head: biscuit.Predicate{
 					Name: "rule1",
@@ -485,7 +485,7 @@ func getRuleTestCases() []testCase {
 func getCheckTestCases() []testCase {
 	return []testCase{
 		{
-			Input: `check if parent("a", "b"), parent("b", "c"), [1,2,3].contains($0) or right("read", "/a/file1.txt")`,
+			Input: `check if parent("a", "b"), parent("b", "c"), {1,2,3}.contains($0) or right("read", "/a/file1.txt")`,
 			Expected: biscuit.Check{
 				Queries: []biscuit.Rule{
 					{
@@ -799,4 +799,44 @@ func TestParseClosures(t *testing.T) {
 		biscuit.Value{Term: biscuit.Variable("x")},
 		biscuit.BinaryContains,
 	}, check.Queries[0].Expressions[0])
+}
+
+// Brackets are arrays, braces are sets or maps.
+func TestParseArraysAndMaps(t *testing.T) {
+	p := New()
+
+	fact, err := p.Fact(`f([1, "a", [2]], {}, [], {"a": 1, 2: "b"}, {1, 2}, {,})`, nil)
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Term{
+		biscuit.Array{biscuit.Integer(1), biscuit.String("a"), biscuit.Array{biscuit.Integer(2)}},
+		biscuit.Map{},
+		biscuit.Array{},
+		biscuit.Map{{Key: biscuit.String("a"), Value: biscuit.Integer(1)}, {Key: biscuit.Integer(2), Value: biscuit.String("b")}},
+		biscuit.Set{biscuit.Integer(1), biscuit.Integer(2)},
+		biscuit.Set{},
+	}, fact.IDs)
+
+	check, err := p.Check(`check if {"user": {"roles": ["admin"]}}.get("user").get("roles").contains("admin")`, nil)
+	require.NoError(t, err)
+	require.Equal(t, biscuit.Expression{
+		biscuit.Value{Term: biscuit.Map{{Key: biscuit.String("user"), Value: biscuit.Map{{Key: biscuit.String("roles"), Value: biscuit.Array{biscuit.String("admin")}}}}}},
+		biscuit.Value{Term: biscuit.String("user")},
+		biscuit.BinaryGet,
+		biscuit.Value{Term: biscuit.String("roles")},
+		biscuit.BinaryGet,
+		biscuit.Value{Term: biscuit.String("admin")},
+		biscuit.BinaryContains,
+	}, check.Queries[0].Expressions[0])
+
+	// A set of one parameter, as the README writes it.
+	fact, err = p.Fact(`f({{read}})`, ParametersMap{"read": biscuit.String("read")})
+	require.NoError(t, err)
+	require.Equal(t, []biscuit.Term{biscuit.Set{biscuit.String("read")}}, fact.IDs)
+
+	_, err = p.Fact(`f({1: "a", 2})`, nil)
+	require.ErrorContains(t, err, "map entry without a value")
+	_, err = p.Fact(`f({true: 1})`, nil)
+	require.ErrorContains(t, err, "map key must be an integer or a string")
+	_, err = p.Rule(`r($x) <- s($x), [$x].contains(1)`, nil)
+	require.ErrorContains(t, err, "array cannot contain variables")
 }

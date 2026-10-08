@@ -52,7 +52,7 @@ func ExampleBiscuit() {
 	blockBuilder := deser.CreateBlock()
 
 	block, err := parser.FromStringBlockWithParams(`
-			check if resource($file), operation($permission), [{read}].contains($permission);`,
+			check if resource($file), operation($permission), {{read}}.contains($permission);`,
 		map[string]biscuit.Term{"read": biscuit.String("read")})
 
 	if err != nil {

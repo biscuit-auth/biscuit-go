@@ -25,8 +25,10 @@ const (
 	TermTypeBytes
 	TermTypeBool
 	TermTypeSet
-	// TermTypeNull is datalog v3.3.
+	// TermTypeNull, TermTypeArray and TermTypeMap are datalog v3.3.
 	TermTypeNull
+	TermTypeArray
+	TermTypeMap
 )
 
 // Term is a value in a predicate. Implementations are value types and
@@ -49,6 +51,8 @@ var (
 	_ Term = Bool(false)
 	_ Term = Set(nil)
 	_ Term = Null{}
+	_ Term = Array(nil)
+	_ Term = Map(nil)
 )
 
 type Set []Term

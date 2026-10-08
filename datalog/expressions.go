@@ -313,6 +313,10 @@ func (Length) Eval(value Term, symbols *SymbolTable) (Term, error) {
 		out = Integer(len(value.(Bytes)))
 	case TermTypeSet:
 		out = Integer(len(value.(Set)))
+	case TermTypeArray:
+		out = Integer(len(value.(Array)))
+	case TermTypeMap:
+		out = Integer(len(value.(Map)))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Length value type: %d", value.Type())
 	}
@@ -383,6 +387,8 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s.all(%s)", left, right)
 	case BinaryAny:
 		out = fmt.Sprintf("%s.any(%s)", left, right)
+	case BinaryGet:
+		out = fmt.Sprintf("%s.get(%s)", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
@@ -426,6 +432,7 @@ const (
 	BinaryLazyOr
 	BinaryAll
 	BinaryAny
+	BinaryGet
 )
 
 // LessThan returns true when left is less than right.
@@ -553,6 +560,8 @@ func (Equal) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	case TermTypeBool:
 	case TermTypeSet:
 	case TermTypeNull:
+	case TermTypeArray:
+	case TermTypeMap:
 
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Equal value type: %d", left.Type())
@@ -621,6 +630,14 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 		}
 
 		return Bool(strings.Contains(symbols.Str(sleft), symbols.Str(sright))), nil
+	}
+
+	// An array contains an element, a map contains a key.
+	switch left := left.(type) {
+	case Array:
+		return Bool(left.contains(right)), nil
+	case Map:
+		return Bool(IsMapKey(right) && left.Get(right) != nil), nil
 	}
 
 	switch right.Type() {
@@ -712,6 +729,13 @@ func (Prefix) Type() BinaryOpType {
 	return BinaryPrefix
 }
 func (Prefix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if aleft, ok := left.(Array); ok {
+		aright, ok := right.(Array)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Prefix requires right value to be an Array, got %T", right)
+		}
+		return Bool(aleft.HasPrefix(aright)), nil
+	}
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Prefix requires left value to be a String, got %T", left)
@@ -732,6 +756,13 @@ func (Suffix) Type() BinaryOpType {
 	return BinarySuffix
 }
 func (Suffix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if aleft, ok := left.(Array); ok {
+		aright, ok := right.(Array)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Suffix requires right value to be an Array, got %T", right)
+		}
+		return Bool(aleft.HasSuffix(aright)), nil
+	}
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Suffix requires left value to be a String, got %T", left)
@@ -1004,13 +1035,53 @@ func forEachElement(name string, collection Term, closure Closure, values map[Va
 	return exhausted, nil
 }
 
-// collectionElements lists the elements a closure iterates over.
+// collectionElements lists the elements a closure iterates over: the
+// elements of a set or an array, or [key, value] arrays for a map.
 func collectionElements(t Term) ([]Term, error) {
 	switch t := t.(type) {
 	case Set:
 		return t, nil
+	case Array:
+		return t, nil
+	case Map:
+		elements := make([]Term, len(t))
+		for i, e := range t {
+			elements[i] = Array{e.Key, e.Value}
+		}
+		return elements, nil
 	default:
-		return nil, fmt.Errorf("requires a Set, got %T", t)
+		return nil, fmt.Errorf("requires a Set, an Array or a Map, got %T", t)
+	}
+}
+
+// Get is .get(): the element of an array at an index, or the value of a map
+// for a key; null when there is none.
+type Get struct{}
+
+func (Get) Type() BinaryOpType {
+	return BinaryGet
+}
+func (Get) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	switch left := left.(type) {
+	case Array:
+		index, ok := right.(Integer)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Get on an Array requires an Integer index, got %T", right)
+		}
+		if index < 0 || int64(index) >= int64(len(left)) {
+			return Null{}, nil
+		}
+		return left[index], nil
+	case Map:
+		if !IsMapKey(right) {
+			return nil, fmt.Errorf("datalog: Get on a Map requires an Integer or String key, got %T", right)
+		}
+		if v := left.Get(right); v != nil {
+			return v, nil
+		}
+		return Null{}, nil
+	default:
+		return nil, fmt.Errorf("datalog: Get requires left value to be an Array or a Map, got %T", left)
 	}
 }
 

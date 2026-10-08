@@ -98,7 +98,7 @@ func containsV33Term(p datalog.Predicate) bool {
 
 func isV33Term(t datalog.Term) bool {
 	switch t := t.(type) {
-	case datalog.Null:
+	case datalog.Null, datalog.Array, datalog.Map:
 		return true
 	case datalog.Set:
 		for _, e := range t {
@@ -125,7 +125,7 @@ func containsV33Op(expressions []datalog.Expression) bool {
 			case datalog.BinaryOp:
 				switch op.BinaryOpFunc.Type() {
 				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
-					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny:
+					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny, datalog.BinaryGet:
 					return true
 				}
 			}
@@ -337,6 +337,32 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.Term) (Term, error) 
 		a = Bool(id.(datalog.Bool))
 	case datalog.TermTypeNull:
 		a = Null{}
+	case datalog.TermTypeArray:
+		dlArray := id.(datalog.Array)
+		array := make(Array, len(dlArray))
+		for i, e := range dlArray {
+			elt, err := fromDatalogID(symbols, e)
+			if err != nil {
+				return nil, err
+			}
+			array[i] = elt
+		}
+		a = array
+	case datalog.TermTypeMap:
+		dlMap := id.(datalog.Map)
+		m := make(Map, len(dlMap))
+		for i, e := range dlMap {
+			key, err := fromDatalogID(symbols, e.Key)
+			if err != nil {
+				return nil, err
+			}
+			value, err := fromDatalogID(symbols, e.Value)
+			if err != nil {
+				return nil, err
+			}
+			m[i] = MapEntry{Key: key, Value: value}
+		}
+		a = m
 	case datalog.TermTypeSet:
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
@@ -597,6 +623,7 @@ const (
 	BinaryLazyOr
 	BinaryAll
 	BinaryAny
+	BinaryGet
 )
 
 func (BinaryOp) Type() OpType {
@@ -658,6 +685,8 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.All{}}
 	case BinaryAny:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Any{}}
+	case BinaryGet:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Get{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -719,6 +748,8 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryAll, nil
 	case datalog.BinaryAny:
 		return BinaryAny, nil
+	case datalog.BinaryGet:
+		return BinaryGet, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}
@@ -829,8 +860,11 @@ const (
 	TermTypeBytes
 	TermTypeBool
 	TermTypeSet
-	// TermTypeNull is datalog v3.3; using it makes the block version 6.
+	// TermTypeNull, TermTypeArray and TermTypeMap are datalog v3.3; using
+	// them makes the block version 6.
 	TermTypeNull
+	TermTypeArray
+	TermTypeMap
 )
 
 type Term interface {
@@ -916,6 +950,51 @@ func (a Set) String() string {
 	}
 	sort.Strings(elts)
 	return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
+}
+
+// Array is an ordered sequence of terms of any type (datalog v3.3).
+type Array []Term
+
+func (a Array) Type() TermType { return TermTypeArray }
+func (a Array) convert(symbols *datalog.SymbolTable) datalog.Term {
+	array := make(datalog.Array, len(a))
+	for i, e := range a {
+		array[i] = e.convert(symbols)
+	}
+	return array
+}
+func (a Array) String() string {
+	elts := make([]string, len(a))
+	for i, e := range a {
+		elts[i] = e.String()
+	}
+	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+}
+
+// MapEntry is one key/value pair of a Map; the key is an Integer or a String.
+type MapEntry struct {
+	Key   Term
+	Value Term
+}
+
+// Map associates Integer or String keys with terms of any type (datalog
+// v3.3). Entry order does not matter; a key given twice keeps its last value.
+type Map []MapEntry
+
+func (m Map) Type() TermType { return TermTypeMap }
+func (m Map) convert(symbols *datalog.SymbolTable) datalog.Term {
+	entries := make([]datalog.MapEntry, len(m))
+	for i, e := range m {
+		entries[i] = datalog.MapEntry{Key: e.Key.convert(symbols), Value: e.Value.convert(symbols)}
+	}
+	return datalog.NewMap(entries...)
+}
+func (m Map) String() string {
+	entries := make([]string, len(m))
+	for i, e := range m {
+		entries[i] = fmt.Sprintf("%s: %s", e.Key, e.Value)
+	}
+	return fmt.Sprintf("{%s}", strings.Join(entries, ", "))
 }
 
 type PolicyKind byte

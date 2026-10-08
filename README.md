@@ -13,8 +13,8 @@ biscuit-go is an implementation of [Biscuit](https://github.com/eclipse-biscuit/
 
 This library currently accepts datalog `v3.0` to `v3.3` blocks (block versions `3` to `6`, see
 `MaxSchemaVersion`). Of datalog `v3.3`, `reject if`, the heterogeneous `==` and `!=`, `null`,
-the lazy `&&` and `||` and the `.all()` / `.any()` closures are supported; blocks using arrays and
-maps, `.type()`, `.try_or()` or foreign functions are rejected. Support for them is landing
+the lazy `&&` and `||`, the `.all()` / `.any()` closures, arrays and maps are supported; blocks
+using `.type()`, `.try_or()` or foreign functions are rejected. Support for them is landing
 incrementally.
 
 The [specification sample suite](./samples) runs in CI: samples using block versions above
@@ -68,7 +68,7 @@ if err != nil {
 // Attenuate the biscuit by appending a new block to it
 blockBuilder := b.CreateBlock()
 block, err := parser.FromStringBlockWithParams(`
-		check if resource($file), operation($permission), [{read}].contains($permission);`,
+		check if resource($file), operation($permission), {{read}}.contains($permission);`,
 	map[string]biscuit.Term{"read": biscuit.String("read")})
 if err != nil {
 	panic(fmt.Errorf("failed to parse block: %v", err))

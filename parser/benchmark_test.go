@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	benchFact  = `right("/a/file1.txt", "read", ["read", "/a/file2.txt"])`
+	benchFact  = `right("/a/file1.txt", "read", {"read", "/a/file2.txt"})`
 	benchRule  = `grandparent($a, $c) <- parent($a, $b), parent($b, $c), $a.starts_with("x") || $c == "y"`
 	benchCheck = `check if resource($0), operation("read"), right($0, "read"), $0.length() < 100 or admin(true)`
 	benchBlock = `// a block

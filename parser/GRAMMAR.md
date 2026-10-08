@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Term
 
-Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, null, or set.
+Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, null, set, array, or map.
 
 - parameter is delimited by curly brackets: `{param}`. Those are replaced by actual values before evaluation.
 - variable is prefixed with a `$` sign followed by a string or an unsigned 32bit base-10 integer,  e.g. `$0` or `$variable1`
@@ -14,7 +14,9 @@ Represents a Datalog type, can be one of: parameter, variable, integer, string, 
 - bytes is an hexadecimal encoded string, prefixed with a `hex:` sequence
 - boolean is either `true` or `false`
 - null is the absence of a value, written `null` (datalog v3.3); `$x == null` tests for it
-- set is a sequence of any of the above types, except variable, between braces, e.g. `{"file1", "file2"}`; the empty set is `{,}` (sets cannot be nested). The older `["file1", "file2"]` form is still accepted.
+- set is a sequence of any of the above types, except variable, between braces, e.g. `{"file1", "file2"}`; the empty set is `{,}` (sets cannot be nested)
+- array is an ordered sequence of terms of any type, except variable, between brackets, e.g. `[1, "a", [2]]` (datalog v3.3); the empty array is `[]`
+- map associates integer or string keys with terms of any type, except variable, e.g. `{"a": 1, 2: "b"}` (datalog v3.3); the empty map is `{}`
 
 ## Predicate
 
@@ -75,6 +77,22 @@ Integer literals are signed 64-bit; an operation that overflows is an execution 
 - Length: `$set.length()`
 - All / Any (datalog v3.3): `$set.all($p -> $p > 0)`, `$set.any($p -> $p > 2)`. The closure parameter
   may not have the name of a variable already bound in the rule.
+
+### Array (datalog v3.3)
+
+- Equal: `$array == [1, 2]`
+- Contains: `$array.contains(1)`
+- Prefix / Suffix: `$array.starts_with([1])`, `$array.ends_with([2])`
+- Get: `$array.get(0)`, `null` when the index is out of range
+- Length, All, Any: as for sets
+
+### Map (datalog v3.3)
+
+- Equal: `$map == {"a": 1}`
+- Contains (key membership): `$map.contains("a")`
+- Get: `$map.get("a")`, `null` when the key is absent
+- Length: `$map.length()`
+- All / Any: the closure receives each entry as a `[key, value]` array, e.g. `$map.all($kv -> $kv.get(1) > 0)`
 
 ### Operators precedence
 

@@ -86,7 +86,7 @@ func Attenuate(serializedToken []byte, root *ed25519.PublicKey) ([]byte, error) 
 
 	blockBuilder := token.CreateBlock()
 
-	check, err := parser.FromStringCheck(`check if resource($file), operation($permission), ["read"].contains($permission)`)
+	check, err := parser.FromStringCheck(`check if resource($file), operation($permission), {"read"}.contains($permission)`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse check: %v", err)
 	}

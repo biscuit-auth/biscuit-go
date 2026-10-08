@@ -99,6 +99,47 @@ func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
 		pbId = &pb.TermV2{
 			Content: &pb.TermV2_Null{Null: &pb.Empty{}},
 		}
+	case datalog.TermTypeArray:
+		array := input.(datalog.Array)
+		protoArray := make([]*pb.TermV2, len(array))
+		for i, elt := range array {
+			if elt.Type() == datalog.TermTypeVariable {
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: array cannot contain variables")
+			}
+			protoElt, err := tokenIDToProtoIDV2(elt)
+			if err != nil {
+				return nil, err
+			}
+			protoArray[i] = protoElt
+		}
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Array{Array: &pb.Array{Array: protoArray}},
+		}
+	case datalog.TermTypeMap:
+		m := input.(datalog.Map)
+		entries := make([]*pb.MapEntry, len(m))
+		for i, e := range m {
+			key := &pb.MapKey{}
+			switch k := e.Key.(type) {
+			case datalog.Integer:
+				key.Content = &pb.MapKey_Integer{Integer: int64(k)}
+			case datalog.String:
+				key.Content = &pb.MapKey_String_{String_: uint64(k)}
+			default:
+				return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: map key must be an integer or a string, got %T", e.Key)
+			}
+			if e.Value.Type() == datalog.TermTypeVariable {
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: map cannot contain variables")
+			}
+			value, err := tokenIDToProtoIDV2(e.Value)
+			if err != nil {
+				return nil, err
+			}
+			entries[i] = &pb.MapEntry{Key: key, Value: value}
+		}
+		pbId = &pb.TermV2{
+			Content: &pb.TermV2_Map{Map: &pb.Map{Entries: entries}},
+		}
 	case datalog.TermTypeSet:
 		datalogSet := input.(datalog.Set)
 		protoSet := make([]*pb.TermV2, 0, len(datalogSet))
@@ -179,6 +220,43 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 			datalogSet = append(datalogSet, *datalogElt)
 		}
 		id = datalogSet
+	case *pb.TermV2_Array:
+		elts := input.GetArray().GetArray()
+		array := make(datalog.Array, len(elts))
+		for i, protoElt := range elts {
+			if _, isVar := protoElt.GetContent().(*pb.TermV2_Variable); isVar {
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: array cannot contain variables")
+			}
+			elt, err := protoIDToTokenIDV2(protoElt)
+			if err != nil {
+				return nil, err
+			}
+			array[i] = *elt
+		}
+		id = array
+	case *pb.TermV2_Map:
+		pbEntries := input.GetMap().GetEntries()
+		entries := make([]datalog.MapEntry, len(pbEntries))
+		for i, e := range pbEntries {
+			var key datalog.Term
+			switch k := e.GetKey().GetContent().(type) {
+			case *pb.MapKey_Integer:
+				key = datalog.Integer(k.Integer)
+			case *pb.MapKey_String_:
+				key = datalog.String(k.String_)
+			default:
+				return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported map key: %T", e.GetKey().GetContent())
+			}
+			if _, isVar := e.GetValue().GetContent().(*pb.TermV2_Variable); isVar {
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: map cannot contain variables")
+			}
+			value, err := protoIDToTokenIDV2(e.GetValue())
+			if err != nil {
+				return nil, err
+			}
+			entries[i] = datalog.MapEntry{Key: key, Value: *value}
+		}
+		id = datalog.NewMap(entries...)
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id type: %T", input.Content)
 	}
@@ -430,6 +508,8 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_All
 	case datalog.BinaryAny:
 		pbBinaryKind = pb.OpBinary_Any
+	case datalog.BinaryGet:
+		pbBinaryKind = pb.OpBinary_Get
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -493,6 +573,8 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.All{}
 	case pb.OpBinary_Any:
 		binaryOp = datalog.Any{}
+	case pb.OpBinary_Get:
+		binaryOp = datalog.Get{}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}
