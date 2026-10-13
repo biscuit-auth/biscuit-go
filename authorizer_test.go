@@ -6,10 +6,36 @@ package biscuit
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"testing"
 
+	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAuthorizerAppliesOptions(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	if err := builder.AddAuthorityFact(Fact{Predicate{Name: "right", IDs: []Term{String("read")}}}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A limit of one fact is reached by the single authority fact, so Authorize
+	// only fails if the option reached the authorizer's world.
+	v, err := b.Authorizer(publicRoot, WithWorldOptions(datalog.WithMaxFacts(1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.AddPolicy(DefaultAllowPolicy)
+	if err := v.Authorize(); !errors.Is(err, datalog.ErrWorldRunLimitMaxFacts) {
+		t.Fatalf("Authorize() = %v, want %v", err, datalog.ErrWorldRunLimitMaxFacts)
+	}
+}
 
 func TestVerifierDefaultPolicy(t *testing.T) {
 	rng := rand.Reader
