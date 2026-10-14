@@ -378,6 +378,10 @@ func (w *World) Rules() []Rule {
 func (w *World) Run(syms *SymbolTable) error {
 	deadline := time.Now().Add(w.runLimits.maxDuration)
 	for i := 0; i < w.runLimits.maxIterations; i++ {
+		// Checked here as well so the limit applies to a world without rules.
+		if time.Now().After(deadline) {
+			return ErrWorldRunLimitTimeout
+		}
 		var newFacts FactSet
 		for _, r := range w.rules {
 			if time.Now().After(deadline) {

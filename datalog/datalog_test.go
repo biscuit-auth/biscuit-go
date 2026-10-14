@@ -6,6 +6,7 @@ package datalog
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -666,6 +667,18 @@ func TestWorldRunLimits(t *testing.T) {
 
 		w.AddRule(r1)
 		require.Equal(t, tc.expectedErr, w.Run(syms))
+	}
+}
+
+func TestWorldRunTimeoutWithoutRules(t *testing.T) {
+	syms := &SymbolTable{}
+	p := syms.Insert("p")
+
+	w := NewWorld(WithMaxDuration(0))
+	w.AddFact(Fact{Predicate{p, []Term{Integer(1)}}})
+
+	if err := w.Run(syms); !errors.Is(err, ErrWorldRunLimitTimeout) {
+		t.Fatalf("Run() = %v, want %v", err, ErrWorldRunLimitTimeout)
 	}
 }
 
