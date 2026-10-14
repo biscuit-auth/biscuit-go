@@ -443,7 +443,7 @@ func (b *Biscuit) AuthorizerFor(keySource PublickKeyByIDProjection, opts ...Auth
 // Authorizer checks the signature and creates an [Authorizer]. The Authorizer can then test the
 // authorizaion policies and accept or refuse the request.
 func (b *Biscuit) Authorizer(root ed25519.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
-	return b.authorizerFor(root)
+	return b.authorizerFor(root, opts...)
 }
 
 func (b *Biscuit) Checks() [][]datalog.Check {
