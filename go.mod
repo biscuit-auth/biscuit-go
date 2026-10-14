@@ -10,3 +10,6 @@ require (
 )
 
 require go.yaml.in/yaml/v3 v3.0.5 // indirect
+
+// Biscuit.Authorizer silently ignores its options, see ./CHANGELOG.md
+retract v2.2.1

@@ -1,3 +1,9 @@
+# `v2.2.2`
+
+- Fix `Biscuit.Authorizer` silently dropping the options passed to it (#192) (Antonio Ojea)
+- Fix the `datalog` world timeout not applying to a world without rules (#193) (Antonio Ojea)
+- Retract `v2.2.1` from go modules because of the `Biscuit.Authorizer` options bug (Antonio Ojea)
+
 # `v2.2.1`
 
 - Change the repository organisation to `eclipse-biscuit` (#175) (Korbik)
