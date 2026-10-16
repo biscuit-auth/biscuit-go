@@ -5,6 +5,9 @@ linters:
     # TODO: many builder/authorizer call sites drop returned errors; enable
     # once they are fixed.
     - errcheck
+  enable:
+    # could be replaced by revive, but it raises too many warnings at the moment
+    - predeclared
   settings:
     govet:
       disable:

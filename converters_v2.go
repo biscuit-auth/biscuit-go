@@ -225,8 +225,8 @@ func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
 
 func protoRuleToTokenRuleV2(input *pb.RuleV2) (*datalog.Rule, error) {
 	body := make([]datalog.Predicate, len(input.Body))
-	for i, pb := range input.Body {
-		b, err := protoPredicateToTokenPredicateV2(pb)
+	for i, predicateV2 := range input.Body {
+		b, err := protoPredicateToTokenPredicateV2(predicateV2)
 		if err != nil {
 			return nil, err
 		}
