@@ -549,7 +549,7 @@ func TestGetBlockID(t *testing.T) {
 	builder := NewBuilder(privateRoot)
 
 	// add 3 facts authority_0_fact_{0,1,2} in authority block
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(t, builder.AddAuthorityFact(Fact{Predicate: Predicate{
 			Name: fmt.Sprintf("authority_0_fact_%d", i),
 			IDs:  []Term{Integer(i)},
@@ -559,9 +559,9 @@ func TestGetBlockID(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 	// add 2 extra blocks each containing 3 facts block_{0,1}_fact_{0,1,2}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		blockBuilder := b.CreateBlock()
-		for j := 0; j < 3; j++ {
+		for j := range 3 {
 			blockBuilder.AddFact(Fact{Predicate: Predicate{
 				Name: fmt.Sprintf("block_%d_fact_%d", i, j),
 				IDs:  []Term{String("block"), Integer(i), Integer(j)},
