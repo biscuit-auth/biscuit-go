@@ -396,8 +396,8 @@ func TestSymbolTable(t *testing.T) {
 
 	require.Equal(t, len(*s2)+len(*s3), s1.Len())
 
-	new := s1.SplitOff(len(*s2))
-	require.Equal(t, s3, new)
+	symbolTable := s1.SplitOff(len(*s2))
+	require.Equal(t, s3, symbolTable)
 	require.Equal(t, s2, s1)
 }
 
