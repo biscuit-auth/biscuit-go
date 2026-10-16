@@ -95,7 +95,7 @@ func BenchmarkWorldQueryRule(b *testing.B) {
 			read := syms.Insert("read")
 
 			w := benchWorld()
-			for i := 0; i < n; i++ {
+			for i := range n {
 				w.AddFact(Fact{Predicate{right, []Term{syms.Insert(fmt.Sprintf("/file%d", i)), read}}})
 			}
 			w.AddFact(Fact{Predicate{resource, []Term{syms.Insert(fmt.Sprintf("/file%d", n-1))}}})
@@ -125,7 +125,7 @@ func BenchmarkSetEqual(b *testing.B) {
 	const n = 10
 	strs := make(Set, n)
 	byts := make(Set, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		strs[i] = String(i)
 		byts[i] = Bytes{byte(i), byte(i >> 8)}
 	}

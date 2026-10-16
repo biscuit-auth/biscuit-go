@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -522,10 +523,8 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 		return Bool(true), nil
 	}
 
-	for _, elt := range set {
-		if right.Equal(elt) {
-			return Bool(true), nil
-		}
+	if slices.ContainsFunc(set, right.Equal) {
+		return Bool(true), nil
 	}
 
 	return Bool(false), nil

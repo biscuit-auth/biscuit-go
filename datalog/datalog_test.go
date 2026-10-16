@@ -698,7 +698,7 @@ func TestApplyInvalidRuleNoGoroutineLeak(t *testing.T) {
 		{Predicate{q, []Term{Integer(2)}}},
 	}
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		err := r.Apply(facts, &FactSet{}, syms)
 		require.IsType(t, InvalidRuleError{}, err)
 	}
@@ -714,7 +714,7 @@ func TestWorldRunTimeoutMidRun(t *testing.T) {
 		WithMaxFacts(1<<20),
 		WithMaxIterations(1<<20),
 	)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		w.AddFact(Fact{Predicate{edge, []Term{Integer(i), Integer(i + 1)}}})
 	}
 	w.AddRule(Rule{

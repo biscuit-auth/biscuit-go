@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -477,9 +478,7 @@ func (m MatchedVariables) Complete() map[Variable]*Term {
 
 func (m MatchedVariables) Clone() MatchedVariables {
 	res := make(MatchedVariables, len(m))
-	for k, v := range m {
-		res[k] = v
-	}
+	maps.Copy(res, m)
 	return res
 }
 

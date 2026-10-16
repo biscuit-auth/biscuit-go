@@ -14,7 +14,7 @@ import (
 
 type testCase struct {
 	Input         string
-	Expected      interface{}
+	Expected      any
 	ExpectFailure bool
 	ExpectErr     error
 }

@@ -162,9 +162,9 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 
 		expectedEltType := reflect.TypeOf(elts[0].GetContent())
 		switch expectedEltType {
-		case reflect.TypeOf(&pb.TermV2_Variable{}):
+		case reflect.TypeFor[*pb.TermV2_Variable]():
 			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
-		case reflect.TypeOf(&pb.TermV2_Set{}):
+		case reflect.TypeFor[*pb.TermV2_Set]():
 			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
 		}
 
