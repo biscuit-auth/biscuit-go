@@ -1,2 +1,4 @@
 build
 .gobincache
+/go.work
+/go.work.sum
