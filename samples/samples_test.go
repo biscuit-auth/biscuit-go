@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"testing"
@@ -51,11 +52,15 @@ type BiscuitError struct {
 				Allow int `json:"Allow"`
 			} `json:"policy"`
 			Checks []struct {
-				Block struct {
+				Block *struct {
 					BlockID int    `json:"block_id"`
 					CheckID int    `json:"check_id"`
 					Rule    string `json:"rule"`
 				} `json:"Block"`
+				Authorizer *struct {
+					CheckID int    `json:"check_id"`
+					Rule    string `json:"rule"`
+				} `json:"Authorizer"`
 			} `json:"checks"`
 		} `json:"Unauthorized"`
 		InvalidBlockRule []any `json:"InvalidBlockRule"`
@@ -64,47 +69,64 @@ type BiscuitError struct {
 		Signature *struct {
 			InvalidSignature string `json:"InvalidSignature"`
 		} `json:"Signature"`
+		BlockSignatureDeserializationError *string `json:"BlockSignatureDeserializationError"`
 	} `json:"Format"`
+	Execution *string `json:"Execution"`
 }
 
+// authorizerOrigin is the origin the spec assigns to authorizer rules and checks (usize::MAX).
+const authorizerOrigin = math.MaxUint64
+
 type World struct {
-	Facts    []ScopedFact `json:"facts"`
-	Rules    []ScopedRule `json:"rules"`
-	Checks   []any        `json:"checks"`
+	Facts    []FactGroup  `json:"facts"`
+	Rules    []RuleGroup  `json:"rules"`
+	Checks   []CheckGroup `json:"checks"`
 	Policies []string     `json:"policies"`
 }
 
-type ScopedFact struct {
-	Facts []string   `json:"facts"`
-	Scope [](*int32) `json:"origin"`
+// FactGroup holds the facts derived from the same set of block origins;
+// a nil origin denotes the authorizer.
+type FactGroup struct {
+	Origin []*uint64 `json:"origin"`
+	Facts  []string  `json:"facts"`
 }
 
-type ScopedRule struct {
-	Rules []string `json:"rules"`
-	Scope *int32   `json:"origin"`
+type RuleGroup struct {
+	Origin *uint64  `json:"origin"`
+	Rules  []string `json:"rules"`
+}
+
+type CheckGroup struct {
+	Origin *uint64  `json:"origin"`
+	Checks []string `json:"checks"`
+}
+
+// isTrusted reports whether an origin is the authorizer or the authority block,
+// which is the part of the world the authorizer exposes through PrintWorld.
+func isTrusted(origin *uint64) bool {
+	return origin == nil || *origin == 0 || *origin == authorizerOrigin
 }
 
 func (w World) String() string {
 	facts := []string{}
-	for _, f := range w.Facts {
+	for _, group := range w.Facts {
 		visible := true
-		for _, s := range f.Scope {
-
-			if s != nil && *s != 0 {
+		for _, o := range group.Origin {
+			if !isTrusted(o) {
 				visible = false
 				break
 			}
 		}
-
 		if visible {
-			facts = append(facts, f.Facts...)
+			facts = append(facts, group.Facts...)
 		}
 	}
 	sort.Strings(facts)
+
 	rules := []string{}
-	for _, r := range w.Rules {
-		if r.Scope == nil || *r.Scope == 0 {
-			rules = append(rules, r.Rules...)
+	for _, group := range w.Rules {
+		if isTrusted(group.Origin) {
+			rules = append(rules, group.Rules...)
 		}
 	}
 	sort.Strings(rules)
@@ -113,27 +135,49 @@ func (w World) String() string {
 }
 
 type Validation struct {
-	World          World    `json:"world"`
+	World          *World   `json:"world"`
 	Result         Result   `json:"result"`
 	AuthorizerCode string   `json:"authorizer_code"`
 	RevocationIds  []string `json:"revocation_ids"`
 }
 
-func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
-	// all these use features from v3.1+, which are not supported yet
-	if c.Filename == "test013_block_rules.bc" ||
-		c.Filename == "test017_expressions.bc" ||
-		c.Filename == "test036_secp256r1.bc" {
-		t.SkipNow()
-	}
+// Support for newer datalog versions lands incrementally. Samples are gated
+// on the block version they exercise: bumping biscuit.MaxSchemaVersion enables
+// the matching samples here with no other change.
+//
+// unsupported lists the samples inside the supported version range that
+// cannot pass yet; each entry is removed by the change that closes the gap.
+var unsupported = map[string]string{
+	"test013_block_rules.bc": "set literal syntax {…}",
+	"test017_expressions.bc": "set literal syntax {…} incl. empty set, strict equality ===",
+	"test036_secp256r1.bc":   "secp256r1 signatures",
+}
+
+func maxBlockVersion(c TestCase) uint32 {
+	var v uint32
 	for _, b := range c.Token {
-		if b.Version > biscuit.MaxSchemaVersion {
-			t.SkipNow()
+		if b.Version > v {
+			v = b.Version
 		}
 	}
+	return v
+}
+
+func CheckSample(root_key ed25519.PublicKey, c TestCase, t *testing.T) {
 	fmt.Printf("Checking sample %s\n", c.Filename)
 	b, err := os.ReadFile("./data/current/" + c.Filename)
 	require.NoError(t, err)
+
+	if v := maxBlockVersion(c); v > biscuit.MaxSchemaVersion {
+		// The spec requires refusing blocks newer than the supported range.
+		_, err := biscuit.Unmarshal(b)
+		require.Error(t, err)
+		t.Skipf("block version %d > MaxSchemaVersion %d", v, biscuit.MaxSchemaVersion)
+	}
+	if reason, ok := unsupported[c.Filename]; ok {
+		t.Skipf("unsupported: %s", reason)
+	}
+
 	token, err := biscuit.Unmarshal(b)
 
 	if err == nil {
@@ -199,7 +243,10 @@ func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Bi
 		} else {
 			require.NotNil(t, v.Result.Ok)
 		}
-		require.Equal(t, v.World.String(), authorizer.PrintWorld())
+		// The world is null when the reference implementation rejected the token outright.
+		if v.World != nil {
+			require.Equal(t, v.World.String(), authorizer.PrintWorld())
+		}
 	}
 }
 
