@@ -81,7 +81,7 @@ func TestThirdPartyBlock(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, deser.Code()[0], `group("admin")`)
 
-			ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+			ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
 			require.NoError(t, err)
 			ab.AddPolicy(DefaultAllowPolicy)
 			require.NoError(t, ab.Authorize())
@@ -89,14 +89,14 @@ func TestThirdPartyBlock(t *testing.T) {
 
 			// A policy trusting the key sees the third-party fact; without it, not.
 			query := Rule{Head: Predicate{Name: "query"}, Body: []Predicate{{Name: "group", IDs: []Term{String("admin")}}}}
-			ab, err = deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+			ab, err = deser.AuthorizerFrom(RootKey(publicRoot))
 			require.NoError(t, err)
 			ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: []Rule{query}})
 			require.ErrorIs(t, ab.Authorize(), ErrNoMatchingPolicy)
 
 			trusted := query
 			trusted.Scopes = []Scope{trust}
-			ab, err = deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+			ab, err = deser.AuthorizerFrom(RootKey(publicRoot))
 			require.NoError(t, err)
 			ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: []Rule{trusted}})
 			require.NoError(t, ab.Authorize())
@@ -187,7 +187,7 @@ func TestThirdPartyBlockIsolatedTables(t *testing.T) {
 	require.Equal(t, []datalog.PublicKey{trust1.PublicKey}, deser.blocks[1].publicKeys)
 	require.Equal(t, []datalog.PublicKey{trust1.PublicKey, trust2.PublicKey}, deser.blocks[2].publicKeys)
 
-	ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, ab.Authorize())

@@ -41,23 +41,23 @@ func TestBiscuitSecp256r1(t *testing.T) {
 
 	b2deser, err := Unmarshal(mustSerialize(t, b2))
 	require.NoError(t, err)
-	_, err = b2deser.AuthorizerFor(WithSingularRootPublicKey(&privateRoot.PublicKey))
+	_, err = b2deser.AuthorizerFrom(RootKey(&privateRoot.PublicKey))
 	require.NoError(t, err)
 
 	sealed, err := b2deser.Seal(rand.Reader)
 	require.NoError(t, err)
 	sealedDeser, err := Unmarshal(mustSerialize(t, sealed))
 	require.NoError(t, err)
-	_, err = sealedDeser.AuthorizerFor(WithSingularRootPublicKey(&privateRoot.PublicKey))
+	_, err = sealedDeser.AuthorizerFrom(RootKey(&privateRoot.PublicKey))
 	require.NoError(t, err)
 
 	otherRoot, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	_, err = b2deser.Authorizer(&otherRoot.PublicKey)
+	_, err = b2deser.AuthorizerFrom(RootKey(&otherRoot.PublicKey))
 	require.ErrorIs(t, err, ErrInvalidSignature)
 
 	edPub, _, _ := ed25519.GenerateKey(rand.Reader)
-	_, err = b2deser.Authorizer(edPub)
+	_, err = b2deser.AuthorizerFrom(RootKey(edPub))
 	require.ErrorIs(t, err, ErrInvalidSignature)
 }
 
@@ -89,7 +89,7 @@ func TestBiscuitV1PreviousSignatureBinding(t *testing.T) {
 	b2, err := b1.Append(rand.Reader, b1.CreateBlock().Build())
 	require.NoError(t, err)
 
-	_, err = b2.Authorizer(&privateRoot.PublicKey)
+	_, err = b2.AuthorizerFrom(RootKey(&privateRoot.PublicKey))
 	require.NoError(t, err)
 
 	// Re-sign the authority with the root key over the same content: the
@@ -102,7 +102,7 @@ func TestBiscuitV1PreviousSignatureBinding(t *testing.T) {
 	require.NotEqual(t, authority.Signature, resigned)
 	authority.Signature = resigned
 
-	_, err = b2.Authorizer(&privateRoot.PublicKey)
+	_, err = b2.AuthorizerFrom(RootKey(&privateRoot.PublicKey))
 	require.ErrorIs(t, err, ErrInvalidSignature)
 }
 

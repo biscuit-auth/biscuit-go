@@ -20,6 +20,12 @@ The [specification sample suite](./samples) runs in CI: samples using block vers
 `MaxSchemaVersion` are verified to be rejected and otherwise skipped, so they become active as
 support for each version lands.
 
+Tokens may be signed with Ed25519 or ECDSA on P-256 (`secp256r1`). `Biscuit.AuthorizerFrom`
+takes a `RootKeyProvider` (`RootKey`, `RootKeysByID`, or your own function) for either key type;
+`Biscuit.Authorizer` and `Biscuit.AuthorizerFor` still work with Ed25519 keys and are marked
+deprecated. The `datalog.World` methods take the origin of each fact and the origins each rule
+trusts, as in biscuit-rust.
+
 ## Usage
 
 #### Create a biscuit
@@ -128,7 +134,7 @@ if err != nil {
     panic(fmt.Errorf("failed to deserialize token: %v", err))
 }
 
-authorizer, err := b.Authorizer(publicRoot)
+authorizer, err := b.AuthorizerFrom(biscuit.RootKey(publicRoot))
 if err != nil {
     panic(fmt.Errorf("failed to verify token and create authorizer: %v", err))
 }

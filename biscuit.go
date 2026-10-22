@@ -419,20 +419,58 @@ func (b *Biscuit) Seal(rng io.Reader) (*Biscuit, error) {
 }
 
 type (
+	// A RootKeyProvider selects the root public key to verify the signatures of a biscuit with,
+	// from the root key ID embedded in the biscuit when it was created, if any. The key is an
+	// ed25519.PublicKey or an *ecdsa.PublicKey on the P-256 curve. If the provider doesn't
+	// recognize the ID or can't find the public key, or no ID is supplied and there is no default
+	// public key available, it should return an error satisfying
+	// errors.Is(err, ErrNoPublicKeyAvailable).
+	RootKeyProvider func(keyID *uint32) (stdcrypto.PublicKey, error)
+
 	// A PublickKeyByIDProjection inspects an optional ID for a public key and returns the
 	// corresponding public key, if any. If it doesn't recognize the ID or can't find the public
 	// key, or no ID is supplied and there is no default public key available, it should return an
 	// error satisfying errors.Is(err, ErrNoPublicKeyAvailable).
 	//
-	// The key is an ed25519.PublicKey or an *ecdsa.PublicKey on the P-256 curve.
-	PublickKeyByIDProjection func(*uint32) (stdcrypto.PublicKey, error)
+	// Deprecated: use [RootKeyProvider], which supports every key algorithm of the specification.
+	PublickKeyByIDProjection func(*uint32) (ed25519.PublicKey, error)
 )
 
-// WithSingularRootPublicKey supplies one public key to use as the root key with which to verify the
-// signatures on a biscuit's blocks. The key is an ed25519.PublicKey or an *ecdsa.PublicKey on the
-// P-256 curve.
-func WithSingularRootPublicKey(key stdcrypto.PublicKey) PublickKeyByIDProjection {
+// RootKey supplies one public key to use as the root key with which to verify the signatures on a
+// biscuit's blocks, whatever root key ID the biscuit carries. The key is an ed25519.PublicKey or
+// an *ecdsa.PublicKey on the P-256 curve.
+func RootKey(key stdcrypto.PublicKey) RootKeyProvider {
 	return func(*uint32) (stdcrypto.PublicKey, error) {
+		return key, nil
+	}
+}
+
+// RootKeysByID supplies a mapping to public keys from their corresponding IDs, used to select
+// which public key to use to verify the signatures on a biscuit's blocks based on the key ID
+// embedded within the biscuit when it was created. If the biscuit has no key ID available, this
+// function selects defaultKey instead, when it is not nil. If no public key is available—whether
+// for the biscuit's embedded key ID or a default key when no such ID is present—it returns
+// [ErrNoPublicKeyAvailable]. The keys are ed25519.PublicKey or *ecdsa.PublicKey on the P-256
+// curve.
+func RootKeysByID(keysByID map[uint32]stdcrypto.PublicKey, defaultKey stdcrypto.PublicKey) RootKeyProvider {
+	return func(id *uint32) (stdcrypto.PublicKey, error) {
+		if id == nil {
+			if defaultKey != nil {
+				return defaultKey, nil
+			}
+		} else if key, ok := keysByID[*id]; ok {
+			return key, nil
+		}
+		return nil, ErrNoPublicKeyAvailable
+	}
+}
+
+// WithSingularRootPublicKey supplies one public key to use as the root key with which to verify the
+// signatures on a biscuit's blocks.
+//
+// Deprecated: use [RootKey], which also accepts *ecdsa.PublicKey.
+func WithSingularRootPublicKey(key ed25519.PublicKey) PublickKeyByIDProjection {
+	return func(*uint32) (ed25519.PublicKey, error) {
 		return key, nil
 	}
 }
@@ -443,8 +481,10 @@ func WithSingularRootPublicKey(key stdcrypto.PublicKey) PublickKeyByIDProjection
 // function selects the optional default key instead. If no public key is available—whether for the
 // biscuit's embedded key ID or a default key when no such ID is present—it returns
 // [ErrNoPublicKeyAvailable].
+//
+// Deprecated: use [RootKeysByID], which also accepts *ecdsa.PublicKey.
 func WithRootPublicKeys(keysByID map[uint32]ed25519.PublicKey, defaultKey *ed25519.PublicKey) PublickKeyByIDProjection {
-	return func(id *uint32) (stdcrypto.PublicKey, error) {
+	return func(id *uint32) (ed25519.PublicKey, error) {
 		if id == nil {
 			if defaultKey != nil {
 				return *defaultKey, nil
@@ -515,15 +555,16 @@ func (b *Biscuit) verifySignatures(root crypto.Verifier) error {
 	return nil
 }
 
-// AuthorizerFor selects from the supplied source a root public key to use to verify the signatures
-// on the biscuit's blocks, returning an error satisfying errors.Is(err, ErrNoPublicKeyAvailable) if
-// no such public key is available. If the signatures are valid, it creates an [Authorizer], which
-// can then test the authorization policies and accept or refuse the request.
-func (b *Biscuit) AuthorizerFor(keySource PublickKeyByIDProjection, opts ...AuthorizerOption) (Authorizer, error) {
-	if keySource == nil {
-		return nil, errors.New("root public key source must not be nil")
+// AuthorizerFrom selects from the supplied provider a root public key to use to verify the
+// signatures on the biscuit's blocks, returning an error satisfying
+// errors.Is(err, ErrNoPublicKeyAvailable) if no such public key is available. If the signatures
+// are valid, it creates an [Authorizer], which can then test the authorization policies and accept
+// or refuse the request.
+func (b *Biscuit) AuthorizerFrom(provider RootKeyProvider, opts ...AuthorizerOption) (Authorizer, error) {
+	if provider == nil {
+		return nil, errors.New("root public key provider must not be nil")
 	}
-	rootPublicKey, err := keySource(b.RootKeyID())
+	rootPublicKey, err := provider(b.RootKeyID())
 	if err != nil {
 		return nil, fmt.Errorf("choosing root public key: %w", err)
 	}
@@ -536,14 +577,35 @@ func (b *Biscuit) AuthorizerFor(keySource PublickKeyByIDProjection, opts ...Auth
 	return b.authorizerFor(rootPublicKey, opts...)
 }
 
-// TODO: Add "Deprecated" note to the "(*Biscuit).Authorizer" method, recommending use of
-// "(*Biscuit).AuthorizerFor" instead. Wait until after we release the module with the latter
-// available, per https://go.dev/wiki/Deprecated.
+// AuthorizerFor selects from the supplied source a root public key to use to verify the signatures
+// on the biscuit's blocks, returning an error satisfying errors.Is(err, ErrNoPublicKeyAvailable) if
+// no such public key is available. If the signatures are valid, it creates an [Authorizer], which
+// can then test the authorization policies and accept or refuse the request.
+//
+// Deprecated: use [Biscuit.AuthorizerFrom], which supports every key algorithm of the
+// specification.
+func (b *Biscuit) AuthorizerFor(keySource PublickKeyByIDProjection, opts ...AuthorizerOption) (Authorizer, error) {
+	if keySource == nil {
+		return nil, errors.New("root public key source must not be nil")
+	}
+	return b.AuthorizerFrom(func(id *uint32) (stdcrypto.PublicKey, error) {
+		key, err := keySource(id)
+		if err != nil {
+			return nil, err
+		}
+		if len(key) == 0 {
+			return nil, ErrNoPublicKeyAvailable
+		}
+		return key, nil
+	}, opts...)
+}
 
 // Authorizer checks the signature and creates an [Authorizer]. The Authorizer can then test the
-// authorizaion policies and accept or refuse the request. The root key is an ed25519.PublicKey or
-// an *ecdsa.PublicKey on the P-256 curve.
-func (b *Biscuit) Authorizer(root stdcrypto.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
+// authorizaion policies and accept or refuse the request.
+//
+// Deprecated: use [Biscuit.AuthorizerFrom] with [RootKey], which also accepts *ecdsa.PublicKey
+// and honors the root key ID through [RootKeysByID].
+func (b *Biscuit) Authorizer(root ed25519.PublicKey, opts ...AuthorizerOption) (Authorizer, error) {
 	return b.authorizerFor(root, opts...)
 }
 

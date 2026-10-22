@@ -81,7 +81,7 @@ func ExampleBiscuit() {
 		panic(fmt.Errorf("failed to deserialize token: %v", err))
 	}
 
-	v1, err := b2.Authorizer(publicRoot)
+	v1, err := b2.AuthorizerFrom(biscuit.RootKey(publicRoot))
 	if err != nil {
 		panic(fmt.Errorf("failed to create verifier: %v", err))
 	}
@@ -107,7 +107,7 @@ func ExampleBiscuit() {
 		fmt.Println("allowed to read /a/file1.txt")
 	}
 
-	v1, _ = b2.Authorizer(publicRoot)
+	v1, _ = b2.AuthorizerFrom(biscuit.RootKey(publicRoot))
 
 	authorizer, err = parser.FromStringAuthorizerWithParams(`
 		resource({res});

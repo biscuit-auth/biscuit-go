@@ -69,7 +69,7 @@ func TestScopesRoundTrip(t *testing.T) {
 	require.Contains(t, deser.String(), "trusting previous, "+trust1.PublicKey.String())
 	require.Contains(t, deser.Code()[0], "trusting authority;")
 
-	_, err = deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	_, err = deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 }
 
@@ -92,7 +92,7 @@ func TestScopesAuthorization(t *testing.T) {
 		require.NoError(t, block2.AddCheck(check))
 		b3, err := b2.Append(rand.Reader, block2.Build())
 		require.NoError(t, err)
-		ab, err := b3.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		ab, err := b3.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 		ab.AddPolicy(DefaultAllowPolicy)
 		return ab.Authorize()
@@ -125,7 +125,7 @@ func TestScopesAuthorization(t *testing.T) {
 	// reference implementation: later blocks are reached through the key of
 	// a third-party block only.
 	for _, q := range []Rule{query, previous} {
-		ab, err := b2.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		ab, err := b2.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 		ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: []Rule{q}})
 		require.ErrorIs(t, ab.Authorize(), ErrNoMatchingPolicy)

@@ -299,7 +299,7 @@ func CompareResult(root_key ed25519.PublicKey, filename string, token biscuit.Bi
 	p := parser.New()
 	authorizer_code, err := p.Authorizer(v.AuthorizerCode, nil)
 	require.NoError(t, err)
-	authorizer, err := token.Authorizer(root_key, biscuit.WithExternFuncs(sampleExternFuncs))
+	authorizer, err := token.AuthorizerFrom(biscuit.RootKey(root_key), biscuit.WithExternFuncs(sampleExternFuncs))
 
 	if err != nil {
 		CompareError(err, v.Result.Err, t)

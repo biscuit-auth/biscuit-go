@@ -52,7 +52,7 @@ func CreateToken(root *ed25519.PrivateKey) (*biscuit.Biscuit, error) {
 }
 
 func Authorize(token *biscuit.Biscuit, root *ed25519.PublicKey) error {
-	authorizer, err := token.Authorizer(*root)
+	authorizer, err := token.AuthorizerFrom(biscuit.RootKey(*root))
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %v", err)
 	}

@@ -4,6 +4,7 @@
 package biscuit
 
 import (
+	stdcrypto "crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
@@ -105,7 +106,7 @@ func TestBiscuit(t *testing.T) {
 	b3deser, err := Unmarshal(b3ser)
 	require.NoError(t, err)
 
-	v3, err := b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err := b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
@@ -113,14 +114,14 @@ func TestBiscuit(t *testing.T) {
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Authorize())
 
-	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err = b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Authorize())
 
-	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err = b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("write")}}})
@@ -181,7 +182,7 @@ func TestSealedBiscuit(t *testing.T) {
 	b2deser, err := Unmarshal(b2ser)
 	require.NoError(t, err)
 
-	_, err = b2deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	_, err = b2deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 }
 
@@ -315,7 +316,7 @@ func TestBiscuitCheckAll(t *testing.T) {
 	require.Contains(t, deser.String(), "check all operation($op), allowed_operations($allowed), $allowed.contains($op)")
 
 	authorize := func(ops ...string) error {
-		ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 		for _, op := range ops {
 			ab.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String(op)}}})
@@ -343,7 +344,7 @@ func TestAuthorizeExecutionError(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	ab, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err := b.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddPolicy(DefaultAllowPolicy)
 	err = ab.Authorize()
@@ -355,13 +356,13 @@ func TestAuthorizeExecutionError(t *testing.T) {
 	plain, err := NewBuilder(privateRoot).Build()
 	require.NoError(t, err)
 
-	ab, err = plain.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err = plain.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddCheck(overflow)
 	ab.AddPolicy(DefaultAllowPolicy)
 	require.ErrorIs(t, ab.Authorize(), ErrExecution)
 
-	ab, err = plain.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err = plain.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: overflow.Queries})
 	require.ErrorIs(t, ab.Authorize(), ErrExecution)
@@ -389,7 +390,7 @@ func TestBiscuitRejectIf(t *testing.T) {
 	require.Contains(t, deser.String(), "reject if test($t), $t")
 
 	authorize := func(value bool) error {
-		ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 		ab.AddFact(Fact{Predicate: Predicate{Name: "test", IDs: []Term{Bool(value)}}})
 		ab.AddPolicy(DefaultAllowPolicy)
@@ -420,7 +421,7 @@ func TestBiscuitNull(t *testing.T) {
 	require.Contains(t, deser.String(), "fact(null, 1)")
 	require.Contains(t, deser.String(), "check if fact(null, $v), $v != null")
 
-	ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, ab.Authorize())
@@ -488,7 +489,7 @@ func TestBiscuitBytesSetEquality(t *testing.T) {
 	deser, err := Unmarshal(ser)
 	require.NoError(t, err)
 
-	v, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v, err := deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v.Authorize())
@@ -496,7 +497,7 @@ func TestBiscuitBytesSetEquality(t *testing.T) {
 
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
 	for user, valid := range owners {
-		v, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		v, err := b.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
@@ -532,24 +533,56 @@ func TestCheckRootKey(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
 		rootKeyID: publicRoot,
 	}, nil))
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
 		rootKeyID + 1: publicRoot,
 	}, nil))
 	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
-		rootKeyID: nil,
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
+		rootKeyID: ed25519.PublicKey(nil),
 	}, nil))
 	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
+	_, err = b.AuthorizerFrom(nil)
+	require.Error(t, err)
+
 	publicNotRoot, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicNotRoot))
+	_, err = b.AuthorizerFrom(RootKey(publicNotRoot))
 	require.Equal(t, ErrInvalidSignature, err)
+
+	t.Run("deprecated", func(t *testing.T) {
+		_, err := b.Authorizer(publicRoot)
+		require.NoError(t, err)
+
+		_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		require.NoError(t, err)
+
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID: publicRoot,
+		}, nil))
+		require.NoError(t, err)
+
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID + 1: publicRoot,
+		}, nil))
+		require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
+
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID: nil,
+		}, nil))
+		require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
+
+		_, err = b.AuthorizerFor(nil)
+		require.Error(t, err)
+
+		_, err = b.Authorizer(publicNotRoot)
+		require.Equal(t, ErrInvalidSignature, err)
+	})
 }
 
 func TestAppendErrors(t *testing.T) {
@@ -608,11 +641,11 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	_, err = b.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	publicTest, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicTest))
+	_, err = b.AuthorizerFrom(RootKey(publicTest))
 	require.Error(t, err)
 }
 
@@ -765,7 +798,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(b.String())
 
-	verifier, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	verifier, err := b.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	verifier.AddFact(Fact{Predicate: Predicate{
@@ -812,13 +845,13 @@ func TestBiscuitExternFuncs(t *testing.T) {
 		},
 	}
 
-	ab, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot), WithExternFuncs(funcs))
+	ab, err := deser.AuthorizerFrom(RootKey(publicRoot), WithExternFuncs(funcs))
 	require.NoError(t, err)
 	ab.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, ab.Authorize())
 
 	// Without the functions the check fails with an execution error.
-	ab, err = deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	ab, err = deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	ab.AddPolicy(DefaultAllowPolicy)
 	err = ab.Authorize()
