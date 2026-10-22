@@ -52,7 +52,7 @@ func CreateToken(root *ed25519.PrivateKey) (*biscuit.Biscuit, error) {
 }
 
 func Authorize(token *biscuit.Biscuit, root *ed25519.PublicKey) error {
-	authorizer, err := token.Authorizer(*root)
+	authorizer, err := token.AuthorizerFrom(biscuit.RootKey(*root))
 	if err != nil {
 		return fmt.Errorf("failed to create verifier: %v", err)
 	}
@@ -86,7 +86,7 @@ func Attenuate(serializedToken []byte, root *ed25519.PublicKey) ([]byte, error) 
 
 	blockBuilder := token.CreateBlock()
 
-	check, err := parser.FromStringCheck(`check if resource($file), operation($permission), ["read"].contains($permission)`)
+	check, err := parser.FromStringCheck(`check if resource($file), operation($permission), {"read"}.contains($permission)`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse check: %v", err)
 	}

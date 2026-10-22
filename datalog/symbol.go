@@ -5,6 +5,7 @@ package datalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -173,18 +174,45 @@ type SymbolDebugger struct {
 	*SymbolTable
 }
 
+// Term prints a term, resolving strings and variables through the symbol
+// table, including inside sets.
+func (d SymbolDebugger) Term(t Term) string {
+	switch t := t.(type) {
+	case String:
+		return "\"" + d.Str(t) + "\""
+	case Variable:
+		return "$" + d.Var(t)
+	case Set:
+		if len(t) == 0 {
+			return "{,}"
+		}
+		elts := make([]string, len(t))
+		for i, e := range t {
+			elts[i] = d.Term(e)
+		}
+		sort.Strings(elts)
+		return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
+	case Array:
+		elts := make([]string, len(t))
+		for i, e := range t {
+			elts[i] = d.Term(e)
+		}
+		return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+	case Map:
+		entries := make([]string, len(t))
+		for i, e := range t {
+			entries[i] = fmt.Sprintf("%s: %s", d.Term(e.Key), d.Term(e.Value))
+		}
+		return fmt.Sprintf("{%s}", strings.Join(entries, ", "))
+	default:
+		return t.String()
+	}
+}
+
 func (d SymbolDebugger) Predicate(p Predicate) string {
 	strs := make([]string, len(p.Terms))
 	for i, id := range p.Terms {
-		var s string
-		if sym, ok := id.(String); ok {
-			s = "\"" + d.Str(sym) + "\""
-		} else if variable, ok := id.(Variable); ok {
-			s = "$" + d.Var(variable)
-		} else {
-			s = fmt.Sprintf("%v", id)
-		}
-		strs[i] = s
+		strs[i] = d.Term(id)
 	}
 	return fmt.Sprintf("%s(%s)", d.Str(p.Name), strings.Join(strs, ", "))
 }
@@ -205,7 +233,7 @@ func (d SymbolDebugger) Rule(r Rule) string {
 		expressionsStart = ", "
 	}
 
-	return fmt.Sprintf("%s <- %s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+	return fmt.Sprintf("%s <- %s%s%s%s", head, strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "), ScopesString(r.Scopes))
 }
 
 func (d SymbolDebugger) CheckQuery(r Rule) string {
@@ -223,7 +251,7 @@ func (d SymbolDebugger) CheckQuery(r Rule) string {
 		expressionsStart = ", "
 	}
 
-	return fmt.Sprintf("%s%s%s", strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "))
+	return fmt.Sprintf("%s%s%s%s", strings.Join(preds, ", "), expressionsStart, strings.Join(expressions, ", "), ScopesString(r.Scopes))
 }
 
 func (d SymbolDebugger) Expression(e Expression) string {
@@ -235,22 +263,67 @@ func (d SymbolDebugger) Check(c Check) string {
 	for i, q := range c.Queries {
 		queries[i] = d.CheckQuery(q)
 	}
-	return fmt.Sprintf("check if %s", strings.Join(queries, " or "))
+	kind := "check if"
+	switch c.Kind {
+	case CheckKindAll:
+		kind = "check all"
+	case CheckKindReject:
+		kind = "reject if"
+	}
+	return fmt.Sprintf("%s %s", kind, strings.Join(queries, " or "))
 }
 
+// World prints the facts grouped by origin and the rules by block, each
+// group sorted, in the layout of the reference implementation:
+//
+//	// origin: [0]
+//	fact(1);
+//	// origin: authorizer
+//	rule($a) <- fact($a);
 func (d SymbolDebugger) World(w *World) string {
-	facts := make([]string, len(*w.facts))
-	for i, f := range *w.facts {
-		facts[i] = d.Predicate(f.Predicate)
+	var b strings.Builder
+	if len(w.facts) > 0 {
+		b.WriteString("// Facts:\n")
 	}
-	rules := make([]string, len(w.rules))
-	for i, r := range w.rules {
-		rules[i] = d.Rule(r)
+	for _, of := range w.facts {
+		if len(of.facts) == 0 {
+			continue
+		}
+		facts := make([]string, len(of.facts))
+		for i, f := range of.facts {
+			facts[i] = d.Predicate(f.Predicate)
+		}
+		sort.Strings(facts)
+		fmt.Fprintf(&b, "// origin: %s\n", of.origin)
+		for _, f := range facts {
+			fmt.Fprintf(&b, "%s;\n", f)
+		}
 	}
 
-	sort.Strings(facts)
-	sort.Strings(rules)
-	return fmt.Sprintf("World {{\n\tfacts: %v\n\trules: %v\n}}", facts, rules)
+	rulesByBlock := map[BlockID][]string{}
+	for _, sr := range w.rules {
+		rulesByBlock[sr.blockID] = append(rulesByBlock[sr.blockID], d.Rule(sr.rule))
+	}
+	if len(rulesByBlock) > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("// Rules:\n")
+	}
+	blocks := make([]BlockID, 0, len(rulesByBlock))
+	for id := range rulesByBlock {
+		blocks = append(blocks, id)
+	}
+	slices.Sort(blocks)
+	for _, id := range blocks {
+		rules := rulesByBlock[id]
+		sort.Strings(rules)
+		fmt.Fprintf(&b, "// origin: %s\n", id)
+		for _, r := range rules {
+			fmt.Fprintf(&b, "%s;\n", r)
+		}
+	}
+	return b.String()
 }
 
 func (d SymbolDebugger) FactSet(s *FactSet) string {

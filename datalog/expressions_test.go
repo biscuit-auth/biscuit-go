@@ -428,6 +428,106 @@ func TestBinaryGreaterOrEqual(t *testing.T) {
 	}
 }
 
+func TestBinaryNotEqual(t *testing.T) {
+	require.Equal(t, BinaryNotEqual, NotEqual{}.Type())
+	syms := &SymbolTable{}
+
+	for _, tc := range []struct {
+		desc        string
+		left, right Term
+		res         Bool
+		expectedErr bool
+	}{
+		{desc: "different integers", left: Integer(1), right: Integer(3), res: true},
+		{desc: "same integers", left: Integer(3), right: Integer(3), res: false},
+		{desc: "different strings", left: syms.Insert("abcD12x"), right: syms.Insert("abcD12"), res: true},
+		{desc: "different bytes", left: Bytes{0x12, 0xab, 0xcd}, right: Bytes{0x12, 0xab}, res: true},
+		{desc: "different dates", left: Date(2), right: Date(1), res: true},
+		{desc: "different bools", left: Bool(true), right: Bool(false), res: true},
+		{desc: "different sets", left: Set{Integer(1), Integer(4)}, right: Set{Integer(1), Integer(2)}, res: true},
+		{desc: "same sets", left: Set{Integer(1), Integer(2)}, right: Set{Integer(2), Integer(1)}, res: false},
+		{desc: "type mismatch errors", left: Integer(1), right: syms.Insert("1"), expectedErr: true},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			expr := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{NotEqual{}}}
+			res, err := expr.Evaluate(nil, syms)
+			if tc.expectedErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.res, res)
+		})
+	}
+}
+
+// == and != compare across types since datalog v3.3: different types are
+// not equal, where === and !== are a type error.
+func TestBinaryHeterogeneousEqual(t *testing.T) {
+	syms := &SymbolTable{}
+	require.Equal(t, BinaryHeterogeneousEqual, HeterogeneousEqual{}.Type())
+	require.Equal(t, BinaryHeterogeneousNotEqual, HeterogeneousNotEqual{}.Type())
+
+	for _, tc := range []struct {
+		left, right Term
+		equal       bool
+	}{
+		{Integer(1), Integer(1), true},
+		{Integer(1), Integer(3), false},
+		{Integer(1), Bool(true), false},
+		{syms.Insert("abcD12x"), Bool(true), false},
+		{Bytes{0x12}, Bytes{0x12}, true},
+		{Set{Integer(1), Integer(4)}, Set{Integer(1), Integer(2)}, false},
+		{Set{Integer(1), Integer(4)}, Bool(true), false},
+	} {
+		eq := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{HeterogeneousEqual{}}}
+		res, err := eq.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, Bool(tc.equal), res, "%v == %v", tc.left, tc.right)
+
+		ne := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{HeterogeneousNotEqual{}}}
+		res, err = ne.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, Bool(!tc.equal), res, "%v != %v", tc.left, tc.right)
+	}
+
+	strict := Expression{Value{Integer(1)}, Value{Bool(true)}, BinaryOp{Equal{}}}
+	_, err := strict.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	printed := Expression{Value{Integer(1)}, Value{Bool(true)}, BinaryOp{HeterogeneousNotEqual{}}}
+	require.Equal(t, "1 != true", printed.Print(syms))
+}
+
+func TestBinaryBitwise(t *testing.T) {
+	syms := &SymbolTable{}
+	for _, tc := range []struct {
+		op          BinaryOpFunc
+		opType      BinaryOpType
+		left, right Term
+		res         Integer
+		printed     string
+	}{
+		{BitwiseAnd{}, BinaryBitwiseAnd, Integer(6), Integer(3), 2, "6 & 3"},
+		{BitwiseOr{}, BinaryBitwiseOr, Integer(1), Integer(2), 3, "1 | 2"},
+		{BitwiseXor{}, BinaryBitwiseXor, Integer(3), Integer(3), 0, "3 ^ 3"},
+		{BitwiseAnd{}, BinaryBitwiseAnd, Integer(-1), Integer(255), 255, "-1 & 255"},
+	} {
+		t.Run(tc.printed, func(t *testing.T) {
+			require.Equal(t, tc.opType, tc.op.Type())
+			expr := Expression{Value{tc.left}, Value{tc.right}, BinaryOp{tc.op}}
+			res, err := expr.Evaluate(nil, syms)
+			require.NoError(t, err)
+			require.Equal(t, tc.res, res)
+			require.Equal(t, tc.printed, expr.Print(syms))
+
+			mismatch := Expression{Value{tc.left}, Value{Bool(true)}, BinaryOp{tc.op}}
+			_, err = mismatch.Evaluate(nil, syms)
+			require.Error(t, err)
+		})
+	}
+}
+
 func TestBinaryEqual(t *testing.T) {
 	require.Equal(t, BinaryEqual, Equal{}.Type())
 	syms := &SymbolTable{}
@@ -1239,4 +1339,204 @@ func TestPrint(t *testing.T) {
 			require.Equal(t, tc.res, p)
 		})
 	}
+}
+
+// Closures: the right side of && and || is evaluated only when needed, and
+// .all() / .any() bind their parameter to each element of a set.
+func TestClosures(t *testing.T) {
+	syms := &SymbolTable{}
+	p := Variable(syms.Insert("p"))
+	q := Variable(syms.Insert("q"))
+	// A closure body that errors, to observe laziness.
+	errorBody := Expression{Value{syms.Insert("x")}, Value{syms.Insert("x")}, BinaryOp{Intersection{}}}
+	closure := func(params []Variable, body Expression) Closure { return Closure{Params: params, Body: body} }
+
+	for _, tc := range []struct {
+		desc    string
+		expr    Expression
+		want    Term
+		printed string
+	}{
+		{"and short-circuits", Expression{Value{Bool(false)}, closure(nil, errorBody), BinaryOp{LazyAnd{}}}, Bool(false), `false && "x".intersection("x")`},
+		{"and evaluates", Expression{Value{Bool(true)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{LazyAnd{}}}, Bool(true), "true && true"},
+		{"or short-circuits", Expression{Value{Bool(true)}, closure(nil, errorBody), BinaryOp{LazyOr{}}}, Bool(true), `true || "x".intersection("x")`},
+		{"or evaluates", Expression{Value{Bool(false)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{LazyOr{}}}, Bool(true), "false || true"},
+		{"all true", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(0)}, BinaryOp{GreaterThan{}}}), BinaryOp{All{}}}, Bool(true), "{1, 2, 3}.all($p -> $p > 0)"},
+		{"all false", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(2)}, BinaryOp{HeterogeneousEqual{}}}), BinaryOp{All{}}}, Bool(false), "{1, 2, 3}.all($p -> $p == 2)"},
+		{"any true", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(2)}, BinaryOp{GreaterThan{}}}), BinaryOp{Any{}}}, Bool(true), "{1, 2, 3}.any($p -> $p > 2)"},
+		{"any false", Expression{Value{Set{Integer(1), Integer(2), Integer(3)}}, closure([]Variable{p}, Expression{Value{p}, Value{Integer(3)}, BinaryOp{GreaterThan{}}}), BinaryOp{Any{}}}, Bool(false), "{1, 2, 3}.any($p -> $p > 3)"},
+		{"nested closures", Expression{
+			Value{Set{Integer(1), Integer(2), Integer(3)}},
+			closure([]Variable{p}, Expression{
+				Value{p}, Value{Integer(1)}, BinaryOp{GreaterThan{}},
+				closure(nil, Expression{
+					Value{Set{Integer(3), Integer(4), Integer(5)}},
+					closure([]Variable{q}, Expression{Value{p}, Value{q}, BinaryOp{HeterogeneousEqual{}}}),
+					BinaryOp{Any{}},
+				}),
+				BinaryOp{LazyAnd{}},
+			}),
+			BinaryOp{Any{}},
+		}, Bool(true), "{1, 2, 3}.any($p -> $p > 1 && {3, 4, 5}.any($q -> $p == $q))"},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			res, err := tc.expr.Evaluate(nil, syms)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, res)
+			require.Equal(t, tc.printed, tc.expr.Print(syms))
+		})
+	}
+
+	// A closure parameter may not shadow a bound variable.
+	shadow := Expression{Value{Set{Integer(1)}}, closure([]Variable{p}, Expression{Value{p}}), BinaryOp{Any{}}}
+	var one Term = Integer(1)
+	_, err := shadow.Evaluate(map[Variable]*Term{p: &one}, syms)
+	require.ErrorIs(t, err, ErrShadowedVariable)
+
+	// Errors inside an evaluated closure propagate.
+	failing := Expression{Value{Bool(true)}, closure(nil, errorBody), BinaryOp{LazyAnd{}}}
+	_, err = failing.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	// A closure where a value is expected, and a value where a closure is.
+	_, err = (&Expression{closure(nil, Expression{Value{Bool(true)}}), UnaryOp{Negate{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+	_, err = (&Expression{Value{Bool(true)}, Value{Bool(true)}, BinaryOp{LazyAnd{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+	_, err = (&Expression{Value{Bool(true)}, closure(nil, Expression{Value{Bool(true)}}), BinaryOp{Add{}}}).Evaluate(nil, syms)
+	require.Error(t, err)
+}
+
+func TestUnaryTypeOf(t *testing.T) {
+	syms := &SymbolTable{}
+	require.Equal(t, UnaryTypeOf, TypeOf{}.Type())
+	for _, tc := range []struct {
+		value Term
+		name  string
+	}{
+		{Integer(1), "integer"},
+		{syms.Insert("test"), "string"},
+		{Date(1), "date"},
+		{Bytes{0xaa}, "bytes"},
+		{Bool(true), "bool"},
+		{Set{Bool(false), Bool(true)}, "set"},
+		{Null{}, "null"},
+		{Array{Integer(1)}, "array"},
+		{NewMap(MapEntry{syms.Insert("a"), Bool(true)}), "map"},
+	} {
+		expr := Expression{Value{tc.value}, UnaryOp{TypeOf{}}}
+		res, err := expr.Evaluate(nil, syms)
+		require.NoError(t, err)
+		require.Equal(t, syms.Insert(tc.name), res, tc.name)
+		require.Equal(t, dbgTerm(syms, tc.value)+".type()", expr.Print(syms))
+	}
+
+	// A variable: evaluated on its value.
+	var one Term = Integer(1)
+	v := Variable(syms.Insert("t"))
+	expr := Expression{Value{v}, UnaryOp{TypeOf{}}, Value{syms.Insert("integer")}, BinaryOp{HeterogeneousEqual{}}}
+	res, err := expr.Evaluate(map[Variable]*Term{v: &one}, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+}
+
+func dbgTerm(syms *SymbolTable, t Term) string {
+	return SymbolDebugger{SymbolTable: syms}.Term(t)
+}
+
+func TestExternFuncs(t *testing.T) {
+	syms := &SymbolTable{}
+	name := syms.Insert("test")
+	externs := ExternFuncs{
+		"test": func(symbols *SymbolTable, left Term, right Term) (Term, error) {
+			if right == nil {
+				return left, nil
+			}
+			if left == right {
+				return symbols.Insert("equal"), nil
+			}
+			return nil, errors.New("unsupported operands")
+		},
+	}
+
+	unary := Expression{Value{Bool(true)}, UnaryOp{Ffi{Name: name}}}
+	require.Equal(t, "true.extern::test()", unary.Print(syms))
+	res, err := unary.EvaluateWith(nil, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	binary := Expression{Value{syms.Insert("a")}, Value{syms.Insert("a")}, BinaryOp{FfiBinary{Name: name}}}
+	require.Equal(t, `"a".extern::test("a")`, binary.Print(syms))
+	res, err = binary.EvaluateWith(nil, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, syms.Insert("equal"), res)
+
+	// The function error is reported.
+	failing := Expression{Value{Integer(1)}, Value{Integer(2)}, BinaryOp{FfiBinary{Name: name}}}
+	_, err = failing.EvaluateWith(nil, syms, externs)
+	require.ErrorContains(t, err, "unsupported operands")
+
+	// Unknown name, and no registry at all.
+	unknown := Expression{Value{Bool(true)}, UnaryOp{Ffi{Name: syms.Insert("other")}}}
+	_, err = unknown.EvaluateWith(nil, syms, externs)
+	require.ErrorIs(t, err, ErrUndefinedExtern)
+	_, err = unary.Evaluate(nil, syms)
+	require.ErrorIs(t, err, ErrUndefinedExtern)
+
+	// Extern functions are visible inside closures.
+	inClosure := Expression{
+		Value{Set{Bool(true)}},
+		Closure{Params: []Variable{Variable(syms.Insert("p"))}, Body: Expression{Value{Variable(syms.Insert("p"))}, UnaryOp{Ffi{Name: name}}}},
+		BinaryOp{All{}},
+	}
+	res, err = inClosure.EvaluateWith(map[Variable]*Term{}, syms, externs)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+}
+
+func TestTryOr(t *testing.T) {
+	syms := &SymbolTable{}
+	failing := Expression{Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, UnaryOp{Parens{}}}
+
+	// The receiver fails: the fallback is returned.
+	expr := Expression{Closure{Body: failing}, Value{Bool(true)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "(true === 12).try_or(true)", expr.Print(syms))
+	res, err := expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	// The receiver succeeds: its value is returned.
+	expr = Expression{Closure{Body: Expression{Value{Integer(1)}, Value{Integer(2)}, BinaryOp{Add{}}}}, Value{Integer(0)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "1 + 2.try_or(0)", expr.Print(syms))
+	res, err = expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Integer(3), res)
+
+	// The fallback is an ordinary operand: its error is not caught.
+	expr = Expression{Closure{Body: Expression{Value{Bool(true)}}}, Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, BinaryOp{TryOr{}}}
+	require.Equal(t, "true.try_or(true === 12)", expr.Print(syms))
+	_, err = expr.Evaluate(nil, syms)
+	require.Error(t, err)
+
+	// Nested: an error in the inner fallback is caught by the outer try_or.
+	inner := Expression{Closure{Body: failing}, Value{Bool(true)}, Value{Integer(12)}, BinaryOp{Equal{}}, BinaryOp{TryOr{}}, UnaryOp{Parens{}}}
+	expr = Expression{Closure{Body: inner}, Value{Bool(true)}, BinaryOp{TryOr{}}}
+	require.Equal(t, "((true === 12).try_or(true === 12)).try_or(true)", expr.Print(syms))
+	res, err = expr.Evaluate(nil, syms)
+	require.NoError(t, err)
+	require.Equal(t, Bool(true), res)
+
+	// Variables of the expression are visible in the receiver.
+	var one Term = Integer(1)
+	v := Variable(syms.Insert("x"))
+	expr = Expression{Closure{Body: Expression{Value{v}, Value{Integer(1)}, BinaryOp{Add{}}}}, Value{Integer(0)}, BinaryOp{TryOr{}}}
+	res, err = expr.Evaluate(map[Variable]*Term{v: &one}, syms)
+	require.NoError(t, err)
+	require.Equal(t, Integer(2), res)
+
+	// Without a closure receiver, or with a receiver taking parameters.
+	_, err = (&Expression{Value{Bool(true)}, Value{Bool(false)}, BinaryOp{TryOr{}}}).Evaluate(nil, syms)
+	require.ErrorContains(t, err, "must be a closure")
+	_, err = (&Expression{Closure{Params: []Variable{v}, Body: Expression{Value{v}}}, Value{Bool(false)}, BinaryOp{TryOr{}}}).Evaluate(map[Variable]*Term{}, syms)
+	require.ErrorContains(t, err, "takes no parameters")
 }

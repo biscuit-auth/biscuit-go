@@ -4,11 +4,15 @@
 package biscuit
 
 import (
+	stdcrypto "crypto"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
+	"github.com/eclipse-biscuit/biscuit-go/v2/internal/crypto"
 	"github.com/eclipse-biscuit/biscuit-go/v2/pb"
 
 	//"github.com/eclipse-biscuit/biscuit-go/sig"
@@ -25,13 +29,16 @@ type Builder interface {
 	AddAuthorityFact(fact Fact) error
 	AddAuthorityRule(rule Rule) error
 	AddAuthorityCheck(check Check) error
+	// AddAuthorityScope sets the default scope of the authority block's
+	// rules and checks; see Scope.
+	AddAuthorityScope(scope Scope)
 	SetContext(string)
 	Build() (*Biscuit, error)
 }
 
 type builderOptions struct {
 	rng       io.Reader
-	rootKey   ed25519.PrivateKey
+	rootKey   crypto.Signer
 	rootKeyID *uint32
 
 	symbolsStart int
@@ -39,6 +46,7 @@ type builderOptions struct {
 	facts        *datalog.FactSet
 	rules        []datalog.Rule
 	checks       []datalog.Check
+	scopes       []datalog.Scope
 	context      string
 }
 
@@ -60,7 +68,24 @@ func WithSymbols(symbols *datalog.SymbolTable) builderOption {
 	return symbolsOption{symbols}
 }
 
+// NewBuilder creates a Builder signing the authority block with an Ed25519
+// root key. Use NewBuilderWithSigner for other algorithms.
 func NewBuilder(root ed25519.PrivateKey, opts ...builderOption) Builder {
+	return NewBuilderWithSigner(root, opts...)
+}
+
+// NewBuilderWithSigner creates a Builder signing the authority block with the
+// given root key: an ed25519.PrivateKey or an *ecdsa.PrivateKey on the P-256
+// curve. Any other key makes Build return ErrUnsupportedAlgorithm.
+func NewBuilderWithSigner(root stdcrypto.Signer, opts ...builderOption) Builder {
+	signer, err := crypto.NewSigner(root)
+	if err != nil {
+		signer = nil
+	}
+	return newBuilder(signer, opts...)
+}
+
+func newBuilder(root crypto.Signer, opts ...builderOption) Builder {
 	b := &builderOptions{
 		rootKey:      root,
 		symbols:      defaultSymbolTable.Clone(),
@@ -117,11 +142,18 @@ func (b *builderOptions) AddAuthorityCheck(check Check) error {
 	return nil
 }
 
+func (b *builderOptions) AddAuthorityScope(scope Scope) {
+	b.scopes = append(b.scopes, scope)
+}
+
 func (b *builderOptions) SetContext(context string) {
 	b.context = context
 }
 
 func (b *builderOptions) Build() (*Biscuit, error) {
+	if b.rootKey == nil {
+		return nil, ErrUnsupportedAlgorithm
+	}
 	opts := make([]biscuitOption, 0, 2)
 	if v := b.rng; v != nil {
 		opts = append(opts, WithRNG(b.rng))
@@ -133,12 +165,14 @@ func (b *builderOptions) Build() (*Biscuit, error) {
 		b.rootKey,
 		b.symbols,
 		&Block{
-			symbols: b.symbols.SplitOff(b.symbolsStart),
-			facts:   b.facts,
-			rules:   b.rules,
-			checks:  b.checks,
-			context: b.context,
-			version: MaxSchemaVersion,
+			symbols:    b.symbols.SplitOff(b.symbolsStart),
+			facts:      b.facts,
+			rules:      b.rules,
+			checks:     b.checks,
+			scopes:     b.scopes,
+			publicKeys: scopeKeys(b.scopes, b.rules, b.checks),
+			context:    b.context,
+			version:    schemaVersion(*b.facts, b.scopes, b.rules, b.checks),
 		},
 		opts...)
 }
@@ -163,11 +197,8 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	if len(container.Authority.NextKey.Key) != 32 {
-		return nil, ErrInvalidKeySize
-	}
-	if len(container.Authority.Signature) != 64 {
-		return nil, ErrInvalidSignatureSize
+	if err := checkSignedBlockFormat(container.Authority); err != nil {
+		return nil, err
 	}
 
 	pbAuthority := new(pb.Block)
@@ -175,20 +206,19 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 		return nil, err
 	}
 
-	authority, err := protoBlockToTokenBlock(pbAuthority)
+	var publicKeys publicKeyTable
+	authority, err := protoBlockToTokenBlock(pbAuthority, publicKeys)
 	if err != nil {
 		return nil, err
 	}
 
 	symbols.Extend(authority.symbols)
+	publicKeys = publicKeys.with(authority.publicKeys...)
 
 	blocks := make([]*Block, len(container.Blocks))
 	for i, sb := range container.Blocks {
-		if len(sb.NextKey.Key) != 32 {
-			return nil, ErrInvalidKeySize
-		}
-		if len(sb.Signature) != 64 {
-			return nil, ErrInvalidSignatureSize
+		if err := checkSignedBlockFormat(sb); err != nil {
+			return nil, err
 		}
 
 		pbBlock := new(pb.Block)
@@ -196,19 +226,31 @@ func (u *Unmarshaler) Unmarshal(serialized []byte) (*Biscuit, error) {
 			return nil, err
 		}
 
-		block, err := protoBlockToTokenBlock(pbBlock)
+		if sb.ExternalSignature == nil {
+			block, err := protoBlockToTokenBlock(pbBlock, publicKeys)
+			if err != nil {
+				return nil, err
+			}
+			blocks[i] = block
+			publicKeys = publicKeys.with(block.publicKeys...)
+			symbols.Extend(block.symbols)
+			continue
+		}
+
+		// A third-party block has its own tables and leaves the token's alone.
+		block, err := thirdPartyBlock(pbBlock, sb.ExternalSignature)
 		if err != nil {
 			return nil, err
 		}
 		blocks[i] = block
-		symbols.Extend(blocks[i].symbols)
 	}
 
 	return &Biscuit{
-		authority: authority,
-		symbols:   symbols,
-		blocks:    blocks,
-		container: container,
+		authority:  authority,
+		symbols:    symbols,
+		publicKeys: publicKeys,
+		blocks:     blocks,
+		container:  container,
 	}, nil
 }
 
@@ -217,6 +259,9 @@ type BlockBuilder interface {
 	AddFact(fact Fact) error
 	AddRule(rule Rule) error
 	AddCheck(check Check) error
+	// AddScope sets the default scope of the block's rules and checks; see
+	// Scope.
+	AddScope(scope Scope)
 	SetContext(string)
 	Build() *Block
 }
@@ -224,18 +269,26 @@ type BlockBuilder interface {
 type blockBuilder struct {
 	symbolsStart int
 	symbols      *datalog.SymbolTable
-	facts        *datalog.FactSet
-	rules        []datalog.Rule
-	checks       []datalog.Check
-	context      string
+	// publicKeys is the key table of the token the block is appended to.
+	publicKeys publicKeyTable
+	facts      *datalog.FactSet
+	rules      []datalog.Rule
+	checks     []datalog.Check
+	scopes     []datalog.Scope
+	context    string
 }
 
 var _ BlockBuilder = (*blockBuilder)(nil)
 
 func NewBlockBuilder(baseSymbols *datalog.SymbolTable) BlockBuilder {
+	return newBlockBuilder(baseSymbols, nil)
+}
+
+func newBlockBuilder(baseSymbols *datalog.SymbolTable, publicKeys publicKeyTable) BlockBuilder {
 	return &blockBuilder{
 		symbolsStart: baseSymbols.Len(),
 		symbols:      baseSymbols,
+		publicKeys:   publicKeys,
 		facts:        new(datalog.FactSet),
 	}
 }
@@ -258,6 +311,9 @@ func (b *blockBuilder) AddBlock(block ParsedBlock) error {
 		if err != nil {
 			return err
 		}
+	}
+	for _, s := range block.Scopes {
+		b.AddScope(s)
 	}
 
 	return nil
@@ -286,6 +342,10 @@ func (b *blockBuilder) AddCheck(check Check) error {
 	return nil
 }
 
+func (b *blockBuilder) AddScope(scope Scope) {
+	b.scopes = append(b.scopes, scope)
+}
+
 func (b *blockBuilder) SetContext(context string) {
 	b.context = context
 }
@@ -302,12 +362,53 @@ func (b *blockBuilder) Build() *Block {
 	checks := make([]datalog.Check, len(b.checks))
 	copy(checks, b.checks)
 
-	return &Block{
-		symbols: b.symbols.Clone(),
-		facts:   &facts,
-		rules:   rules,
-		checks:  checks,
-		context: b.context,
-		version: MaxSchemaVersion,
+	// Only the keys the token does not have yet are carried by the block.
+	var publicKeys []datalog.PublicKey
+	for _, k := range scopeKeys(b.scopes, rules, checks) {
+		if _, known := b.publicKeys.index(k); !known {
+			publicKeys = append(publicKeys, k)
+		}
 	}
+
+	return &Block{
+		symbols:    b.symbols.Clone(),
+		facts:      &facts,
+		rules:      rules,
+		checks:     checks,
+		scopes:     slices.Clone(b.scopes),
+		publicKeys: publicKeys,
+		context:    b.context,
+		version:    schemaVersion(facts, b.scopes, rules, checks),
+	}
+}
+
+// checkSignedBlockFormat rejects a block whose next key or signature cannot be
+// the encoding of its algorithm, before any verification. Ed25519 has fixed
+// sizes; ECDSA signatures are DER and only the key is checked.
+func checkSignedBlockFormat(sb *pb.SignedBlock) error {
+	if _, err := crypto.ParseVerifier(sb.GetNextKey().GetAlgorithm(), sb.GetNextKey().GetKey()); err != nil {
+		return err
+	}
+	if sb.GetNextKey().GetAlgorithm() == pb.PublicKey_Ed25519 && len(sb.GetSignature()) != ed25519.SignatureSize {
+		return ErrInvalidSignatureSize
+	}
+	return nil
+}
+
+// thirdPartyBlock converts a block signed by a third party: its scopes refer
+// to its own key table, and its version must be at least datalog v3.2.
+func thirdPartyBlock(pbBlock *pb.Block, ext *pb.ExternalSignature) (*Block, error) {
+	if pbBlock.GetVersion() < blockVersion3_2 {
+		return nil, fmt.Errorf("biscuit: failed to convert proto block to token block: third-party blocks require block version %d, got %d", blockVersion3_2, pbBlock.GetVersion())
+	}
+	block, err := protoBlockToTokenBlock(pbBlock, nil)
+	if err != nil {
+		return nil, err
+	}
+	externalKey, err := protoPublicKeyToTokenPublicKey(ext.GetPublicKey())
+	if err != nil {
+		return nil, err
+	}
+	block.externalKey = &externalKey
+	return block, nil
 }

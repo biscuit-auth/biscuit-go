@@ -17,6 +17,10 @@ var (
 	ErrMissingSymbols   = errors.New("biscuit: missing symbols")
 	ErrPolicyDenied     = errors.New("biscuit: denied by policy")
 	ErrNoMatchingPolicy = errors.New("biscuit: denied by no matching policies")
+	// ErrExecution wraps an error raised while evaluating an expression
+	// (integer overflow, division by zero, type mismatch). Authorization
+	// stops at the first one, as the spec requires.
+	ErrExecution = errors.New("biscuit: execution error")
 )
 
 type Authorizer interface {
@@ -26,6 +30,9 @@ type Authorizer interface {
 	AddRule(rule Rule)
 	AddCheck(check Check)
 	AddPolicy(policy Policy)
+	// AddScope sets the default scope of the authorizer's rules, checks
+	// and policies; see Scope.
+	AddScope(scope Scope)
 	Authorize() error
 	Query(rule Rule) (FactSet, error)
 	Biscuit() *Biscuit
@@ -36,15 +43,22 @@ type Authorizer interface {
 }
 
 type authorizer struct {
-	biscuit      *Biscuit
-	baseWorld    *datalog.World
-	world        *datalog.World
-	baseSymbols  *datalog.SymbolTable
-	symbols      *datalog.SymbolTable
-	block_worlds []*datalog.World
+	biscuit     *Biscuit
+	baseWorld   *datalog.World
+	world       *datalog.World
+	baseSymbols *datalog.SymbolTable
+	symbols     *datalog.SymbolTable
 
 	checks   []Check
 	policies []Policy
+	scopes   []Scope
+
+	// blocksByKey maps the public key of a third-party block, as printed
+	// by datalog.PublicKey.String, to the blocks it signed; `trusting <key>`
+	// resolves to those blocks.
+	blocksByKey map[string][]datalog.BlockID
+
+	externs datalog.ExternFuncs
 
 	dirty bool
 }
@@ -59,18 +73,65 @@ func WithWorldOptions(opts ...datalog.WorldOption) AuthorizerOption {
 	}
 }
 
+// ExternFunc is a function that datalog v3.3 expressions call with
+// `$left.extern::name()` (right is nil) or `$left.extern::name($right)`.
+// It returns the value of the call.
+type ExternFunc func(left Term, right Term) (Term, error)
+
+// WithExternFuncs registers the functions available to extern:: calls, by
+// name. A call to a name that is not registered fails the check or rule that
+// makes it with ErrExecution.
+func WithExternFuncs(funcs map[string]ExternFunc) AuthorizerOption {
+	return func(a *authorizer) {
+		for name, f := range funcs {
+			a.externs[name] = wrapExternFunc(f)
+		}
+	}
+}
+
+func wrapExternFunc(f ExternFunc) datalog.ExternFunc {
+	return func(symbols *datalog.SymbolTable, left datalog.Term, right datalog.Term) (datalog.Term, error) {
+		l, err := fromDatalogID(symbols, left)
+		if err != nil {
+			return nil, err
+		}
+		var r Term
+		if right != nil {
+			if r, err = fromDatalogID(symbols, right); err != nil {
+				return nil, err
+			}
+		}
+		res, err := f(l, r)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil {
+			return nil, errors.New("biscuit: extern function returned no value")
+		}
+		return res.convert(symbols), nil
+	}
+}
+
 func NewVerifier(b *Biscuit, opts ...AuthorizerOption) (Authorizer, error) {
 	a := &authorizer{
-		biscuit:      b,
-		baseWorld:    datalog.NewWorld(),
-		baseSymbols:  defaultSymbolTable.Clone(),
-		checks:       []Check{},
-		policies:     []Policy{},
-		block_worlds: []*datalog.World{},
+		biscuit:     b,
+		baseWorld:   datalog.NewWorld(),
+		baseSymbols: defaultSymbolTable.Clone(),
+		checks:      []Check{},
+		policies:    []Policy{},
+		blocksByKey: map[string][]datalog.BlockID{},
+		externs:     datalog.ExternFuncs{},
 	}
 
 	for _, opt := range opts {
 		opt(a)
+	}
+	datalog.WithExternFuncs(a.externs)(a.baseWorld)
+	for i, block := range b.blocks {
+		if block.externalKey != nil {
+			key := block.externalKey.String()
+			a.blocksByKey[key] = append(a.blocksByKey[key], datalog.BlockID(i+1))
+		}
 	}
 
 	a.world = a.baseWorld.Clone()
@@ -96,14 +157,32 @@ func (v *authorizer) AddBlock(block ParsedBlock) {
 	for _, c := range block.Checks {
 		v.AddCheck(c)
 	}
+	for _, s := range block.Scopes {
+		v.AddScope(s)
+	}
 }
 
 func (v *authorizer) AddFact(fact Fact) {
-	v.world.AddFact(fact.convert(v.symbols))
+	v.world.AddFact(authorizerOrigin, fact.convert(v.symbols))
 }
 
 func (v *authorizer) AddRule(rule Rule) {
-	v.world.AddRule(rule.convert(v.symbols))
+	r := rule.convert(v.symbols)
+	v.world.AddRule(datalog.AuthorizerBlockID, v.trustedOrigins(r.Scopes, v.authorizerTrustedOrigins(), datalog.AuthorizerBlockID), r)
+}
+
+func (v *authorizer) AddScope(scope Scope) {
+	v.scopes = append(v.scopes, scope)
+}
+
+// authorizerTrustedOrigins is the default scope of the authorizer's rules,
+// checks and policies: its own scopes, or the authority block and itself.
+func (v *authorizer) authorizerTrustedOrigins() datalog.TrustedOrigins {
+	return v.trustedOrigins(v.scopes, datalog.DefaultTrustedOrigins(), datalog.AuthorizerBlockID)
+}
+
+func (v *authorizer) trustedOrigins(scopes []datalog.Scope, defaults datalog.TrustedOrigins, current datalog.BlockID) datalog.TrustedOrigins {
+	return datalog.TrustedOriginsFromScopes(scopes, defaults, current, v.blocksByKey)
 }
 
 func (v *authorizer) AddCheck(check Check) {
@@ -114,26 +193,37 @@ func (v *authorizer) AddPolicy(policy Policy) {
 	v.policies = append(v.policies, policy)
 }
 
+// authorizerOrigin is the origin of the facts the authorizer adds itself.
+var authorizerOrigin = datalog.NewOrigin(datalog.AuthorizerBlockID)
+
 func (v *authorizer) Authorize() error {
 	// if we load facts from the verifier before
 	// the token's fact and rules, we might get inconsistent symbols
 	// token ements should first be converted to builder elements
 	// with the token's symbol table, then converted back
 	// with the verifier's symbol table
-	for _, fact := range *v.biscuit.authority.facts {
-		f, err := fromDatalogFact(v.biscuit.symbols, fact)
-		if err != nil {
-			return fmt.Errorf("biscuit: verification failed: %s", err)
+	blocks := append([]*Block{v.biscuit.authority}, v.biscuit.blocks...)
+	blockTrusted := make([]datalog.TrustedOrigins, len(blocks))
+	for i, block := range blocks {
+		blockID := datalog.BlockID(i)
+		blockTrusted[i] = v.trustedOrigins(block.scopes, datalog.DefaultTrustedOrigins(), blockID)
+		symbols := block.symbolTable(v.biscuit.symbols)
+		for _, fact := range *block.facts {
+			f, err := fromDatalogFact(symbols, fact)
+			if err != nil {
+				return fmt.Errorf("biscuit: verification failed: %s", err)
+			}
+			v.world.AddFact(datalog.NewOrigin(blockID), f.convert(v.symbols))
 		}
-		v.world.AddFact(f.convert(v.symbols))
-	}
 
-	for _, rule := range v.biscuit.authority.rules {
-		r, err := fromDatalogRule(v.biscuit.symbols, rule)
-		if err != nil {
-			return fmt.Errorf("biscuit: verification failed: %s", err)
+		for _, rule := range block.rules {
+			r, err := fromDatalogRule(symbols, rule)
+			if err != nil {
+				return fmt.Errorf("biscuit: verification failed: %s", err)
+			}
+			dlRule := r.convert(v.symbols)
+			v.world.AddRule(blockID, v.trustedOrigins(dlRule.Scopes, blockTrusted[i], blockID), dlRule)
 		}
-		v.world.AddRule(r.convert(v.symbols))
 	}
 
 	if err := v.world.Run(v.symbols); err != nil {
@@ -142,44 +232,32 @@ func (v *authorizer) Authorize() error {
 	v.dirty = true
 
 	var errs []error
+	debug := datalog.SymbolDebugger{SymbolTable: v.symbols}
+	authorizerTrusted := v.authorizerTrustedOrigins()
 
 	for i, check := range v.checks {
 		c := check.convert(v.symbols)
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
+		successful, err := v.checkPasses(c, datalog.AuthorizerBlockID, authorizerTrusted)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
 		if !successful {
-			debug := datalog.SymbolDebugger{
-				SymbolTable: v.symbols,
-			}
 			errs = append(errs, fmt.Errorf("failed to verify check #%d: %s", i, debug.Check(c)))
 		}
 	}
 
 	for i, check := range v.biscuit.authority.checks {
-		ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+		ch, err := fromDatalogCheck(v.biscuit.authority.symbolTable(v.biscuit.symbols), check)
 		if err != nil {
 			return fmt.Errorf("biscuit: verification failed: %s", err)
 		}
 		c := ch.convert(v.symbols)
 
-		successful := false
-		for _, query := range c.Queries {
-			res := v.world.QueryRule(query, v.symbols)
-			if len(*res) != 0 {
-				successful = true
-				break
-			}
+		successful, err := v.checkPasses(c, 0, blockTrusted[0])
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrExecution, err)
 		}
 		if !successful {
-			debug := datalog.SymbolDebugger{
-				SymbolTable: v.symbols,
-			}
 			errs = append(errs, fmt.Errorf("failed to verify block 0 check #%d: %s", i, debug.Check(c)))
 		}
 	}
@@ -191,7 +269,11 @@ func (v *authorizer) Authorize() error {
 			break
 		}
 		for _, query := range policy.Queries {
-			res := v.world.QueryRule(query.convert(v.symbols), v.symbols)
+			q := query.convert(v.symbols)
+			res, err := v.world.QueryRule(q, datalog.AuthorizerBlockID, v.trustedOrigins(q.Scopes, authorizerTrusted, datalog.AuthorizerBlockID), v.symbols)
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrExecution, err)
+			}
 			if len(*res) != 0 {
 				switch policy.Kind {
 				case PolicyKindAllow:
@@ -206,59 +288,23 @@ func (v *authorizer) Authorize() error {
 		}
 	}
 
-	// remove the rules from the vrifier and authority blocks
-	// so they are not affected by facts created by later blocks
-	v.world.ResetRules()
-
 	for i, block := range v.biscuit.blocks {
-		block_world := v.world.Clone()
-
-		for _, fact := range *block.facts {
-			f, err := fromDatalogFact(v.biscuit.symbols, fact)
-			if err != nil {
-				return fmt.Errorf("biscuit: verification failed: %s", err)
-			}
-			block_world.AddFact(f.convert(v.symbols))
-		}
-
-		for _, rule := range block.rules {
-			r, err := fromDatalogRule(v.biscuit.symbols, rule)
-			if err != nil {
-				return fmt.Errorf("biscuit: verification failed: %s", err)
-			}
-			block_world.AddRule(r.convert(v.symbols))
-		}
-
-		if err := block_world.Run(v.symbols); err != nil {
-			return err
-		}
-
+		blockID := datalog.BlockID(i + 1)
 		for j, check := range block.checks {
-			ch, err := fromDatalogCheck(v.biscuit.symbols, check)
+			ch, err := fromDatalogCheck(block.symbolTable(v.biscuit.symbols), check)
 			if err != nil {
 				return fmt.Errorf("biscuit: verification failed: %s", err)
 			}
 			c := ch.convert(v.symbols)
 
-			successful := false
-			for _, query := range c.Queries {
-				res := block_world.QueryRule(query, v.symbols)
-
-				if len(*res) != 0 {
-					successful = true
-					break
-				}
+			successful, err := v.checkPasses(c, blockID, blockTrusted[blockID])
+			if err != nil {
+				return fmt.Errorf("%w: %w", ErrExecution, err)
 			}
 			if !successful {
-				debug := datalog.SymbolDebugger{
-					SymbolTable: v.symbols,
-				}
-				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", i+1, j, debug.Check(c)))
+				errs = append(errs, fmt.Errorf("failed to verify block #%d check #%d: %s", blockID, j, debug.Check(c)))
 			}
 		}
-
-		block_world.ResetRules()
-		v.block_worlds = append(v.block_worlds, block_world)
 	}
 
 	if len(errs) > 0 {
@@ -280,13 +326,55 @@ func (v *authorizer) Authorize() error {
 	}
 }
 
+// checkPasses evaluates the queries of a check from block blockID: a check
+// passes when one of its queries does, under the semantics of its kind. Each
+// query reads the facts of its own scopes, or of defaults.
+func (v *authorizer) checkPasses(c datalog.Check, blockID datalog.BlockID, defaults datalog.TrustedOrigins) (bool, error) {
+	for _, query := range c.Queries {
+		trusted := v.trustedOrigins(query.Scopes, defaults, blockID)
+		switch c.Kind {
+		case datalog.CheckKindAll:
+			ok, err := v.world.QueryMatchAll(query, trusted, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if ok {
+				return true, nil
+			}
+		case datalog.CheckKindReject:
+			res, err := v.world.QueryRule(query, blockID, trusted, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if len(*res) == 0 {
+				return true, nil
+			}
+		default:
+			res, err := v.world.QueryRule(query, blockID, trusted, v.symbols)
+			if err != nil {
+				return false, err
+			}
+			if len(*res) != 0 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 func (v *authorizer) Query(rule Rule) (FactSet, error) {
 	if err := v.world.Run(v.symbols); err != nil {
 		return nil, err
 	}
 	v.dirty = true
 
-	facts := v.world.QueryRule(rule.convert(v.symbols), v.symbols)
+	// Without scopes a query reads the authority block and the authorizer,
+	// like the reference implementation; facts of later blocks are not visible.
+	q := rule.convert(v.symbols)
+	facts, err := v.world.QueryRule(q, datalog.AuthorizerBlockID, v.trustedOrigins(q.Scopes, datalog.DefaultTrustedOrigins(), datalog.AuthorizerBlockID), v.symbols)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrExecution, err)
+	}
 
 	result := make([]Fact, 0, len(*facts))
 	for _, fact := range *facts {
@@ -321,6 +409,7 @@ func (v *authorizer) Reset() {
 	v.symbols = v.baseSymbols.Clone()
 	v.checks = []Check{}
 	v.policies = []Policy{}
+	v.scopes = nil
 	v.dirty = false
 }
 
@@ -331,7 +420,7 @@ func (v *authorizer) LoadPolicies(authorizerPolicies []byte) error {
 	}
 
 	switch pbPolicies.GetVersion() {
-	case 3:
+	case blockVersion3_0, blockVersion3_1, blockVersion3_2, blockVersion3_3:
 		return v.loadPoliciesV2(pbPolicies)
 	default:
 		return fmt.Errorf("verifier: unsupported policies version %d", pbPolicies.GetVersion())
@@ -348,20 +437,20 @@ func (v *authorizer) loadPoliciesV2(pbPolicies *pb.AuthorizerPolicies) error {
 		if err != nil {
 			return fmt.Errorf("verifier: load policies v1: failed to convert datalog fact: %w", err)
 		}
-		v.world.AddFact(*fact)
+		v.world.AddFact(authorizerOrigin, *fact)
 	}
 
 	for _, pbRule := range pbPolicies.Rules {
-		rule, err := protoRuleToTokenRuleV2(pbRule)
+		rule, err := protoRuleToTokenRuleV2(pbRule, nil)
 		if err != nil {
 			return fmt.Errorf("verifier: load policies v1: failed to convert datalog rule: %w", err)
 		}
-		v.world.AddRule(*rule)
+		v.world.AddRule(datalog.AuthorizerBlockID, v.trustedOrigins(rule.Scopes, v.authorizerTrustedOrigins(), datalog.AuthorizerBlockID), *rule)
 	}
 
 	v.checks = make([]Check, len(pbPolicies.Checks))
 	for i, pbCheck := range pbPolicies.Checks {
-		dlCheck, err := protoCheckToTokenCheckV2(pbCheck)
+		dlCheck, err := protoCheckToTokenCheckV2(pbCheck, nil)
 		if err != nil {
 			return fmt.Errorf("verifier: load policies v1: failed to convert datalog check: %w", err)
 		}
@@ -386,7 +475,7 @@ func (v *authorizer) loadPoliciesV2(pbPolicies *pb.AuthorizerPolicies) error {
 
 		policy.Queries = make([]Rule, len(pbPolicy.Queries))
 		for j, pbRule := range pbPolicy.Queries {
-			dlRule, err := protoRuleToTokenRuleV2(pbRule)
+			dlRule, err := protoRuleToTokenRuleV2(pbRule, nil)
 			if err != nil {
 				return fmt.Errorf("verifier: load policies v1: failed to convert datalog policy rule: %w", err)
 			}
@@ -408,27 +497,37 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 		return nil, errors.New("verifier: can't serialize after world has been run")
 	}
 
-	protoFacts := make([]*pb.FactV2, len(*v.world.Facts()))
-	for i, fact := range *v.world.Facts() {
-		protoFact, err := tokenFactToProtoFactV2(fact)
-		if err != nil {
-			return nil, fmt.Errorf("verifier: failed to convert fact: %w", err)
+	// Only what the authorizer added itself is saved; the token is not part
+	// of the policies.
+	var protoFacts []*pb.Fact
+	for _, group := range v.world.Facts() {
+		if !group.Origin.Equal(authorizerOrigin) {
+			continue
 		}
-		protoFacts[i] = protoFact
+		for _, fact := range group.Facts {
+			protoFact, err := tokenFactToProtoFactV2(fact)
+			if err != nil {
+				return nil, fmt.Errorf("verifier: failed to convert fact: %w", err)
+			}
+			protoFacts = append(protoFacts, protoFact)
+		}
 	}
 
-	protoRules := make([]*pb.RuleV2, len(v.world.Rules()))
-	for i, rule := range v.world.Rules() {
-		protoRule, err := tokenRuleToProtoRuleV2(rule)
+	var protoRules []*pb.Rule
+	for _, br := range v.world.Rules() {
+		if br.BlockID != datalog.AuthorizerBlockID {
+			continue
+		}
+		protoRule, err := tokenRuleToProtoRuleV2(br.Rule, nil)
 		if err != nil {
 			return nil, fmt.Errorf("verifier: failed to convert rule: %w", err)
 		}
-		protoRules[i] = protoRule
+		protoRules = append(protoRules, protoRule)
 	}
 
-	protoChecks := make([]*pb.CheckV2, len(v.checks))
+	protoChecks := make([]*pb.Check, len(v.checks))
 	for i, check := range v.checks {
-		protoCheck, err := tokenCheckToProtoCheckV2(check.convert(v.symbols))
+		protoCheck, err := tokenCheckToProtoCheckV2(check.convert(v.symbols), nil)
 		if err != nil {
 			return nil, fmt.Errorf("verifier: failed to convert check: %w", err)
 		}
@@ -449,9 +548,9 @@ func (v *authorizer) SerializePolicies() ([]byte, error) {
 			return nil, fmt.Errorf("verifier: unsupported policy kind %v", policy.Kind)
 		}
 
-		protoPolicy.Queries = make([]*pb.RuleV2, len(policy.Queries))
+		protoPolicy.Queries = make([]*pb.Rule, len(policy.Queries))
 		for j, rule := range policy.Queries {
-			protoRule, err := tokenRuleToProtoRuleV2(rule.convert(v.symbols))
+			protoRule, err := tokenRuleToProtoRuleV2(rule.convert(v.symbols), nil)
 			if err != nil {
 				return nil, fmt.Errorf("verifier: failed to convert policy rule: %w", err)
 			}

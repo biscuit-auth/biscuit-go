@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -44,15 +45,17 @@ func (v *Variable) Capture(values []string) error {
 
 type Parameter string
 
-func (p *Parameter) Capture(values []string) error {
-	if len(values) != 1 {
-		return errors.New("parser: invalid parameter values")
+// Integer is an int64 literal with an optional leading minus sign. The sign
+// is a separate token, so "1 -2" is still a subtraction, and the full text
+// is parsed so that the smallest int64 is accepted.
+type Integer int64
+
+func (i *Integer) Capture(values []string) error {
+	v, err := strconv.ParseInt(strings.Join(values, ""), 10, 64)
+	if err != nil {
+		return err
 	}
-	if !strings.HasPrefix(values[0], "{") ||
-		!strings.HasSuffix(values[0], "}") {
-		return errors.New("parser: invalid parameter capture")
-	}
-	*p = Parameter(strings.Trim(values[0], "{}"))
+	*i = Integer(v)
 	return nil
 }
 
@@ -76,9 +79,50 @@ type Block struct {
 }
 
 type BlockElement struct {
-	Check     *Check         `@@`
-	Predicate *Predicate     `|@@`
-	RuleBody  []*RuleElement `("<-" @@ ("," @@)*)?`
+	Check      *Check         `@@`
+	Scopes     []*ScopeElem   `| "trusting" @@ ("," @@)*`
+	Predicate  *Predicate     `| @@`
+	RuleBody   []*RuleElement `("<-" @@ ("," @@)*)?`
+	RuleScopes []*ScopeElem   `("trusting" @@ ("," @@)*)?`
+}
+
+// ScopeElem is one entry of a `trusting` clause.
+type ScopeElem struct {
+	Authority bool    `@"authority"`
+	Previous  bool    `| @"previous"`
+	PublicKey *string `| @PublicKey`
+}
+
+func (s *ScopeElem) ToBiscuit() (biscuit.Scope, error) {
+	switch {
+	case s.Authority:
+		return biscuit.Scope{Kind: biscuit.ScopeAuthority}, nil
+	case s.Previous:
+		return biscuit.Scope{Kind: biscuit.ScopePrevious}, nil
+	case s.PublicKey != nil:
+		key, err := biscuit.ParsePublicKey(*s.PublicKey)
+		if err != nil {
+			return biscuit.Scope{}, fmt.Errorf("parser: %w", err)
+		}
+		return biscuit.Scope{Kind: biscuit.ScopePublicKey, PublicKey: key}, nil
+	default:
+		return biscuit.Scope{}, errors.New("parser: empty scope")
+	}
+}
+
+func scopesToBiscuit(elems []*ScopeElem) ([]biscuit.Scope, error) {
+	if len(elems) == 0 {
+		return nil, nil
+	}
+	scopes := make([]biscuit.Scope, len(elems))
+	for i, e := range elems {
+		s, err := e.ToBiscuit()
+		if err != nil {
+			return nil, err
+		}
+		scopes[i] = s
+	}
+	return scopes, nil
 }
 
 type ParametersMap map[string]biscuit.Term
@@ -87,6 +131,7 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 	facts := []biscuit.Fact{}
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
+	var scopes []biscuit.Scope
 	for _, e := range b.Body {
 		if e.Check != nil {
 			c, err := e.Check.ToBiscuit(parameters)
@@ -94,10 +139,17 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 				return nil, err
 			}
 			checks = append(checks, *c)
+		} else if e.Scopes != nil {
+			s, err := scopesToBiscuit(e.Scopes)
+			if err != nil {
+				return nil, err
+			}
+			scopes = append(scopes, s...)
 		} else if e.Predicate != nil && e.RuleBody != nil {
 			rule := Rule{
-				Head: e.Predicate,
-				Body: e.RuleBody,
+				Head:   e.Predicate,
+				Body:   e.RuleBody,
+				Scopes: e.RuleScopes,
 			}
 			r, err := rule.ToBiscuit(parameters)
 			if err != nil {
@@ -112,7 +164,7 @@ func (b *Block) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedBlock, error
 			facts = append(facts, biscuit.Fact{Predicate: *p})
 		}
 	}
-	return &biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks}, nil
+	return &biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks, Scopes: scopes}, nil
 }
 
 type Authorizer struct {
@@ -130,6 +182,7 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 	rules := []biscuit.Rule{}
 	checks := []biscuit.Check{}
 	policies := []biscuit.Policy{}
+	var scopes []biscuit.Scope
 
 	for _, e := range b.Body {
 		if e.BlockElement != nil {
@@ -140,10 +193,17 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 					return nil, err
 				}
 				checks = append(checks, *c)
+			} else if be.Scopes != nil {
+				s, err := scopesToBiscuit(be.Scopes)
+				if err != nil {
+					return nil, err
+				}
+				scopes = append(scopes, s...)
 			} else if be.Predicate != nil && be.RuleBody != nil {
 				rule := Rule{
-					Head: be.Predicate,
-					Body: be.RuleBody,
+					Head:   be.Predicate,
+					Body:   be.RuleBody,
+					Scopes: be.RuleScopes,
 				}
 				r, err := rule.ToBiscuit(parameters)
 				if err != nil {
@@ -168,7 +228,7 @@ func (b *Authorizer) ToBiscuit(parameters ParametersMap) (*biscuit.ParsedAuthori
 	}
 	return &biscuit.ParsedAuthorizer{
 		Policies: policies,
-		Block:    biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks},
+		Block:    biscuit.ParsedBlock{Facts: facts, Rules: rules, Checks: checks, Scopes: scopes},
 	}, nil
 }
 
@@ -176,6 +236,7 @@ type Rule struct {
 	Comments []*Comment     `@Comment*`
 	Head     *Predicate     `@@`
 	Body     []*RuleElement `"<-" @@ ("," @@)*`
+	Scopes   []*ScopeElem   `("trusting" @@ ("," @@)*)?`
 }
 
 type RuleElement struct {
@@ -185,15 +246,33 @@ type RuleElement struct {
 
 type Predicate struct {
 	Name *string `@Ident`
-	IDs  []*Term `"(" (@@ ("," @@)*)* ")"`
+	IDs  []*Term `"(" (@@ ("," @@)*)? ")"`
+}
+
+type CheckKind biscuit.CheckKind
+
+func (k *CheckKind) Capture(values []string) error {
+	switch strings.Join(values, " ") {
+	case "check if":
+		*k = CheckKind(biscuit.CheckKindOne)
+	case "check all":
+		*k = CheckKind(biscuit.CheckKindAll)
+	case "reject if":
+		*k = CheckKind(biscuit.CheckKindReject)
+	default:
+		return fmt.Errorf("parser: invalid check kind %q", values)
+	}
+	return nil
 }
 
 type Check struct {
-	Queries []*CheckQuery `"check if" @@ ( "or" @@ )*`
+	Kind    CheckKind     `@("check if" | "check all" | "reject if")`
+	Queries []*CheckQuery `@@ ( "or" @@ )*`
 }
 
 type CheckQuery struct {
-	Body []*RuleElement `@@ ("," @@)*`
+	Body   []*RuleElement `@@ ("," @@)*`
+	Scopes []*ScopeElem   `("trusting" @@ ("," @@)*)?`
 }
 
 type Policy struct {
@@ -209,22 +288,86 @@ type Deny struct {
 	Queries []*CheckQuery `"deny if" @@ ( "or" @@ )*`
 }
 
+// Braces hold a parameter {name}, the empty set {,}, the empty map {}, a set
+// {a, b} or a map {k: v}; brackets hold an array [a, b].
 type Term struct {
-	Parameter *Parameter `@Parameter`
-	Variable  *Variable  `| @Variable`
-	Bytes     *HexString `| @@`
-	String    *string    `| @String`
-	Date      *string    `| @DateTime`
-	Integer   *int64     `| @Int`
-	Bool      *Bool      `| @Bool`
-	Set       []*Term    `| "[" @@ ("," @@)* "]"`
+	Parameter  *Parameter `"{" @Ident "}"`
+	Variable   *Variable  `| @Variable`
+	Bytes      *HexString `| @@`
+	String     *string    `| @String`
+	Date       *string    `| @DateTime`
+	Integer    *Integer   `| @("-"? Int)`
+	Bool       *Bool      `| @Bool`
+	Null       bool       `| @"null"`
+	Braces     *Braces    `| @@`
+	EmptyArray bool       `| @("[" "]")`
+	Array      []*Term    `| "[" @@ ("," @@)* "]"`
 }
 
-type Value struct {
-	Number        *float64    `  @(Float|Int)`
-	Variable      *string     `| @Ident`
-	Parameter     *Parameter  `| @Parameter`
-	Subexpression *Expression `| "(" @@ ")"`
+// Braces is a set or a map: entries with a value make a map, entries
+// without make a set. {,} is the empty set and {} the empty map.
+type Braces struct {
+	EmptySet bool          `"{" ( @("," "}")`
+	EmptyMap bool          `| @"}"`
+	Entries  []*BraceEntry `| @@ ("," @@)* "}" )`
+}
+
+type BraceEntry struct {
+	Key   *Term `@@`
+	Value *Term `(":" @@)?`
+}
+
+func (b *Braces) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
+	switch {
+	case b.EmptySet:
+		return biscuit.Set{}, nil
+	case b.EmptyMap:
+		return biscuit.Map{}, nil
+	}
+
+	isMap := b.Entries[0].Value != nil
+	if isMap {
+		m := make(biscuit.Map, 0, len(b.Entries))
+		for _, e := range b.Entries {
+			if e.Value == nil {
+				return nil, errors.New("parser: map entry without a value")
+			}
+			key, err := e.Key.ToBiscuit(parameters)
+			if err != nil {
+				return nil, err
+			}
+			switch key.Type() {
+			case biscuit.TermTypeInteger, biscuit.TermTypeString:
+			default:
+				return nil, fmt.Errorf("parser: map key must be an integer or a string, got %s", key)
+			}
+			value, err := e.Value.ToBiscuit(parameters)
+			if err != nil {
+				return nil, err
+			}
+			if value.Type() == biscuit.TermTypeVariable {
+				return nil, errors.New("parser: a map cannot contain variables")
+			}
+			m = append(m, biscuit.MapEntry{Key: key, Value: value})
+		}
+		return m, nil
+	}
+
+	set := make(biscuit.Set, 0, len(b.Entries))
+	for _, e := range b.Entries {
+		if e.Value != nil {
+			return nil, errors.New("parser: set element with a value")
+		}
+		elt, err := e.Key.ToBiscuit(parameters)
+		if err != nil {
+			return nil, err
+		}
+		if elt.Type() == biscuit.TermTypeVariable {
+			return nil, ErrVariableInSet
+		}
+		set = append(set, elt)
+	}
+	return set, nil
 }
 
 type Operator int
@@ -249,12 +392,25 @@ const (
 	OpUnion
 	OpLength
 	OpNegate
+	OpNotEqual
+	OpBitwiseAnd
+	OpBitwiseOr
+	OpBitwiseXor
+	OpHeterogeneousEqual
+	OpHeterogeneousNotEqual
+	OpLazyAnd
+	OpLazyOr
+	OpAll
+	OpAny
+	OpGet
+	OpTypeOf
+	OpTryOr
 )
 
 var operatorMap = map[string]Operator{
 	"+": OpAdd,
-	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpAnd, "||": OpOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
-	"==": OpEqual, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength}
+	"-": OpSub, "*": OpMul, "/": OpDiv, "&&": OpLazyAnd, "||": OpLazyOr, "all": OpAll, "any": OpAny, "get": OpGet, "try_or": OpTryOr, "<=": OpLessOrEqual, ">=": OpGreaterOrEqual, "<": OpLessThan, ">": OpGreaterThan,
+	"==": OpHeterogeneousEqual, "===": OpEqual, "!=": OpHeterogeneousNotEqual, "!==": OpNotEqual, "&": OpBitwiseAnd, "|": OpBitwiseOr, "^": OpBitwiseXor, "!": OpNegate, "contains": OpContains, "starts_with": OpPrefix, "ends_with": OpSuffix, "matches": OpMatches, "intersection": OpIntersection, "union": OpUnion, "length": OpLength, "type": OpTypeOf}
 
 func (o *Operator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
@@ -282,13 +438,45 @@ type OpExpr2 struct {
 }
 
 type Expr2 struct {
-	Left  *Expr3   `@@`
+	Left  *ExprXor `@@`
 	Right *OpExpr3 `@@?`
 }
 
 type OpExpr3 struct {
-	Operator Operator `@("<=" | ">=" | "<" | ">" | "==")`
-	Expr3    *Expr3   `@@`
+	Operator Operator `@("<=" | ">=" | "<" | ">" | "===" | "==" | "!==" | "!=")`
+	Expr3    *ExprXor `@@`
+}
+
+// Bitwise operators sit between comparisons and arithmetic, in the order of
+// the spec: ^ binds loosest, then |, then &.
+type ExprXor struct {
+	Left  *ExprBitOr   `@@`
+	Right []*OpExprXor `@@*`
+}
+
+type OpExprXor struct {
+	Operator Operator   `@("^")`
+	Expr     *ExprBitOr `@@`
+}
+
+type ExprBitOr struct {
+	Left  *ExprBitAnd    `@@`
+	Right []*OpExprBitOr `@@*`
+}
+
+type OpExprBitOr struct {
+	Operator Operator    `@("|")`
+	Expr     *ExprBitAnd `@@`
+}
+
+type ExprBitAnd struct {
+	Left  *Expr3          `@@`
+	Right []*OpExprBitAnd `@@*`
+}
+
+type OpExprBitAnd struct {
+	Operator Operator `@("&")`
+	Expr     *Expr3   `@@`
 }
 
 type Expr3 struct {
@@ -322,8 +510,18 @@ type Expr6 struct {
 }
 
 type OpExpr7 struct {
-	Operator   Operator    `Dot @("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length")`
-	Expression *Expression `"(" @@? ")"`
+	Operator   Operator    `Dot (@("matches" | "starts_with" | "ends_with" | "contains" | "union" | "intersection" | "length" | "all" | "any" | "get" | "type" | "try_or")`
+	Extern     string      `| @Ident)`
+	Closure    *ClosureArg `"(" (@@`
+	Expression *Expression `| @@)? ")"`
+}
+
+const externPrefix = "extern::"
+
+// ClosureArg is the `$p -> body` argument of .all() and .any().
+type ClosureArg struct {
+	Param *Variable   `@Variable ClosureArrow`
+	Body  *Expression `@@`
 }
 
 type ExprTerm struct {
@@ -331,108 +529,237 @@ type ExprTerm struct {
 	Expression *Expression `| "(" @@? ")"`
 }
 
-func (e *Expression) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expression) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 	if e.Right != nil {
-
-		e.Right.ToExpr(expr, parameters)
+		return e.Right.ToExpr(expr, parameters)
 	}
+	return nil
 }
 
-func (e *Expr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *ExprXor) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *ExprBitOr) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *ExprBitAnd) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	for _, op := range e.Right {
+		if err := op.Expr.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		if err := op.Operator.ToExpr(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Expr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
+func (e *Expr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 
 	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr6.ToExpr(expr, parameters)
+func (e *Expr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr6.ToExpr(expr, parameters); err != nil {
+		return err
+	}
 	if e.Operator != nil {
 		*expr = append(*expr, biscuit.UnaryNegate)
 	}
+	return nil
 }
 
-func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Left.ToExpr(expr, parameters)
-	for _, op := range e.Right {
-		op.ToExpr(expr, parameters)
+func (e *Expr6) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	start := len(*expr)
+	if err := e.Left.ToExpr(expr, parameters); err != nil {
+		return err
 	}
+	for _, op := range e.Right {
+		if op.Extern == "" && op.Operator == OpTryOr {
+			// The receiver of .try_or() is evaluated lazily, as a closure.
+			receiver := slices.Clone((*expr)[start:])
+			*expr = append((*expr)[:start], biscuit.Closure{Body: receiver})
+		}
+		if err := op.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-
+func (e *ExprTerm) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
 	switch {
 	case e.Term != nil:
-		//FIXME: error management
-		term, _ := e.Term.ToBiscuit(parameters)
+		term, err := e.Term.ToBiscuit(parameters)
+		if err != nil {
+			return err
+		}
 		*expr = append(*expr, biscuit.Value{Term: term})
 	case e.Expression != nil:
-		e.Expression.ToExpr(expr, parameters)
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
 		*expr = append(*expr, biscuit.UnaryParens)
 	}
-
+	return nil
 }
 
-func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr1.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr2.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr3.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr4.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	e.Expr5.ToExpr(expr, parameters)
-	e.Operator.ToExpr(expr)
-}
-
-func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) {
-	if e.Expression != nil {
-		e.Expression.ToExpr(expr, parameters)
+// && and || evaluate their right side only when needed: it is emitted as a
+// closure without parameters (datalog v3.3).
+func (e *OpExpr1) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	var right biscuit.Expression
+	if err := e.Expr1.ToExpr(&right, parameters); err != nil {
+		return err
 	}
-	e.Operator.ToExpr(expr)
+	*expr = append(*expr, biscuit.Closure{Body: right})
+	return e.Operator.ToExpr(expr)
 }
 
-func (op *Operator) ToExpr(expr *biscuit.Expression) {
+func (e *OpExpr2) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	var right biscuit.Expression
+	if err := e.Expr2.ToExpr(&right, parameters); err != nil {
+		return err
+	}
+	*expr = append(*expr, biscuit.Closure{Body: right})
+	return e.Operator.ToExpr(expr)
+}
 
+func (e *OpExpr3) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr3.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr4) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr4.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr5) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if err := e.Expr5.ToExpr(expr, parameters); err != nil {
+		return err
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (e *OpExpr7) ToExpr(expr *biscuit.Expression, parameters ParametersMap) error {
+	if e.Extern != "" {
+		name := strings.TrimPrefix(e.Extern, externPrefix)
+		if name == "" || name == e.Extern {
+			return fmt.Errorf("parser: unknown method .%s()", e.Extern)
+		}
+		if e.Closure != nil {
+			return fmt.Errorf("parser: .%s() does not take a closure", e.Extern)
+		}
+		if e.Expression == nil {
+			*expr = append(*expr, biscuit.ExternUnary{Name: name})
+			return nil
+		}
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+		*expr = append(*expr, biscuit.ExternBinary{Name: name})
+		return nil
+	}
+	if e.Operator == OpTryOr && (e.Expression == nil || e.Closure != nil) {
+		return errors.New("parser: .try_or() takes a fallback value")
+	}
+	switch {
+	case e.Closure != nil:
+		var body biscuit.Expression
+		if err := e.Closure.Body.ToExpr(&body, parameters); err != nil {
+			return err
+		}
+		*expr = append(*expr, biscuit.Closure{Params: []biscuit.Variable{biscuit.Variable(*e.Closure.Param)}, Body: body})
+	case e.Expression != nil:
+		if err := e.Expression.ToExpr(expr, parameters); err != nil {
+			return err
+		}
+	}
+	return e.Operator.ToExpr(expr)
+}
+
+func (op *Operator) ToExpr(expr *biscuit.Expression) error {
 	var biscuit_op biscuit.Op
 	switch *op {
 	case OpAnd:
@@ -457,6 +784,30 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryGreaterThan
 	case OpEqual:
 		biscuit_op = biscuit.BinaryEqual
+	case OpNotEqual:
+		biscuit_op = biscuit.BinaryNotEqual
+	case OpHeterogeneousEqual:
+		biscuit_op = biscuit.BinaryHeterogeneousEqual
+	case OpHeterogeneousNotEqual:
+		biscuit_op = biscuit.BinaryHeterogeneousNotEqual
+	case OpLazyAnd:
+		biscuit_op = biscuit.BinaryLazyAnd
+	case OpLazyOr:
+		biscuit_op = biscuit.BinaryLazyOr
+	case OpAll:
+		biscuit_op = biscuit.BinaryAll
+	case OpAny:
+		biscuit_op = biscuit.BinaryAny
+	case OpGet:
+		biscuit_op = biscuit.BinaryGet
+	case OpTryOr:
+		biscuit_op = biscuit.BinaryTryOr
+	case OpBitwiseAnd:
+		biscuit_op = biscuit.BinaryBitwiseAnd
+	case OpBitwiseOr:
+		biscuit_op = biscuit.BinaryBitwiseOr
+	case OpBitwiseXor:
+		biscuit_op = biscuit.BinaryBitwiseXor
 	case OpContains:
 		biscuit_op = biscuit.BinaryContains
 	case OpPrefix:
@@ -467,20 +818,18 @@ func (op *Operator) ToExpr(expr *biscuit.Expression) {
 		biscuit_op = biscuit.BinaryRegex
 	case OpLength:
 		biscuit_op = biscuit.UnaryLength
+	case OpTypeOf:
+		biscuit_op = biscuit.UnaryTypeOf
 	case OpIntersection:
 		biscuit_op = biscuit.BinaryIntersection
 	case OpUnion:
 		biscuit_op = biscuit.BinaryUnion
+	default:
+		return fmt.Errorf("parser: unsupported operator %d", *op)
 	}
 
 	*expr = append(*expr, biscuit_op)
-}
-
-type Set struct {
-	Not    bool        `@"not"? "in"`
-	Bytes  []HexString `("[" ( @@ ("," @@)*)+ "]"`
-	String []string    `| "[" (@String ("," @String)*)+ "]"`
-	Int    []int64     `| "[" (@Int ("," @Int)*)+ "]")`
+	return nil
 }
 
 type HexString string
@@ -543,19 +892,29 @@ func (a *Term) ToBiscuit(parameters ParametersMap) (biscuit.Term, error) {
 		biscuitTerm = biscuit.Bytes(b)
 	case a.Bool != nil:
 		biscuitTerm = biscuit.Bool(*a.Bool)
-	case a.Set != nil:
-		biscuitSet := make(biscuit.Set, 0, len(a.Set))
-		for _, term := range a.Set {
-			setTerm, err := term.ToBiscuit(parameters)
+	case a.Null:
+		biscuitTerm = biscuit.Null{}
+	case a.Braces != nil:
+		t, err := a.Braces.ToBiscuit(parameters)
+		if err != nil {
+			return nil, err
+		}
+		biscuitTerm = t
+	case a.EmptyArray:
+		biscuitTerm = biscuit.Array{}
+	case a.Array != nil:
+		array := make(biscuit.Array, 0, len(a.Array))
+		for _, term := range a.Array {
+			elt, err := term.ToBiscuit(parameters)
 			if err != nil {
 				return nil, err
 			}
-			if setTerm.Type() == biscuit.TermTypeVariable {
-				return nil, ErrVariableInSet
+			if elt.Type() == biscuit.TermTypeVariable {
+				return nil, errors.New("parser: an array cannot contain variables")
 			}
-			biscuitSet = append(biscuitSet, setTerm)
+			array = append(array, elt)
 		}
-		biscuitTerm = biscuitSet
+		biscuitTerm = array
 	case a.Parameter != nil:
 		paramName := string(*(a.Parameter))
 		paramValue := parameters[paramName]
@@ -588,7 +947,9 @@ func (r *Rule) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr, parameters)
+				if err := (*p.Expression).ToExpr(&expr, parameters); err != nil {
+					return nil, err
+				}
 
 				expressions = append(expressions, expr)
 			}
@@ -600,10 +961,16 @@ func (r *Rule) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) {
 		return nil, err
 	}
 
+	scopes, err := scopesToBiscuit(r.Scopes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &biscuit.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 
@@ -620,6 +987,7 @@ func (c *Check) ToBiscuit(parameters ParametersMap) (*biscuit.Check, error) {
 
 	return &biscuit.Check{
 		Queries: queries,
+		Kind:    biscuit.CheckKind(c.Kind),
 	}, nil
 }
 
@@ -640,7 +1008,9 @@ func (r *CheckQuery) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) 
 		case p.Expression != nil:
 			{
 				var expr biscuit.Expression
-				(*p.Expression).ToExpr(&expr, parameters)
+				if err := (*p.Expression).ToExpr(&expr, parameters); err != nil {
+					return nil, err
+				}
 
 				expressions = append(expressions, expr)
 			}
@@ -652,10 +1022,16 @@ func (r *CheckQuery) ToBiscuit(parameters ParametersMap) (*biscuit.Rule, error) 
 		IDs:  []biscuit.Term{},
 	}
 
+	scopes, err := scopesToBiscuit(r.Scopes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &biscuit.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 

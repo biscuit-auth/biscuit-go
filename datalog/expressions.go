@@ -19,11 +19,22 @@ const maxStackSize = 1000
 var (
 	ErrExprDivByZero = errors.New("datalog: Div by zero")
 	ErrInt64Overflow = errors.New("datalog: expression overflowed int64")
+	// ErrShadowedVariable is returned when a closure parameter has the name
+	// of a variable already bound in the expression.
+	ErrShadowedVariable = errors.New("datalog: closure parameter shadows a variable")
 )
 
 type Expression []Op
 
+// Evaluate evaluates the expression without extern functions; an
+// extern:: call fails with ErrUndefinedExtern.
 func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (Term, error) {
+	return e.EvaluateWith(values, symbols, nil)
+}
+
+// EvaluateWith evaluates the expression with the variables bound to values;
+// extern::name calls resolve against externs.
+func (e *Expression) EvaluateWith(values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
 	s := &stack{}
 
 	for _, op := range *e {
@@ -39,21 +50,31 @@ func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (
 				id = *idptr
 			default: // do nothing
 			}
-			err := s.Push(id)
+			err := s.Push(stackElem{term: id})
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: stack overflow")
 			}
+		case OpTypeClosure:
+			closure := op.(Closure)
+			if err := s.Push(stackElem{closure: &closure}); err != nil {
+				return nil, fmt.Errorf("datalog: expressions: stack overflow")
+			}
 		case OpTypeUnary:
-			v, err := s.Pop()
+			v, err := s.PopTerm()
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: failed to pop unary value: %w", err)
 			}
 
-			res, err := op.(UnaryOp).Eval(v, symbols)
+			var res Term
+			if ffi, ok := op.(UnaryOp).UnaryOpFunc.(Ffi); ok {
+				res, err = externs.call(symbols, ffi.Name, v, nil)
+			} else {
+				res, err = op.(UnaryOp).Eval(v, symbols)
+			}
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: unary eval failed: %w", err)
 			}
-			err = s.Push(res)
+			err = s.Push(stackElem{term: res})
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: stack overflow")
 			}
@@ -67,11 +88,25 @@ func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (
 				return nil, fmt.Errorf("datalog: expressions: failed to pop binary left value: %w", err)
 			}
 
-			res, err := op.(BinaryOp).Eval(left, right, symbols)
+			var res Term
+			switch {
+			case right.closure != nil && left.closure != nil:
+				return nil, errors.New("datalog: expressions: binary operator with two closures")
+			case right.closure != nil:
+				res, err = evalWithClosure(op.(BinaryOp), left.term, *right.closure, values, symbols, externs)
+			case left.closure != nil:
+				res, err = evalWithClosure(op.(BinaryOp), right.term, *left.closure, values, symbols, externs)
+			default:
+				if ffi, ok := op.(BinaryOp).BinaryOpFunc.(FfiBinary); ok {
+					res, err = externs.call(symbols, ffi.Name, left.term, right.term)
+				} else {
+					res, err = op.(BinaryOp).Eval(left.term, right.term, symbols)
+				}
+			}
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: binary eval failed: %w", err)
 			}
-			err = s.Push(res)
+			err = s.Push(stackElem{term: res})
 			if err != nil {
 				return nil, fmt.Errorf("datalog: expressions: stack overflow")
 			}
@@ -85,7 +120,28 @@ func (e *Expression) Evaluate(values map[Variable]*Term, symbols *SymbolTable) (
 		return nil, fmt.Errorf("datalog: expressions: invalid resulting stack: %#v", *s)
 	}
 
-	return s.Pop()
+	return s.PopTerm()
+}
+
+// evalWithClosure applies a binary operator with one operand a closure and
+// the other the term. The closure runs with its parameters bound on top of
+// the current variables; a parameter may not have the name of a bound
+// variable.
+func evalWithClosure(op BinaryOp, left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	f, ok := op.BinaryOpFunc.(ClosureOpFunc)
+	if !ok {
+		return nil, fmt.Errorf("datalog: %s does not take a closure", op.Print("", ""))
+	}
+	for _, p := range closure.Params {
+		if _, bound := values[p]; bound {
+			return nil, ErrShadowedVariable
+		}
+	}
+	scope := make(map[Variable]*Term, len(values)+len(closure.Params))
+	for k, v := range values {
+		scope[k] = v
+	}
+	return f.EvalClosure(left, closure, scope, symbols, externs)
 }
 
 func (e *Expression) Print(symbols *SymbolTable) string {
@@ -94,30 +150,24 @@ func (e *Expression) Print(symbols *SymbolTable) string {
 	for _, op := range *e {
 		switch op.Type() {
 		case OpTypeValue:
-			id := op.(Value).ID
-			switch id.Type() {
-			case TermTypeString:
-				err := s.Push(fmt.Sprintf("\"%s\"", symbols.Str(id.(String))))
-				if err != nil {
-					return "<invalid expression: stack overflow>"
-				}
-			case TermTypeVariable:
-				err := s.Push(fmt.Sprintf("$%s", symbols.Var(id.(Variable))))
-				if err != nil {
-					return "<invalid expression: stack overflow>"
-				}
-			default:
-				err := s.Push(id.String())
-				if err != nil {
-					return "<invalid expression: stack overflow>"
-				}
+			if err := s.Push(SymbolDebugger{SymbolTable: symbols}.Term(op.(Value).ID)); err != nil {
+				return "<invalid expression: stack overflow>"
+			}
+		case OpTypeClosure:
+			if err := s.Push(op.(Closure).Print(symbols)); err != nil {
+				return "<invalid expression: stack overflow>"
 			}
 		case OpTypeUnary:
 			v, err := s.Pop()
 			if err != nil {
 				return "<invalid expression: unary operation failed to pop value>"
 			}
-			res := op.(UnaryOp).Print(v)
+			var res string
+			if ffi, ok := op.(UnaryOp).UnaryOpFunc.(Ffi); ok {
+				res = fmt.Sprintf("%s.extern::%s()", v, symbols.Str(ffi.Name))
+			} else {
+				res = op.(UnaryOp).Print(v)
+			}
 			err = s.Push(res)
 			if err != nil {
 				return "<invalid expression: stack overflow>"
@@ -131,7 +181,12 @@ func (e *Expression) Print(symbols *SymbolTable) string {
 			if err != nil {
 				return "<invalid expression: binary operation failed to pop left value>"
 			}
-			res := op.(BinaryOp).Print(left, right)
+			var res string
+			if ffi, ok := op.(BinaryOp).BinaryOpFunc.(FfiBinary); ok {
+				res = fmt.Sprintf("%s.extern::%s(%s)", left, symbols.Str(ffi.Name), right)
+			} else {
+				res = op.(BinaryOp).Print(left, right)
+			}
 			err = s.Push(res)
 			if err != nil {
 				return "<invalid expression: stack overflow>"
@@ -158,10 +213,48 @@ const (
 	OpTypeValue OpType = iota
 	OpTypeUnary
 	OpTypeBinary
+	// OpTypeClosure is datalog v3.3.
+	OpTypeClosure
 )
 
 type Op interface {
 	Type() OpType
+}
+
+// Closure is an expression evaluated by the operator that consumes it, with
+// Params bound by that operator: the right side of a lazy && or ||, or the
+// predicate of .all() and .any(). Datalog v3.3.
+type Closure struct {
+	Params []Variable
+	Body   Expression
+}
+
+func (Closure) Type() OpType {
+	return OpTypeClosure
+}
+
+// Print renders the closure as `$p -> body`, or just the body without
+// parameters.
+func (c Closure) Print(symbols *SymbolTable) string {
+	body := c.Body.Print(symbols)
+	if len(c.Params) == 0 {
+		return body
+	}
+	params := make([]string, len(c.Params))
+	for i, p := range c.Params {
+		params[i] = "$" + symbols.Var(p)
+	}
+	return fmt.Sprintf("%s -> %s", strings.Join(params, ", "), body)
+}
+
+// ClosureOpFunc is a binary operator with a closure operand: the right one
+// for && || .all() .any(), the receiver for .try_or().
+type ClosureOpFunc interface {
+	BinaryOpFunc
+	// EvalClosure receives the term operand and the closure, and the
+	// variables of the expression, which it may extend with the closure
+	// parameters.
+	EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error)
 }
 
 type Value struct {
@@ -188,6 +281,10 @@ func (op UnaryOp) Print(value string) string {
 		out = fmt.Sprintf("(%s)", value)
 	case UnaryLength:
 		out = fmt.Sprintf("%s.length()", value)
+	case UnaryTypeOf:
+		out = fmt.Sprintf("%s.type()", value)
+	case UnaryFfi:
+		out = fmt.Sprintf("%s.extern::<?>()", value)
 	default:
 		out = fmt.Sprintf("unknown(%s)", value)
 	}
@@ -205,7 +302,57 @@ const (
 	UnaryNegate UnaryOpType = iota
 	UnaryParens
 	UnaryLength
+	// UnaryTypeOf and UnaryFfi are datalog v3.3.
+	UnaryTypeOf
+	UnaryFfi
 )
+
+// Ffi is the unary extern::name() call; Name is the symbol of the function
+// name. It is evaluated by Expression.EvaluateWith, which holds the
+// registered functions.
+type Ffi struct {
+	Name String
+}
+
+func (Ffi) Type() UnaryOpType {
+	return UnaryFfi
+}
+func (Ffi) Eval(Term, *SymbolTable) (Term, error) {
+	return nil, ErrUndefinedExtern
+}
+
+// TypeOf is .type(): the name of the type of a value, as a String.
+type TypeOf struct{}
+
+func (TypeOf) Type() UnaryOpType {
+	return UnaryTypeOf
+}
+func (TypeOf) Eval(value Term, symbols *SymbolTable) (Term, error) {
+	var name string
+	switch value.Type() {
+	case TermTypeInteger:
+		name = "integer"
+	case TermTypeString:
+		name = "string"
+	case TermTypeDate:
+		name = "date"
+	case TermTypeBytes:
+		name = "bytes"
+	case TermTypeBool:
+		name = "bool"
+	case TermTypeSet:
+		name = "set"
+	case TermTypeNull:
+		name = "null"
+	case TermTypeArray:
+		name = "array"
+	case TermTypeMap:
+		name = "map"
+	default:
+		return nil, fmt.Errorf("datalog: unexpected TypeOf value type: %d", value.Type())
+	}
+	return symbols.Insert(name), nil
+}
 
 // Negate returns the negation of a value.
 // It only accepts a Bool value.
@@ -255,6 +402,10 @@ func (Length) Eval(value Term, symbols *SymbolTable) (Term, error) {
 		out = Integer(len(value.(Bytes)))
 	case TermTypeSet:
 		out = Integer(len(value.(Set)))
+	case TermTypeArray:
+		out = Integer(len(value.(Array)))
+	case TermTypeMap:
+		out = Integer(len(value.(Map)))
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Length value type: %d", value.Type())
 	}
@@ -280,7 +431,7 @@ func (op BinaryOp) Print(left, right string) string {
 	case BinaryGreaterOrEqual:
 		out = fmt.Sprintf("%s >= %s", left, right)
 	case BinaryEqual:
-		out = fmt.Sprintf("%s == %s", left, right)
+		out = fmt.Sprintf("%s === %s", left, right)
 	case BinaryContains:
 		out = fmt.Sprintf("%s.contains(%s)", left, right)
 	case BinaryPrefix:
@@ -305,6 +456,32 @@ func (op BinaryOp) Print(left, right string) string {
 		out = fmt.Sprintf("%s.intersection(%s)", left, right)
 	case BinaryUnion:
 		out = fmt.Sprintf("%s.union(%s)", left, right)
+	case BinaryBitwiseAnd:
+		out = fmt.Sprintf("%s & %s", left, right)
+	case BinaryBitwiseOr:
+		out = fmt.Sprintf("%s | %s", left, right)
+	case BinaryBitwiseXor:
+		out = fmt.Sprintf("%s ^ %s", left, right)
+	case BinaryNotEqual:
+		out = fmt.Sprintf("%s !== %s", left, right)
+	case BinaryHeterogeneousEqual:
+		out = fmt.Sprintf("%s == %s", left, right)
+	case BinaryHeterogeneousNotEqual:
+		out = fmt.Sprintf("%s != %s", left, right)
+	case BinaryLazyAnd:
+		out = fmt.Sprintf("%s && %s", left, right)
+	case BinaryLazyOr:
+		out = fmt.Sprintf("%s || %s", left, right)
+	case BinaryAll:
+		out = fmt.Sprintf("%s.all(%s)", left, right)
+	case BinaryAny:
+		out = fmt.Sprintf("%s.any(%s)", left, right)
+	case BinaryGet:
+		out = fmt.Sprintf("%s.get(%s)", left, right)
+	case BinaryFfi:
+		out = fmt.Sprintf("%s.extern::<?>(%s)", left, right)
+	case BinaryTryOr:
+		out = fmt.Sprintf("%s.try_or(%s)", left, right)
 	default:
 		out = fmt.Sprintf("unknown(%s, %s)", left, right)
 	}
@@ -336,7 +513,34 @@ const (
 	BinaryOr
 	BinaryIntersection
 	BinaryUnion
+	// Datalog v3.1 operators.
+	BinaryBitwiseAnd
+	BinaryBitwiseOr
+	BinaryBitwiseXor
+	BinaryNotEqual
+	// Datalog v3.3 operators.
+	BinaryHeterogeneousEqual
+	BinaryHeterogeneousNotEqual
+	BinaryLazyAnd
+	BinaryLazyOr
+	BinaryAll
+	BinaryAny
+	BinaryGet
+	BinaryFfi
+	BinaryTryOr
 )
+
+// FfiBinary is the binary extern::name(right) call; see Ffi.
+type FfiBinary struct {
+	Name String
+}
+
+func (FfiBinary) Type() BinaryOpType {
+	return BinaryFfi
+}
+func (FfiBinary) Eval(Term, Term, *SymbolTable) (Term, error) {
+	return nil, ErrUndefinedExtern
+}
 
 // LessThan returns true when left is less than right.
 // It requires left and right to have the same concrete type
@@ -462,12 +666,58 @@ func (Equal) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	case TermTypeDate:
 	case TermTypeBool:
 	case TermTypeSet:
+	case TermTypeNull:
+	case TermTypeArray:
+	case TermTypeMap:
 
 	default:
 		return nil, fmt.Errorf("datalog: unexpected Equal value type: %d", left.Type())
 	}
 
 	return Bool(left.Equal(right)), nil
+}
+
+// NotEqual is the negation of Equal, with the same type requirements.
+type NotEqual struct{}
+
+func (NotEqual) Type() BinaryOpType {
+	return BinaryNotEqual
+}
+func (NotEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	equal, err := Equal{}.Eval(left, right, symbols)
+	if err != nil {
+		return nil, err
+	}
+	return Bool(!equal.(Bool)), nil
+}
+
+// HeterogeneousEqual is == since datalog v3.3: values of different types
+// are not equal instead of being a type error. Equal (===) keeps the strict
+// behaviour.
+type HeterogeneousEqual struct{}
+
+func (HeterogeneousEqual) Type() BinaryOpType {
+	return BinaryHeterogeneousEqual
+}
+func (HeterogeneousEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if left.Type() != right.Type() {
+		return Bool(false), nil
+	}
+	return Equal{}.Eval(left, right, symbols)
+}
+
+// HeterogeneousNotEqual is != since datalog v3.3, the negation of
+// HeterogeneousEqual.
+type HeterogeneousNotEqual struct{}
+
+func (HeterogeneousNotEqual) Type() BinaryOpType {
+	return BinaryHeterogeneousNotEqual
+}
+func (HeterogeneousNotEqual) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if left.Type() != right.Type() {
+		return Bool(true), nil
+	}
+	return NotEqual{}.Eval(left, right, symbols)
 }
 
 // Contains returns true when the right value exists in the left Set.
@@ -487,6 +737,14 @@ func (Contains) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) 
 		}
 
 		return Bool(strings.Contains(symbols.Str(sleft), symbols.Str(sright))), nil
+	}
+
+	// An array contains an element, a map contains a key.
+	switch left := left.(type) {
+	case Array:
+		return Bool(left.contains(right)), nil
+	case Map:
+		return Bool(IsMapKey(right) && left.Get(right) != nil), nil
 	}
 
 	switch right.Type() {
@@ -578,6 +836,13 @@ func (Prefix) Type() BinaryOpType {
 	return BinaryPrefix
 }
 func (Prefix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if aleft, ok := left.(Array); ok {
+		aright, ok := right.(Array)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Prefix requires right value to be an Array, got %T", right)
+		}
+		return Bool(aleft.HasPrefix(aright)), nil
+	}
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Prefix requires left value to be a String, got %T", left)
@@ -598,6 +863,13 @@ func (Suffix) Type() BinaryOpType {
 	return BinarySuffix
 }
 func (Suffix) Eval(left Term, right Term, symbols *SymbolTable) (Term, error) {
+	if aleft, ok := left.(Array); ok {
+		aright, ok := right.(Array)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Suffix requires right value to be an Array, got %T", right)
+		}
+		return Bool(aleft.HasSuffix(aright)), nil
+	}
 	sleft, ok := left.(String)
 	if !ok {
 		return nil, fmt.Errorf("datalog: Suffix requires left value to be a String, got %T", left)
@@ -754,6 +1026,194 @@ func (Div) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	return Integer(ileft / iright), nil
 }
 
+// LazyAnd is && since datalog v3.3: the right side is a closure, evaluated
+// only when the left side is true.
+type LazyAnd struct{}
+
+func (LazyAnd) Type() BinaryOpType {
+	return BinaryLazyAnd
+}
+func (LazyAnd) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: && requires a closure as right value")
+}
+func (LazyAnd) EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	b, ok := left.(Bool)
+	if !ok {
+		return nil, fmt.Errorf("datalog: && requires left value to be a Bool, got %T", left)
+	}
+	if len(closure.Params) != 0 {
+		return nil, errors.New("datalog: && takes a closure without parameters")
+	}
+	if !b {
+		return Bool(false), nil
+	}
+	return closure.Body.EvaluateWith(values, symbols, externs)
+}
+
+// LazyOr is || since datalog v3.3: the right side is a closure, evaluated
+// only when the left side is false.
+type LazyOr struct{}
+
+func (LazyOr) Type() BinaryOpType {
+	return BinaryLazyOr
+}
+func (LazyOr) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: || requires a closure as right value")
+}
+func (LazyOr) EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	b, ok := left.(Bool)
+	if !ok {
+		return nil, fmt.Errorf("datalog: || requires left value to be a Bool, got %T", left)
+	}
+	if len(closure.Params) != 0 {
+		return nil, errors.New("datalog: || takes a closure without parameters")
+	}
+	if b {
+		return Bool(true), nil
+	}
+	return closure.Body.EvaluateWith(values, symbols, externs)
+}
+
+// TryOr is receiver.try_or(fallback): the receiver is a closure without
+// parameters; its value, or fallback when evaluating it fails. The fallback
+// is an ordinary operand, so an error in it is not caught.
+type TryOr struct{}
+
+func (TryOr) Type() BinaryOpType {
+	return BinaryTryOr
+}
+func (TryOr) Eval(Term, Term, *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: .try_or() receiver must be a closure")
+}
+func (TryOr) EvalClosure(fallback Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	if len(closure.Params) != 0 {
+		return nil, errors.New("datalog: .try_or() receiver takes no parameters")
+	}
+	res, err := closure.Body.EvaluateWith(values, symbols, externs)
+	if err != nil {
+		return fallback, nil
+	}
+	return res, nil
+}
+
+// All is .all($x -> ...): true when the closure holds for every element of
+// the left set.
+type All struct{}
+
+func (All) Type() BinaryOpType {
+	return BinaryAll
+}
+func (All) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: .all() requires a closure")
+}
+func (All) EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	return forEachElement("all", left, closure, values, symbols, externs, func(res Bool) (Term, bool) {
+		if !res {
+			return Bool(false), true
+		}
+		return nil, false
+	}, Bool(true))
+}
+
+// Any is .any($x -> ...): true when the closure holds for one element of
+// the left set.
+type Any struct{}
+
+func (Any) Type() BinaryOpType {
+	return BinaryAny
+}
+func (Any) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	return nil, errors.New("datalog: .any() requires a closure")
+}
+func (Any) EvalClosure(left Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs) (Term, error) {
+	return forEachElement("any", left, closure, values, symbols, externs, func(res Bool) (Term, bool) {
+		if res {
+			return Bool(true), true
+		}
+		return nil, false
+	}, Bool(false))
+}
+
+// forEachElement evaluates the closure on each element of the collection,
+// stopping when decide returns a result; otherwise the result is exhausted.
+func forEachElement(name string, collection Term, closure Closure, values map[Variable]*Term, symbols *SymbolTable, externs ExternFuncs, decide func(Bool) (Term, bool), exhausted Term) (Term, error) {
+	if len(closure.Params) != 1 {
+		return nil, fmt.Errorf("datalog: .%s() takes a closure with one parameter", name)
+	}
+	elements, err := collectionElements(collection)
+	if err != nil {
+		return nil, fmt.Errorf("datalog: .%s(): %w", name, err)
+	}
+	param := closure.Params[0]
+	for _, element := range elements {
+		element := element
+		values[param] = &element
+		res, err := closure.Body.EvaluateWith(values, symbols, externs)
+		delete(values, param)
+		if err != nil {
+			return nil, err
+		}
+		b, ok := res.(Bool)
+		if !ok {
+			return nil, fmt.Errorf("datalog: .%s() closure must return a Bool, got %T", name, res)
+		}
+		if out, done := decide(b); done {
+			return out, nil
+		}
+	}
+	return exhausted, nil
+}
+
+// collectionElements lists the elements a closure iterates over: the
+// elements of a set or an array, or [key, value] arrays for a map.
+func collectionElements(t Term) ([]Term, error) {
+	switch t := t.(type) {
+	case Set:
+		return t, nil
+	case Array:
+		return t, nil
+	case Map:
+		elements := make([]Term, len(t))
+		for i, e := range t {
+			elements[i] = Array{e.Key, e.Value}
+		}
+		return elements, nil
+	default:
+		return nil, fmt.Errorf("requires a Set, an Array or a Map, got %T", t)
+	}
+}
+
+// Get is .get(): the element of an array at an index, or the value of a map
+// for a key; null when there is none.
+type Get struct{}
+
+func (Get) Type() BinaryOpType {
+	return BinaryGet
+}
+func (Get) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	switch left := left.(type) {
+	case Array:
+		index, ok := right.(Integer)
+		if !ok {
+			return nil, fmt.Errorf("datalog: Get on an Array requires an Integer index, got %T", right)
+		}
+		if index < 0 || int64(index) >= int64(len(left)) {
+			return Null{}, nil
+		}
+		return left[index], nil
+	case Map:
+		if !IsMapKey(right) {
+			return nil, fmt.Errorf("datalog: Get on a Map requires an Integer or String key, got %T", right)
+		}
+		if v := left.Get(right); v != nil {
+			return v, nil
+		}
+		return Null{}, nil
+	default:
+		return nil, fmt.Errorf("datalog: Get requires left value to be an Array or a Map, got %T", left)
+	}
+}
+
 // And performs a logical AND between left and right and returns a Bool.
 // It requires left and right to be Bool.
 type And struct{}
@@ -772,6 +1232,58 @@ func (And) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	}
 
 	return Bool(bleft && bright), nil
+}
+
+// BitwiseAnd, BitwiseOr and BitwiseXor operate on two Integers.
+type BitwiseAnd struct{}
+
+func (BitwiseAnd) Type() BinaryOpType {
+	return BinaryBitwiseAnd
+}
+func (BitwiseAnd) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseAnd", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l & r, nil
+}
+
+type BitwiseOr struct{}
+
+func (BitwiseOr) Type() BinaryOpType {
+	return BinaryBitwiseOr
+}
+func (BitwiseOr) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseOr", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l | r, nil
+}
+
+type BitwiseXor struct{}
+
+func (BitwiseXor) Type() BinaryOpType {
+	return BinaryBitwiseXor
+}
+func (BitwiseXor) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
+	l, r, err := integerOperands("BitwiseXor", left, right)
+	if err != nil {
+		return nil, err
+	}
+	return l ^ r, nil
+}
+
+func integerOperands(op string, left, right Term) (Integer, Integer, error) {
+	l, ok := left.(Integer)
+	if !ok {
+		return 0, 0, fmt.Errorf("datalog: %s requires left value to be an Integer, got %T", op, left)
+	}
+	r, ok := right.(Integer)
+	if !ok {
+		return 0, 0, fmt.Errorf("datalog: %s requires right value to be an Integer, got %T", op, right)
+	}
+	return l, r, nil
 }
 
 // Or performs a logical OR between left and right and returns a Bool.
@@ -794,9 +1306,15 @@ func (Or) Eval(left Term, right Term, _ *SymbolTable) (Term, error) {
 	return Bool(bleft || bright), nil
 }
 
-type stack []Term
+// stackElem is a term, or a closure waiting for the operator that consumes it.
+type stackElem struct {
+	term    Term
+	closure *Closure
+}
 
-func (s *stack) Push(v Term) error {
+type stack []stackElem
+
+func (s *stack) Push(v stackElem) error {
 	if len(*s) >= maxStackSize {
 		return errors.New("stack overflow")
 	}
@@ -806,15 +1324,27 @@ func (s *stack) Push(v Term) error {
 	return nil
 }
 
-func (s *stack) Pop() (Term, error) {
+func (s *stack) Pop() (stackElem, error) {
 	if len(*s) == 0 {
-		return nil, errors.New("cannot pop from empty stack")
+		return stackElem{}, errors.New("cannot pop from empty stack")
 	}
 
 	e := (*s)[len(*s)-1]
 	*s = (*s)[:len(*s)-1]
 
 	return e, nil
+}
+
+// PopTerm pops an element that must be a term.
+func (s *stack) PopTerm() (Term, error) {
+	e, err := s.Pop()
+	if err != nil {
+		return nil, err
+	}
+	if e.closure != nil {
+		return nil, errors.New("closure where a value was expected")
+	}
+	return e.term, nil
 }
 
 type stringstack []string

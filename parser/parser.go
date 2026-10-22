@@ -5,6 +5,7 @@ package parser
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
@@ -16,22 +17,26 @@ var (
 	ErrVariableInSet  = errors.New("parser: a set cannot contain any variables")
 )
 
+// Rules are tried in order and the first match wins. Word-like rules need \b
+// so that they do not split an identifier such as `truename` or `checkpoint`.
+// Method names (length, contains, ...) lex as Ident; the grammar matches them
+// by value after a Dot.
 var BiscuitLexerRules = []lexer.SimpleRule{
-	{Name: "Keyword", Pattern: `check if|allow if|deny if`},
-	{Name: "Function", Pattern: `prefix|suffix|matches|length|contains`},
+	{Name: "Keyword", Pattern: `\b(check if|check all|reject if|allow if|deny if)\b`},
 	{Name: "Hex", Pattern: `hex:([0-9a-fA-F]{2})*`},
+	{Name: "PublicKey", Pattern: `\b(ed25519|secp256r1)/[0-9a-fA-F]+`},
 	{Name: "Dot", Pattern: `\.`},
 	{Name: "Arrow", Pattern: `<-`},
+	{Name: "ClosureArrow", Pattern: `->`},
 	{Name: "Or", Pattern: `\|\|`},
 	{Name: "And", Pattern: `&&`},
-	{Name: "Operator", Pattern: `==|>=|<=|>|<|\+|-|\*`},
+	{Name: "Operator", Pattern: `===|==|!==|!=|>=|<=|>|<|\+|-|\*`},
 	{Name: "Comment", Pattern: `//[^\n]*`},
 	{Name: "String", Pattern: `\"[^\"]*\"`},
 	{Name: "Variable", Pattern: `\$[a-zA-Z0-9_:]+`},
-	{Name: "Parameter", Pattern: `\{[a-zA-Z0-9_:]+\}`},
 	{Name: "DateTime", Pattern: `\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|([-+]\d\d:\d\d))?`},
 	{Name: "Int", Pattern: `[0-9]+`},
-	{Name: "Bool", Pattern: `true|false`},
+	{Name: "Bool", Pattern: `\b(true|false)\b`},
 	{Name: "Ident", Pattern: `[a-z][a-zA-Z0-9_:]*`},
 	{Name: "Whitespace", Pattern: `[ \t]+`},
 	{Name: "EOL", Pattern: `[\n\r]+`},
@@ -40,7 +45,9 @@ var BiscuitLexerRules = []lexer.SimpleRule{
 
 var DefaultParserOptions = []participle.Option{
 	participle.Lexer(lexer.MustSimple(BiscuitLexerRules)),
-	participle.UseLookahead(1),
+	// A method argument may be `$p -> body` or an expression starting with a
+	// variable; the second token decides.
+	participle.UseLookahead(2),
 	participle.Elide("Whitespace", "EOL"),
 	participle.Unquote("String"),
 }
@@ -217,6 +224,17 @@ func (p *parser) Must() MustParser {
 	return &mustParser{parser: p}
 }
 
+var (
+	sharedParser     Parser
+	sharedParserOnce sync.Once
+)
+
+// Building a parser costs milliseconds; a built parser is stateless and safe for concurrent use.
+func shared() Parser {
+	sharedParserOnce.Do(func() { sharedParser = New() })
+	return sharedParser
+}
+
 func (m *mustParser) Fact(fact string, parameters ParametersMap) biscuit.Fact {
 	f, err := m.parser.Fact(fact, parameters)
 	if err != nil {
@@ -296,37 +314,25 @@ func FromStringAuthorizer(input string) (biscuit.ParsedAuthorizer, error) {
 }
 
 func FromStringFactWithParams(input string, parameters ParametersMap) (biscuit.Fact, error) {
-	p := New()
-
-	return p.Fact(input, parameters)
+	return shared().Fact(input, parameters)
 }
 
 func FromStringRuleWithParams(input string, parameters ParametersMap) (biscuit.Rule, error) {
-	p := New()
-
-	return p.Rule(input, parameters)
+	return shared().Rule(input, parameters)
 }
 
 func FromStringCheckWithParams(input string, parameters ParametersMap) (biscuit.Check, error) {
-	p := New()
-
-	return p.Check(input, parameters)
+	return shared().Check(input, parameters)
 }
 
 func FromStringPolicyWithParams(input string, parameters ParametersMap) (biscuit.Policy, error) {
-	p := New()
-
-	return p.Policy(input, parameters)
+	return shared().Policy(input, parameters)
 }
 
 func FromStringBlockWithParams(input string, parameters ParametersMap) (biscuit.ParsedBlock, error) {
-	p := New()
-
-	return p.Block(input, parameters)
+	return shared().Block(input, parameters)
 }
 
 func FromStringAuthorizerWithParams(input string, parameters ParametersMap) (biscuit.ParsedAuthorizer, error) {
-	p := New()
-
-	return p.Authorizer(input, parameters)
+	return shared().Authorizer(input, parameters)
 }

@@ -4,13 +4,16 @@
 package biscuit
 
 import (
+	stdcrypto "crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"fmt"
 	"testing"
 
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
+	"github.com/eclipse-biscuit/biscuit-go/v2/pb"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestBiscuit(t *testing.T) {
@@ -103,7 +106,7 @@ func TestBiscuit(t *testing.T) {
 	b3deser, err := Unmarshal(b3ser)
 	require.NoError(t, err)
 
-	v3, err := b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err := b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
@@ -111,14 +114,14 @@ func TestBiscuit(t *testing.T) {
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v3.Authorize())
 
-	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err = b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file2")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("read")}}})
 	v3.AddPolicy(DefaultAllowPolicy)
 	require.Error(t, v3.Authorize())
 
-	v3, err = b3deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v3, err = b3deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v3.AddFact(Fact{Predicate: Predicate{Name: "resource", IDs: []Term{String("/a/file1")}}})
 	v3.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String("write")}}})
@@ -179,7 +182,7 @@ func TestSealedBiscuit(t *testing.T) {
 	b2deser, err := Unmarshal(b2ser)
 	require.NoError(t, err)
 
-	_, err = b2deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	_, err = b2deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 }
 
@@ -262,6 +265,200 @@ func TestBiscuitRules(t *testing.T) {
 }
 
 // A check that compares two sets of byte arrays used to crash the authorizer.
+// The root key id identifies the verification key for the whole token; it
+// must survive attenuation and sealing.
+func TestRootKeyIDSurvivesAppendAndSeal(t *testing.T) {
+	_, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+	b1, err := NewBuilder(privateRoot, WithRootKeyID(42)).Build()
+	require.NoError(t, err)
+
+	b2, err := b1.Append(rand.Reader, b1.CreateBlock().Build())
+	require.NoError(t, err)
+	require.NotNil(t, b2.RootKeyID())
+	require.EqualValues(t, 42, *b2.RootKeyID())
+
+	sealed, err := b2.Seal(rand.Reader)
+	require.NoError(t, err)
+	require.NotNil(t, sealed.RootKeyID())
+	require.EqualValues(t, 42, *sealed.RootKeyID())
+
+	deser, err := Unmarshal(mustSerialize(t, sealed))
+	require.NoError(t, err)
+	require.EqualValues(t, 42, *deser.RootKeyID())
+}
+
+// check all passes only when every matching operation is allowed.
+func TestBiscuitCheckAll(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{
+		Predicate: Predicate{Name: "allowed_operations", IDs: []Term{Set{String("A"), String("B")}}},
+	}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{
+		Kind: CheckKindAll,
+		Queries: []Rule{{
+			Head: Predicate{Name: "allowed", IDs: []Term{Variable("op")}},
+			Body: []Predicate{
+				{Name: "operation", IDs: []Term{Variable("op")}},
+				{Name: "allowed_operations", IDs: []Term{Variable("allowed")}},
+			},
+			Expressions: []Expression{{Value{Variable("allowed")}, Value{Variable("op")}, BinaryContains}},
+		}},
+	}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	// check all needs a datalog v3.1 block.
+	require.EqualValues(t, 4, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "check all operation($op), allowed_operations($allowed), $allowed.contains($op)")
+
+	authorize := func(ops ...string) error {
+		ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
+		require.NoError(t, err)
+		for _, op := range ops {
+			ab.AddFact(Fact{Predicate: Predicate{Name: "operation", IDs: []Term{String(op)}}})
+		}
+		ab.AddPolicy(DefaultAllowPolicy)
+		return ab.Authorize()
+	}
+	require.NoError(t, authorize("A", "B"))
+	require.ErrorContains(t, authorize("A", "invalid"), "check all")
+	require.ErrorContains(t, authorize(), "check all")
+}
+
+// An expression that cannot be evaluated stops authorization with an
+// execution error instead of counting as a failed check.
+func TestAuthorizeExecutionError(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	overflow := Check{Queries: []Rule{{
+		Head:        Predicate{Name: "overflow"},
+		Expressions: []Expression{{Value{Integer(9223372036854775807)}, Value{Integer(1)}, BinaryAdd, Value{Integer(0)}, BinaryEqual}},
+	}}}
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityCheck(overflow))
+	b, err := builder.Build()
+	require.NoError(t, err)
+
+	ab, err := b.AuthorizerFrom(RootKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	err = ab.Authorize()
+	require.ErrorIs(t, err, ErrExecution)
+	require.ErrorIs(t, err, datalog.ErrInt64Overflow)
+
+	// The same from an authorizer check and from a policy, on a token
+	// without checks of its own.
+	plain, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+
+	ab, err = plain.AuthorizerFrom(RootKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddCheck(overflow)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.ErrorIs(t, ab.Authorize(), ErrExecution)
+
+	ab, err = plain.AuthorizerFrom(RootKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(Policy{Kind: PolicyKindAllow, Queries: overflow.Queries})
+	require.ErrorIs(t, ab.Authorize(), ErrExecution)
+}
+
+// reject if passes when its query has no match; a block with one is v6.
+func TestBiscuitRejectIf(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityCheck(Check{
+		Kind: CheckKindReject,
+		Queries: []Rule{{
+			Head:        Predicate{Name: "query"},
+			Body:        []Predicate{{Name: "test", IDs: []Term{Variable("t")}}},
+			Expressions: []Expression{{Value{Variable("t")}}},
+		}},
+	}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "reject if test($t), $t")
+
+	authorize := func(value bool) error {
+		ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
+		require.NoError(t, err)
+		ab.AddFact(Fact{Predicate: Predicate{Name: "test", IDs: []Term{Bool(value)}}})
+		ab.AddPolicy(DefaultAllowPolicy)
+		return ab.Authorize()
+	}
+	require.NoError(t, authorize(false))
+	require.ErrorContains(t, authorize(true), "reject if")
+}
+
+// null round-trips through a token, equals only itself under ==, and makes
+// the block v6.
+func TestBiscuitNull(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{Predicate{Name: "fact", IDs: []Term{Null{}, Integer(1)}}}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{Queries: []Rule{{
+		Head:        Predicate{Name: "query"},
+		Body:        []Predicate{{Name: "fact", IDs: []Term{Null{}, Variable("v")}}},
+		Expressions: []Expression{{Value{Variable("v")}, Value{Null{}}, BinaryHeterogeneousNotEqual}},
+	}}}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), "fact(null, 1)")
+	require.Contains(t, deser.String(), "check if fact(null, $v), $v != null")
+
+	ab, err := deser.AuthorizerFrom(RootKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.NoError(t, ab.Authorize())
+
+	nullOnly, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 3, nullOnly.authority.version)
+}
+
+// Blocks that do not use v3.1 features keep version 3, and a v3 block
+// declaring a check kind is rejected.
+func TestBlockVersionFromContent(t *testing.T) {
+	_, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+	b, err := NewBuilder(privateRoot).Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 3, b.authority.version)
+
+	kind := pb.Check_All
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version: proto.Uint32(3),
+		Checks:  []*pb.Check{{Kind: &kind}},
+	}, nil)
+	require.ErrorContains(t, err, "block version 3 uses features of version 4")
+
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version: proto.Uint32(3),
+		Scope:   []*pb.Scope{{Content: &pb.Scope_ScopeType_{ScopeType: pb.Scope_Previous}}},
+	}, nil)
+	require.ErrorContains(t, err, "block version 3 uses features of version 4")
+
+	_, err = protoBlockToTokenBlock(&pb.Block{
+		Version: proto.Uint32(4),
+		Scope:   []*pb.Scope{{Content: &pb.Scope_PublicKey{PublicKey: 0}}},
+	}, nil)
+	require.ErrorContains(t, err, "public key index 0 out of the key table")
+}
+
 func TestBiscuitBytesSetEquality(t *testing.T) {
 	rng := rand.Reader
 	publicRoot, privateRoot, _ := ed25519.GenerateKey(rng)
@@ -292,7 +489,7 @@ func TestBiscuitBytesSetEquality(t *testing.T) {
 	deser, err := Unmarshal(ser)
 	require.NoError(t, err)
 
-	v, err := deser.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	v, err := deser.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 	v.AddPolicy(DefaultAllowPolicy)
 	require.NoError(t, v.Authorize())
@@ -300,7 +497,7 @@ func TestBiscuitBytesSetEquality(t *testing.T) {
 
 func verifyOwner(t *testing.T, b Biscuit, publicRoot ed25519.PublicKey, owners map[string]bool) {
 	for user, valid := range owners {
-		v, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		v, err := b.AuthorizerFrom(RootKey(publicRoot))
 		require.NoError(t, err)
 
 		t.Run(fmt.Sprintf("verify owner %s", user), func(t *testing.T) {
@@ -336,99 +533,56 @@ func TestCheckRootKey(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
 		rootKeyID: publicRoot,
 	}, nil))
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
 		rootKeyID + 1: publicRoot,
 	}, nil))
 	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
-	_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
-		rootKeyID: nil,
+	_, err = b.AuthorizerFrom(RootKeysByID(map[uint32]stdcrypto.PublicKey{
+		rootKeyID: ed25519.PublicKey(nil),
 	}, nil))
 	require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
+	_, err = b.AuthorizerFrom(nil)
+	require.Error(t, err)
+
 	publicNotRoot, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicNotRoot))
+	_, err = b.AuthorizerFrom(RootKey(publicNotRoot))
 	require.Equal(t, ErrInvalidSignature, err)
-}
 
-func TestGenerateWorld(t *testing.T) {
-	rng := rand.Reader
-	_, privateRoot, _ := ed25519.GenerateKey(rng)
+	t.Run("deprecated", func(t *testing.T) {
+		_, err := b.Authorizer(publicRoot)
+		require.NoError(t, err)
 
-	build := NewBuilder(privateRoot)
+		_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+		require.NoError(t, err)
 
-	authorityFact1 := Fact{Predicate: Predicate{Name: "fact1", IDs: []Term{String("file1")}}}
-	authorityFact2 := Fact{Predicate: Predicate{Name: "fact2", IDs: []Term{String("file2")}}}
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID: publicRoot,
+		}, nil))
+		require.NoError(t, err)
 
-	authorityRule1 := Rule{
-		Head: Predicate{Name: "right", IDs: []Term{Variable("1"), String("read")}},
-		Body: []Predicate{
-			{Name: "resource", IDs: []Term{Variable("1")}},
-			{Name: "owner", IDs: []Term{Variable("0"), Variable("1")}},
-		},
-	}
-	authorityRule2 := Rule{
-		Head: Predicate{Name: "right", IDs: []Term{Variable("1"), String("write")}},
-		Body: []Predicate{
-			{Name: "resource", IDs: []Term{Variable("1")}},
-			{Name: "owner", IDs: []Term{Variable("0"), Variable("1")}},
-		},
-	}
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID + 1: publicRoot,
+		}, nil))
+		require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
-	require.NoError(t, build.AddAuthorityFact(authorityFact1))
-	require.NoError(t, build.AddAuthorityFact(authorityFact2))
-	require.NoError(t, build.AddAuthorityRule(authorityRule1))
-	require.NoError(t, build.AddAuthorityRule(authorityRule2))
+		_, err = b.AuthorizerFor(WithRootPublicKeys(map[uint32]ed25519.PublicKey{
+			rootKeyID: nil,
+		}, nil))
+		require.ErrorIs(t, err, ErrNoPublicKeyAvailable)
 
-	b, err := build.Build()
-	require.NoError(t, err)
+		_, err = b.AuthorizerFor(nil)
+		require.Error(t, err)
 
-	StringTable := (build.(*builderOptions)).symbols
-	world, err := b.generateWorld(defaultSymbolTable.Clone())
-	require.NoError(t, err)
-
-	expectedWorld := datalog.NewWorld()
-	expectedWorld.AddFact(authorityFact1.convert(StringTable))
-	expectedWorld.AddFact(authorityFact2.convert(StringTable))
-	expectedWorld.AddRule(authorityRule1.convert(StringTable))
-	expectedWorld.AddRule(authorityRule2.convert(StringTable))
-	require.Equal(t, expectedWorld, world)
-
-	blockBuild := b.CreateBlock()
-	blockRule := Rule{
-		Head: Predicate{Name: "blockRule", IDs: []Term{Variable("1")}},
-		Body: []Predicate{
-			{Name: "resource", IDs: []Term{Variable("1")}},
-			{Name: "owner", IDs: []Term{String("alice"), Variable("1")}},
-		},
-	}
-	require.NoError(t, blockBuild.AddRule(blockRule))
-
-	blockFact := Fact{Predicate{Name: "resource", IDs: []Term{String("file1")}}}
-	require.NoError(t, blockBuild.AddFact(blockFact))
-
-	b2, err := b.Append(rng, blockBuild.Build())
-	require.NoError(t, err)
-
-	allStrings := append(*StringTable, *(blockBuild.(*blockBuilder)).symbols...)
-	world, err = b2.generateWorld(&allStrings)
-	require.NoError(t, err)
-
-	expectedWorld = datalog.NewWorld()
-	expectedWorld.AddFact(authorityFact1.convert(&allStrings))
-	expectedWorld.AddFact(authorityFact2.convert(&allStrings))
-	expectedWorld.AddFact(blockFact.convert(&allStrings))
-	expectedWorld.AddRule(authorityRule1.convert(&allStrings))
-	expectedWorld.AddRule(authorityRule2.convert(&allStrings))
-	expectedWorld.AddRule(
-		blockRule.convert(&allStrings),
-	)
-	require.Equal(t, expectedWorld, world)
+		_, err = b.Authorizer(publicNotRoot)
+		require.Equal(t, ErrInvalidSignature, err)
+	})
 }
 
 func TestAppendErrors(t *testing.T) {
@@ -487,11 +641,11 @@ func TestBiscuitVerifyErrors(t *testing.T) {
 	b, err := builder.Build()
 	require.NoError(t, err)
 
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	_, err = b.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	publicTest, _, _ := ed25519.GenerateKey(rng)
-	_, err = b.AuthorizerFor(WithSingularRootPublicKey(publicTest))
+	_, err = b.AuthorizerFrom(RootKey(publicTest))
 	require.Error(t, err)
 }
 
@@ -644,7 +798,7 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(b.String())
 
-	verifier, err := b.AuthorizerFor(WithSingularRootPublicKey(publicRoot))
+	verifier, err := b.AuthorizerFrom(RootKey(publicRoot))
 	require.NoError(t, err)
 
 	verifier.AddFact(Fact{Predicate: Predicate{
@@ -655,4 +809,52 @@ func TestInvalidRuleGeneration(t *testing.T) {
 	err = verifier.Authorize()
 	t.Log(verifier.PrintWorld())
 	require.Error(t, err)
+}
+
+func TestBiscuitExternFuncs(t *testing.T) {
+	publicRoot, privateRoot, _ := ed25519.GenerateKey(rand.Reader)
+
+	builder := NewBuilder(privateRoot)
+	require.NoError(t, builder.AddAuthorityFact(Fact{Predicate{Name: "user", IDs: []Term{String("alice")}}}))
+	require.NoError(t, builder.AddAuthorityCheck(Check{Queries: []Rule{{
+		Head: Predicate{Name: "query"},
+		Body: []Predicate{{Name: "user", IDs: []Term{Variable("u")}}},
+		Expressions: []Expression{
+			{Value{Variable("u")}, ExternUnary{Name: "known"}},
+			{Value{Variable("u")}, Value{String("alice")}, ExternBinary{Name: "same"}, Value{String("yes")}, BinaryHeterogeneousEqual},
+		},
+	}}}))
+	b, err := builder.Build()
+	require.NoError(t, err)
+	require.EqualValues(t, 6, b.authority.version)
+
+	deser, err := Unmarshal(mustSerialize(t, b))
+	require.NoError(t, err)
+	require.Contains(t, deser.String(), `check if user($u), $u.extern::known(), $u.extern::same("alice") == "yes"`)
+
+	funcs := map[string]ExternFunc{
+		"known": func(left Term, right Term) (Term, error) {
+			require.Nil(t, right)
+			return Bool(left == String("alice")), nil
+		},
+		"same": func(left Term, right Term) (Term, error) {
+			if left == right {
+				return String("yes"), nil
+			}
+			return String("no"), nil
+		},
+	}
+
+	ab, err := deser.AuthorizerFrom(RootKey(publicRoot), WithExternFuncs(funcs))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	require.NoError(t, ab.Authorize())
+
+	// Without the functions the check fails with an execution error.
+	ab, err = deser.AuthorizerFrom(RootKey(publicRoot))
+	require.NoError(t, err)
+	ab.AddPolicy(DefaultAllowPolicy)
+	err = ab.Authorize()
+	require.ErrorIs(t, err, ErrExecution)
+	require.ErrorIs(t, err, datalog.ErrUndefinedExtern)
 }

@@ -12,18 +12,18 @@ import (
 	"github.com/eclipse-biscuit/biscuit-go/v2/pb"
 )
 
-func tokenFactToProtoFactV2(input datalog.Fact) (*pb.FactV2, error) {
+func tokenFactToProtoFactV2(input datalog.Fact) (*pb.Fact, error) {
 	pred, err := tokenPredicateToProtoPredicateV2(input.Predicate)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.FactV2{
+	return &pb.Fact{
 		Predicate: pred,
 	}, nil
 }
 
-func protoFactToTokenFactV2(input *pb.FactV2) (*datalog.Fact, error) {
+func protoFactToTokenFactV2(input *pb.Fact) (*datalog.Fact, error) {
 	pred, err := protoPredicateToTokenPredicateV2(input.Predicate)
 	if err != nil {
 		return nil, err
@@ -33,8 +33,8 @@ func protoFactToTokenFactV2(input *pb.FactV2) (*datalog.Fact, error) {
 	}, nil
 }
 
-func tokenPredicateToProtoPredicateV2(input datalog.Predicate) (*pb.PredicateV2, error) {
-	pbTerms := make([]*pb.TermV2, len(input.Terms))
+func tokenPredicateToProtoPredicateV2(input datalog.Predicate) (*pb.Predicate, error) {
+	pbTerms := make([]*pb.Term, len(input.Terms))
 	var err error
 	for i, id := range input.Terms {
 		pbTerms[i], err = tokenIDToProtoIDV2(id)
@@ -44,13 +44,13 @@ func tokenPredicateToProtoPredicateV2(input datalog.Predicate) (*pb.PredicateV2,
 	}
 
 	nameSymbol := uint64(input.Name)
-	return &pb.PredicateV2{
+	return &pb.Predicate{
 		Name:  &nameSymbol,
 		Terms: pbTerms,
 	}, nil
 }
 
-func protoPredicateToTokenPredicateV2(input *pb.PredicateV2) (*datalog.Predicate, error) {
+func protoPredicateToTokenPredicateV2(input *pb.Predicate) (*datalog.Predicate, error) {
 	Terms := make([]datalog.Term, len(input.Terms))
 	for i, id := range input.Terms {
 		dlid, err := protoIDToTokenIDV2(id)
@@ -68,50 +68,89 @@ func protoPredicateToTokenPredicateV2(input *pb.PredicateV2) (*datalog.Predicate
 	}, nil
 }
 
-func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
-	var pbId *pb.TermV2
+func tokenIDToProtoIDV2(input datalog.Term) (*pb.Term, error) {
+	var pbId *pb.Term
 	switch input.Type() {
 	case datalog.TermTypeString:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_String_{String_: uint64(input.(datalog.String))},
+		pbId = &pb.Term{
+			Content: &pb.Term_String_{String_: uint64(input.(datalog.String))},
 		}
 	case datalog.TermTypeDate:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Date{Date: uint64(input.(datalog.Date))},
+		pbId = &pb.Term{
+			Content: &pb.Term_Date{Date: uint64(input.(datalog.Date))},
 		}
 	case datalog.TermTypeInteger:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Integer{Integer: int64(input.(datalog.Integer))},
+		pbId = &pb.Term{
+			Content: &pb.Term_Integer{Integer: int64(input.(datalog.Integer))},
 		}
 	case datalog.TermTypeVariable:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Variable{Variable: uint32(input.(datalog.Variable))},
+		pbId = &pb.Term{
+			Content: &pb.Term_Variable{Variable: uint32(input.(datalog.Variable))},
 		}
 	case datalog.TermTypeBytes:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Bytes{Bytes: input.(datalog.Bytes)},
+		pbId = &pb.Term{
+			Content: &pb.Term_Bytes{Bytes: input.(datalog.Bytes)},
 		}
 	case datalog.TermTypeBool:
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Bool{Bool: bool(input.(datalog.Bool))},
+		pbId = &pb.Term{
+			Content: &pb.Term_Bool{Bool: bool(input.(datalog.Bool))},
+		}
+	case datalog.TermTypeNull:
+		pbId = &pb.Term{
+			Content: &pb.Term_Null{Null: &pb.Empty{}},
+		}
+	case datalog.TermTypeArray:
+		array := input.(datalog.Array)
+		protoArray := make([]*pb.Term, len(array))
+		for i, elt := range array {
+			if elt.Type() == datalog.TermTypeVariable {
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: array cannot contain variables")
+			}
+			protoElt, err := tokenIDToProtoIDV2(elt)
+			if err != nil {
+				return nil, err
+			}
+			protoArray[i] = protoElt
+		}
+		pbId = &pb.Term{
+			Content: &pb.Term_Array{Array: &pb.Array{Array: protoArray}},
+		}
+	case datalog.TermTypeMap:
+		m := input.(datalog.Map)
+		entries := make([]*pb.MapEntry, len(m))
+		for i, e := range m {
+			key := &pb.MapKey{}
+			switch k := e.Key.(type) {
+			case datalog.Integer:
+				key.Content = &pb.MapKey_Integer{Integer: int64(k)}
+			case datalog.String:
+				key.Content = &pb.MapKey_String_{String_: uint64(k)}
+			default:
+				return nil, fmt.Errorf("biscuit: failed to convert token ID to proto ID: map key must be an integer or a string, got %T", e.Key)
+			}
+			if e.Value.Type() == datalog.TermTypeVariable {
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: map cannot contain variables")
+			}
+			value, err := tokenIDToProtoIDV2(e.Value)
+			if err != nil {
+				return nil, err
+			}
+			entries[i] = &pb.MapEntry{Key: key, Value: value}
+		}
+		pbId = &pb.Term{
+			Content: &pb.Term_Map{Map: &pb.Map{Entries: entries}},
 		}
 	case datalog.TermTypeSet:
 		datalogSet := input.(datalog.Set)
-		if len(datalogSet) == 0 {
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot be empty")
-		}
-
-		expectedEltType := datalogSet[0].Type()
-		switch expectedEltType {
-		case datalog.TermTypeVariable:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
-		case datalog.TermTypeSet:
-			return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
-		}
-
-		protoSet := make([]*pb.TermV2, 0, len(datalogSet))
-		for _, datalogElt := range datalogSet {
-			if datalogElt.Type() != expectedEltType {
+		protoSet := make([]*pb.Term, 0, len(datalogSet))
+		for i, datalogElt := range datalogSet {
+			switch datalogElt.Type() {
+			case datalog.TermTypeVariable:
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains variable")
+			case datalog.TermTypeSet:
+				return nil, errors.New("biscuit: failed to convert token ID to proto ID: set cannot contains other sets")
+			}
+			if expectedEltType := datalogSet[0].Type(); i > 0 && datalogElt.Type() != expectedEltType {
 				return nil, fmt.Errorf(
 					"biscuit: failed to convert token ID to proto ID: set elements must have the same type (got %x, want %x)",
 					datalogElt.Type(),
@@ -126,8 +165,8 @@ func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
 
 			protoSet = append(protoSet, protoElt)
 		}
-		pbId = &pb.TermV2{
-			Content: &pb.TermV2_Set{
+		pbId = &pb.Term{
+			Content: &pb.Term_Set{
 				Set: &pb.TermSet{
 					Set: protoSet,
 				},
@@ -139,38 +178,34 @@ func tokenIDToProtoIDV2(input datalog.Term) (*pb.TermV2, error) {
 	return pbId, nil
 }
 
-func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
+func protoIDToTokenIDV2(input *pb.Term) (*datalog.Term, error) {
 	var id datalog.Term
 	switch input.Content.(type) {
-	case *pb.TermV2_String_:
+	case *pb.Term_String_:
 		id = datalog.String(input.GetString_())
-	case *pb.TermV2_Date:
+	case *pb.Term_Date:
 		id = datalog.Date(input.GetDate())
-	case *pb.TermV2_Integer:
+	case *pb.Term_Integer:
 		id = datalog.Integer(input.GetInteger())
-	case *pb.TermV2_Variable:
+	case *pb.Term_Variable:
 		id = datalog.Variable(input.GetVariable())
-	case *pb.TermV2_Bytes:
+	case *pb.Term_Bytes:
 		id = datalog.Bytes(input.GetBytes())
-	case *pb.TermV2_Bool:
+	case *pb.Term_Bool:
 		id = datalog.Bool(input.GetBool())
-	case *pb.TermV2_Set:
+	case *pb.Term_Null:
+		id = datalog.Null{}
+	case *pb.Term_Set:
 		elts := input.GetSet().Set
-		if len(elts) == 0 {
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot be empty")
-		}
-
-		expectedEltType := reflect.TypeOf(elts[0].GetContent())
-		switch expectedEltType {
-		case reflect.TypeFor[*pb.TermV2_Variable]():
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
-		case reflect.TypeFor[*pb.TermV2_Set]():
-			return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
-		}
-
 		datalogSet := make(datalog.Set, 0, len(elts))
-		for _, protoElt := range elts {
-			if eltType := reflect.TypeOf(protoElt.GetContent()); eltType != expectedEltType {
+		for i, protoElt := range elts {
+			switch protoElt.GetContent().(type) {
+			case *pb.Term_Variable:
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains variable")
+			case *pb.Term_Set:
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: set cannot contains other sets")
+			}
+			if eltType, expectedEltType := reflect.TypeOf(protoElt.GetContent()), reflect.TypeOf(elts[0].GetContent()); i > 0 && eltType != expectedEltType {
 				return nil, fmt.Errorf(
 					"biscuit: failed to convert proto ID to token ID: set elements must have the same type (got %x, want %x)",
 					eltType,
@@ -185,6 +220,43 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 			datalogSet = append(datalogSet, *datalogElt)
 		}
 		id = datalogSet
+	case *pb.Term_Array:
+		elts := input.GetArray().GetArray()
+		array := make(datalog.Array, len(elts))
+		for i, protoElt := range elts {
+			if _, isVar := protoElt.GetContent().(*pb.Term_Variable); isVar {
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: array cannot contain variables")
+			}
+			elt, err := protoIDToTokenIDV2(protoElt)
+			if err != nil {
+				return nil, err
+			}
+			array[i] = *elt
+		}
+		id = array
+	case *pb.Term_Map:
+		pbEntries := input.GetMap().GetEntries()
+		entries := make([]datalog.MapEntry, len(pbEntries))
+		for i, e := range pbEntries {
+			var key datalog.Term
+			switch k := e.GetKey().GetContent().(type) {
+			case *pb.MapKey_Integer:
+				key = datalog.Integer(k.Integer)
+			case *pb.MapKey_String_:
+				key = datalog.String(k.String_)
+			default:
+				return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported map key: %T", e.GetKey().GetContent())
+			}
+			if _, isVar := e.GetValue().GetContent().(*pb.Term_Variable); isVar {
+				return nil, errors.New("biscuit: failed to convert proto ID to token ID: map cannot contain variables")
+			}
+			value, err := protoIDToTokenIDV2(e.GetValue())
+			if err != nil {
+				return nil, err
+			}
+			entries[i] = datalog.MapEntry{Key: key, Value: *value}
+		}
+		id = datalog.NewMap(entries...)
 	default:
 		return nil, fmt.Errorf("biscuit: failed to convert proto ID to token ID: unsupported id type: %T", input.Content)
 	}
@@ -192,8 +264,8 @@ func protoIDToTokenIDV2(input *pb.TermV2) (*datalog.Term, error) {
 	return &id, nil
 }
 
-func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
-	pbBody := make([]*pb.PredicateV2, len(input.Body))
+func tokenRuleToProtoRuleV2(input datalog.Rule, keys publicKeyTable) (*pb.Rule, error) {
+	pbBody := make([]*pb.Predicate, len(input.Body))
 	for i, p := range input.Body {
 		pred, err := tokenPredicateToProtoPredicateV2(p)
 		if err != nil {
@@ -202,7 +274,7 @@ func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
 		pbBody[i] = pred
 	}
 
-	pbExpressions := make([]*pb.ExpressionV2, len(input.Expressions))
+	pbExpressions := make([]*pb.Expression, len(input.Expressions))
 	for i, e := range input.Expressions {
 		expr, err := tokenExpressionToProtoExpressionV2(e)
 		if err != nil {
@@ -216,14 +288,20 @@ func tokenRuleToProtoRuleV2(input datalog.Rule) (*pb.RuleV2, error) {
 		return nil, err
 	}
 
-	return &pb.RuleV2{
+	pbScopes, err := tokenScopesToProtoScopes(input.Scopes, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Rule{
 		Head:        pbHead,
 		Body:        pbBody,
 		Expressions: pbExpressions,
+		Scope:       pbScopes,
 	}, nil
 }
 
-func protoRuleToTokenRuleV2(input *pb.RuleV2) (*datalog.Rule, error) {
+func protoRuleToTokenRuleV2(input *pb.Rule, keys publicKeyTable) (*datalog.Rule, error) {
 	body := make([]datalog.Predicate, len(input.Body))
 	for i, predicateV2 := range input.Body {
 		b, err := protoPredicateToTokenPredicateV2(predicateV2)
@@ -246,15 +324,22 @@ func protoRuleToTokenRuleV2(input *pb.RuleV2) (*datalog.Rule, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	scopes, err := protoScopesToTokenScopes(input.Scope, keys)
+	if err != nil {
+		return nil, err
+	}
+
 	return &datalog.Rule{
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      scopes,
 	}, nil
 }
 
-func tokenExpressionToProtoExpressionV2(input datalog.Expression) (*pb.ExpressionV2, error) {
-	pbExpr := &pb.ExpressionV2{
+func tokenExpressionToProtoExpressionV2(input datalog.Expression) (*pb.Expression, error) {
+	pbExpr := &pb.Expression{
 		Ops: make([]*pb.Op, len(input)),
 	}
 
@@ -278,6 +363,17 @@ func tokenExpressionToProtoExpressionV2(input datalog.Expression) (*pb.Expressio
 				return nil, err
 			}
 			pbExpr.Ops[i] = &pb.Op{Content: &pb.Op_Binary{Binary: pbBinary}}
+		case datalog.OpTypeClosure:
+			closure := op.(datalog.Closure)
+			body, err := tokenExpressionToProtoExpressionV2(closure.Body)
+			if err != nil {
+				return nil, err
+			}
+			params := make([]uint32, len(closure.Params))
+			for j, p := range closure.Params {
+				params[j] = uint32(p)
+			}
+			pbExpr.Ops[i] = &pb.Op{Content: &pb.Op_Closure{Closure: &pb.OpClosure{Params: params, Ops: body.Ops}}}
 		default:
 			return nil, fmt.Errorf("biscuit: unsupported expression type: %v", op.Type())
 		}
@@ -285,7 +381,7 @@ func tokenExpressionToProtoExpressionV2(input datalog.Expression) (*pb.Expressio
 	return pbExpr, nil
 }
 
-func protoExpressionToTokenExpressionV2(input *pb.ExpressionV2) (datalog.Expression, error) {
+func protoExpressionToTokenExpressionV2(input *pb.Expression) (datalog.Expression, error) {
 	expr := make(datalog.Expression, len(input.Ops))
 	for i, op := range input.Ops {
 		switch op.Content.(type) {
@@ -307,6 +403,17 @@ func protoExpressionToTokenExpressionV2(input *pb.ExpressionV2) (datalog.Express
 				return nil, err
 			}
 			expr[i] = datalog.BinaryOp{BinaryOpFunc: op}
+		case *pb.Op_Closure:
+			closure := op.GetClosure()
+			body, err := protoExpressionToTokenExpressionV2(&pb.Expression{Ops: closure.GetOps()})
+			if err != nil {
+				return nil, err
+			}
+			params := make([]datalog.Variable, len(closure.GetParams()))
+			for j, p := range closure.GetParams() {
+				params[j] = datalog.Variable(p)
+			}
+			expr[i] = datalog.Closure{Params: params, Body: body}
 		default:
 			return nil, fmt.Errorf("biscuit: unsupported proto expression type: %T", op.Content)
 		}
@@ -323,6 +430,12 @@ func tokenExprUnaryToProtoExprUnary(op datalog.UnaryOp) (*pb.OpUnary, error) {
 		pbUnaryKind = pb.OpUnary_Parens
 	case datalog.UnaryLength:
 		pbUnaryKind = pb.OpUnary_Length
+	case datalog.UnaryTypeOf:
+		pbUnaryKind = pb.OpUnary_TypeOf
+	case datalog.UnaryFfi:
+		pbUnaryKind = pb.OpUnary_Ffi
+		name := uint64(op.UnaryOpFunc.(datalog.Ffi).Name)
+		return &pb.OpUnary{Kind: &pbUnaryKind, FfiName: &name}, nil
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported UnaryOpFunc type: %v", op.UnaryOpFunc.Type())
 	}
@@ -338,6 +451,13 @@ func protoExprUnaryToTokenExprUnary(op *pb.OpUnary) (datalog.UnaryOpFunc, error)
 		unaryOp = datalog.Parens{}
 	case pb.OpUnary_Length:
 		unaryOp = datalog.Length{}
+	case pb.OpUnary_TypeOf:
+		unaryOp = datalog.TypeOf{}
+	case pb.OpUnary_Ffi:
+		if op.FfiName == nil {
+			return nil, errors.New("biscuit: proto OpUnary Ffi without a name")
+		}
+		unaryOp = datalog.Ffi{Name: datalog.String(op.GetFfiName())}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpUnary type: %v", op.Kind)
 	}
@@ -381,6 +501,34 @@ func tokenExprBinaryToProtoExprBinary(op datalog.BinaryOp) (*pb.OpBinary, error)
 		pbBinaryKind = pb.OpBinary_Intersection
 	case datalog.BinaryUnion:
 		pbBinaryKind = pb.OpBinary_Union
+	case datalog.BinaryBitwiseAnd:
+		pbBinaryKind = pb.OpBinary_BitwiseAnd
+	case datalog.BinaryBitwiseOr:
+		pbBinaryKind = pb.OpBinary_BitwiseOr
+	case datalog.BinaryBitwiseXor:
+		pbBinaryKind = pb.OpBinary_BitwiseXor
+	case datalog.BinaryNotEqual:
+		pbBinaryKind = pb.OpBinary_NotEqual
+	case datalog.BinaryHeterogeneousEqual:
+		pbBinaryKind = pb.OpBinary_HeterogeneousEqual
+	case datalog.BinaryHeterogeneousNotEqual:
+		pbBinaryKind = pb.OpBinary_HeterogeneousNotEqual
+	case datalog.BinaryLazyAnd:
+		pbBinaryKind = pb.OpBinary_LazyAnd
+	case datalog.BinaryLazyOr:
+		pbBinaryKind = pb.OpBinary_LazyOr
+	case datalog.BinaryAll:
+		pbBinaryKind = pb.OpBinary_All
+	case datalog.BinaryAny:
+		pbBinaryKind = pb.OpBinary_Any
+	case datalog.BinaryGet:
+		pbBinaryKind = pb.OpBinary_Get
+	case datalog.BinaryTryOr:
+		pbBinaryKind = pb.OpBinary_TryOr
+	case datalog.BinaryFfi:
+		pbBinaryKind = pb.OpBinary_Ffi
+		name := uint64(op.BinaryOpFunc.(datalog.FfiBinary).Name)
+		return &pb.OpBinary{Kind: &pbBinaryKind, FfiName: &name}, nil
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported BinaryOpFunc type: %v", op.BinaryOpFunc.Type())
 	}
@@ -424,38 +572,88 @@ func protoExprBinaryToTokenExprBinary(op *pb.OpBinary) (datalog.BinaryOpFunc, er
 		binaryOp = datalog.Intersection{}
 	case pb.OpBinary_Union:
 		binaryOp = datalog.Union{}
+	case pb.OpBinary_BitwiseAnd:
+		binaryOp = datalog.BitwiseAnd{}
+	case pb.OpBinary_BitwiseOr:
+		binaryOp = datalog.BitwiseOr{}
+	case pb.OpBinary_BitwiseXor:
+		binaryOp = datalog.BitwiseXor{}
+	case pb.OpBinary_NotEqual:
+		binaryOp = datalog.NotEqual{}
+	case pb.OpBinary_HeterogeneousEqual:
+		binaryOp = datalog.HeterogeneousEqual{}
+	case pb.OpBinary_HeterogeneousNotEqual:
+		binaryOp = datalog.HeterogeneousNotEqual{}
+	case pb.OpBinary_LazyAnd:
+		binaryOp = datalog.LazyAnd{}
+	case pb.OpBinary_LazyOr:
+		binaryOp = datalog.LazyOr{}
+	case pb.OpBinary_All:
+		binaryOp = datalog.All{}
+	case pb.OpBinary_Any:
+		binaryOp = datalog.Any{}
+	case pb.OpBinary_Get:
+		binaryOp = datalog.Get{}
+	case pb.OpBinary_TryOr:
+		binaryOp = datalog.TryOr{}
+	case pb.OpBinary_Ffi:
+		if op.FfiName == nil {
+			return nil, errors.New("biscuit: proto OpBinary Ffi without a name")
+		}
+		binaryOp = datalog.FfiBinary{Name: datalog.String(op.GetFfiName())}
 	default:
 		return nil, fmt.Errorf("biscuit: unsupported proto OpBinary type: %v", op.Kind)
 	}
 	return binaryOp, nil
 }
 
-func tokenCheckToProtoCheckV2(input datalog.Check) (*pb.CheckV2, error) {
-	pbQueries := make([]*pb.RuleV2, len(input.Queries))
+func tokenCheckToProtoCheckV2(input datalog.Check, keys publicKeyTable) (*pb.Check, error) {
+	pbQueries := make([]*pb.Rule, len(input.Queries))
 	for i, query := range input.Queries {
-		q, err := tokenRuleToProtoRuleV2(query)
+		q, err := tokenRuleToProtoRuleV2(query, keys)
 		if err != nil {
 			return nil, err
 		}
 		pbQueries[i] = q
 	}
 
-	return &pb.CheckV2{
+	pbCheck := &pb.Check{
 		Queries: pbQueries,
-	}, nil
+	}
+	// `check if` is the default and stays unset, as other implementations do.
+	switch input.Kind {
+	case datalog.CheckKindOne:
+	case datalog.CheckKindAll:
+		pbCheck.Kind = pb.Check_All.Enum()
+	case datalog.CheckKindReject:
+		pbCheck.Kind = pb.Check_Reject.Enum()
+	default:
+		return nil, fmt.Errorf("biscuit: unsupported check kind: %d", input.Kind)
+	}
+	return pbCheck, nil
 }
 
-func protoCheckToTokenCheckV2(input *pb.CheckV2) (*datalog.Check, error) {
+func protoCheckToTokenCheckV2(input *pb.Check, keys publicKeyTable) (*datalog.Check, error) {
 	queries := make([]datalog.Rule, len(input.Queries))
 	for i, query := range input.Queries {
-		q, err := protoRuleToTokenRuleV2(query)
+		q, err := protoRuleToTokenRuleV2(query, keys)
 		if err != nil {
 			return nil, err
 		}
 		queries[i] = *q
 	}
 
-	return &datalog.Check{
+	check := &datalog.Check{
 		Queries: queries,
-	}, nil
+	}
+	switch input.GetKind() {
+	case pb.Check_One:
+	case pb.Check_All:
+		check.Kind = datalog.CheckKindAll
+	case pb.Check_Reject:
+		check.Kind = datalog.CheckKindReject
+	default:
+		return nil, fmt.Errorf("biscuit: unsupported check kind: %s", input.GetKind())
+	}
+	return check, nil
 }

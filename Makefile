@@ -1,6 +1,6 @@
 IMAGE ?= biscuit-go-test
 
-.PHONY: all build test test-local verify lint apidiff clean
+.PHONY: all build test test-local verify lint apidiff generate clean
 
 all: verify lint test
 
@@ -26,6 +26,10 @@ lint:
 
 apidiff:
 	./script/apidiff.sh -r main
+
+# Regenerates pb/ from the biscuit spec protobuf schema with buf.
+generate:
+	./script/generate.sh
 
 clean:
 	rm -rf build

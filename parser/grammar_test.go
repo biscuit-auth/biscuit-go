@@ -89,12 +89,32 @@ func TestGrammarPredicate(t *testing.T) {
 			},
 		},
 		{
+			Input: `right($1, {hex:41414141, "sym"})`,
+			Expected: &Predicate{
+				Name: sptr("right"),
+				IDs: []*Term{
+					{Variable: varptr("1")},
+					{Braces: &Braces{Entries: []*BraceEntry{{Key: &Term{Bytes: hexsptr("41414141")}}, {Key: &Term{String: sptr("sym")}}}}},
+				},
+			},
+		},
+		{
 			Input: `right($1, [hex:41414141, "sym"])`,
 			Expected: &Predicate{
 				Name: sptr("right"),
 				IDs: []*Term{
 					{Variable: varptr("1")},
-					{Set: []*Term{{Bytes: hexsptr("41414141")}, {String: sptr("sym")}}},
+					{Array: []*Term{{Bytes: hexsptr("41414141")}, {String: sptr("sym")}}},
+				},
+			},
+		},
+		{
+			Input: `right({,}, {abc})`,
+			Expected: &Predicate{
+				Name: sptr("right"),
+				IDs: []*Term{
+					{Braces: &Braces{EmptySet: true}},
+					{Parameter: paramptr("abc")},
 				},
 			},
 		},
@@ -141,16 +161,17 @@ func TestGrammarExpression(t *testing.T) {
 	t2, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
 
 	testCases := []struct {
-		Input    string
-		Params   ParametersMap
-		Expected *biscuit.Expression
+		Input     string
+		Params    ParametersMap
+		Expected  *biscuit.Expression
+		ExpectErr bool
 	}{
 		{
 			Input: `$0 == 1`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.Integer(1)},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -193,7 +214,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `[1, 2, 3].contains($0)`,
+			Input: `{1, 2, 3}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Integer(1), biscuit.Integer(2), biscuit.Integer(3)}},
 				biscuit.Value{Term: biscuit.Variable("0")},
@@ -201,7 +222,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `![4,5,6].contains($0)`,
+			Input: `!{4,5,6}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Integer(4), biscuit.Integer(5), biscuit.Integer(6)}},
 				biscuit.Value{Term: biscuit.Variable("0")},
@@ -214,7 +235,7 @@ func TestGrammarExpression(t *testing.T) {
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Variable("0")},
 				biscuit.Value{Term: biscuit.String("abc")},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -242,7 +263,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `["abc", "def"].contains($0)`,
+			Input: `{"abc", "def"}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.String("abc"), biscuit.String("def")}},
 				biscuit.Value{Term: biscuit.Variable("0")},
@@ -250,7 +271,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `!["abc", "def"].contains($0)`,
+			Input: `!{"abc", "def"}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.String("abc"), biscuit.String("def")}},
 				biscuit.Value{Term: biscuit.Variable("0")},
@@ -275,7 +296,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `[hex:41, hex:42, hex:43].contains($0)`,
+			Input: `{hex:41, hex:42, hex:43}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
 					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
@@ -284,7 +305,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `![hex:41, hex:42, hex:43].contains($0)`,
+			Input: `!{hex:41, hex:42, hex:43}.contains($0)`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A")),
 					biscuit.Bytes([]byte("B")), biscuit.Bytes([]byte("C"))}},
@@ -294,7 +315,7 @@ func TestGrammarExpression(t *testing.T) {
 			},
 		},
 		{
-			Input: `[hex:41].union([hex:42]).intersection([hex:41]).length() == $0`,
+			Input: `{hex:41}.union({hex:42}).intersection({hex:41}).length() == $0`,
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("A"))}},
 				biscuit.Value{Term: biscuit.Set{biscuit.Bytes([]byte("B"))}},
@@ -303,7 +324,7 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryIntersection,
 				biscuit.UnaryLength,
 				biscuit.Value{Term: biscuit.Variable("0")},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -311,7 +332,7 @@ func TestGrammarExpression(t *testing.T) {
 			Expected: &biscuit.Expression{
 				biscuit.Value{Term: biscuit.Bytes([]byte{0x12, 0xab})},
 				biscuit.Value{Term: biscuit.Bytes([]byte{0xab})},
-				biscuit.BinaryEqual,
+				biscuit.BinaryHeterogeneousEqual,
 			},
 		},
 		{
@@ -330,10 +351,22 @@ func TestGrammarExpression(t *testing.T) {
 				biscuit.BinaryMul,
 				biscuit.BinaryAdd,
 				biscuit.Value{Term: biscuit.Integer(7)},
-				biscuit.BinaryEqual,
-				biscuit.Value{Term: biscuit.Bool(false)},
-				biscuit.BinaryOr,
+				biscuit.BinaryHeterogeneousEqual,
+				biscuit.Closure{Body: biscuit.Expression{biscuit.Value{Term: biscuit.Bool(false)}}},
+				biscuit.BinaryLazyOr,
 			},
+		},
+		{
+			Input:     `$0 == {missing}`,
+			ExpectErr: true,
+		},
+		{
+			Input:     `({missing} + 1) * 2 > $0`,
+			ExpectErr: true,
+		},
+		{
+			Input:     `$0.contains({missing})`,
+			ExpectErr: true,
 		},
 	}
 
@@ -343,7 +376,12 @@ func TestGrammarExpression(t *testing.T) {
 			require.NoError(t, err, testCase.Input)
 
 			var expr biscuit.Expression
-			(*parsed).ToExpr(&expr, testCase.Params)
+			err = (*parsed).ToExpr(&expr, testCase.Params)
+			if testCase.ExpectErr {
+				require.Error(t, err, testCase.Input)
+				return
+			}
+			require.NoError(t, err, testCase.Input)
 			require.Equal(t, testCase.Expected, &expr, testCase.Input)
 		})
 	}
@@ -468,7 +506,7 @@ func TestGrammarCheck(t *testing.T) {
 								Expression: &Expression{
 									Left: &Expr1{
 										Left: &Expr2{
-											Left: &Expr3{
+											Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
 														Expr6: &Expr6{
@@ -480,10 +518,10 @@ func TestGrammarCheck(t *testing.T) {
 														},
 													},
 												},
-											},
+											}}}},
 											Right: &OpExpr3{
 												Operator: OpGreaterThan,
-												Expr3: &Expr3{
+												Expr3: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 													Left: &Expr4{
 														Left: &Expr5{
 															Expr6: &Expr6{
@@ -495,7 +533,7 @@ func TestGrammarCheck(t *testing.T) {
 															},
 														},
 													},
-												},
+												}}}},
 											},
 										},
 									},
@@ -505,7 +543,7 @@ func TestGrammarCheck(t *testing.T) {
 								Expression: &Expression{
 									Left: &Expr1{
 										Left: &Expr2{
-											Left: &Expr3{
+											Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 												Left: &Expr4{
 													Left: &Expr5{
 														Expr6: &Expr6{
@@ -520,7 +558,7 @@ func TestGrammarCheck(t *testing.T) {
 																	Expression: &Expression{
 																		Left: &Expr1{
 																			Left: &Expr2{
-																				Left: &Expr3{
+																				Left: &ExprXor{Left: &ExprBitOr{Left: &ExprBitAnd{Left: &Expr3{
 																					Left: &Expr4{
 																						Left: &Expr5{
 																							Expr6: &Expr6{
@@ -532,7 +570,7 @@ func TestGrammarCheck(t *testing.T) {
 																							},
 																						},
 																					},
-																				},
+																				}}}},
 																			},
 																		},
 																	},
@@ -541,7 +579,7 @@ func TestGrammarCheck(t *testing.T) {
 														},
 													},
 												},
-											},
+											}}}},
 										},
 									},
 								},
@@ -750,8 +788,9 @@ func sptr(s string) *string {
 	return &s
 }
 
-func i64ptr(i int64) *int64 {
-	return &i
+func i64ptr(i int64) *Integer {
+	v := Integer(i)
+	return &v
 }
 
 func hexsptr(s string) *HexString {

@@ -4,7 +4,7 @@ This document describes the currently supported Datalog grammar.
 
 ## Term
 
-Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, or set.
+Represents a Datalog type, can be one of: parameter, variable, integer, string, date, bytes, boolean, null, set, array, or map.
 
 - parameter is delimited by curly brackets: `{param}`. Those are replaced by actual values before evaluation.
 - variable is prefixed with a `$` sign followed by a string or an unsigned 32bit base-10 integer,  e.g. `$0` or `$variable1`
@@ -13,7 +13,10 @@ Represents a Datalog type, can be one of: parameter, variable, integer, string, 
 - date is RFC3339 encoded, e.g. `2006-01-02T15:04:05Z`
 - bytes is an hexadecimal encoded string, prefixed with a `hex:` sequence
 - boolean is either `true` or `false`
-- set is a sequence of any of the above types, except variable, between brackets, e.g. `["file1", "file2"]` (sets cannot be nested)
+- null is the absence of a value, written `null` (datalog v3.3); `$x == null` tests for it
+- set is a sequence of any of the above types, except variable, between braces, e.g. `{"file1", "file2"}`; the empty set is `{,}` (sets cannot be nested)
+- array is an ordered sequence of terms of any type, except variable, between brackets, e.g. `[1, "a", [2]]` (datalog v3.3); the empty array is `[]`
+- map associates integer or string keys with terms of any type, except variable, e.g. `{"a": 1, 2: "b"}` (datalog v3.3); the empty map is `{}`
 
 ## Predicate
 
@@ -27,11 +30,15 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 - Equal: `$b == true`
 - Negation: `!$b`
-- And / Or: `$b || $c && $d`
+- And / Or: `$b || $c && $d`. The right side is evaluated only when needed (datalog v3.3).
 
 ### Integer
 
-- Equal: `$i == 1`
+Integer literals are signed 64-bit; an operation that overflows is an execution error.
+
+- Equal: `$i === 1`
+- Not equal: `$i !== 1`
+- Bitwise and / or / xor: `$i & 1`, `$i | 1`, `$i ^ 1`
 - Greater than: `$i > 1`
 - Greater than or equal: `$i >= 1`
 - Less than: `$i < 1`
@@ -62,12 +69,41 @@ Constraints allows performing checks on a variable, below is the list of availab
 
 ### Set
 
-- Equal: `$set == ["a", "b"]`
+- Equal: `$set === {"a", "b"}`
 - Contains (element membership): `$set.contains("a")`
-- Contains (set inclusion): `$set.contains([a])`
-- Union: `$set.union(["a"])`
-- Intersection: `$set.intersection(["a"])`
+- Contains (set inclusion): `$set.contains({"a"})`
+- Union: `$set.union({"a"})`
+- Intersection: `$set.intersection({"a"})`
 - Length: `$set.length()`
+- All / Any (datalog v3.3): `$set.all($p -> $p > 0)`, `$set.any($p -> $p > 2)`. The closure parameter
+  may not have the name of a variable already bound in the rule.
+
+### Array (datalog v3.3)
+
+- Equal: `$array == [1, 2]`
+- Contains: `$array.contains(1)`
+- Prefix / Suffix: `$array.starts_with([1])`, `$array.ends_with([2])`
+- Get: `$array.get(0)`, `null` when the index is out of range
+- Length, All, Any: as for sets
+
+### Map (datalog v3.3)
+
+- Equal: `$map == {"a": 1}`
+- Contains (key membership): `$map.contains("a")`
+- Get: `$map.get("a")`, `null` when the key is absent
+- Length: `$map.length()`
+- All / Any: the closure receives each entry as a `[key, value]` array, e.g. `$map.all($kv -> $kv.get(1) > 0)`
+
+### Any value (datalog v3.3)
+
+- Type name: `$x.type()` returns one of `"integer"`, `"string"`, `"date"`, `"bytes"`, `"bool"`,
+  `"set"`, `"null"`, `"array"` or `"map"`, e.g. `$x.type() == "integer"`
+- Extern function call: `$x.extern::name()` or `$x.extern::name($y)`, where `name` is a function
+  registered on the authorizer with `biscuit.WithExternFuncs`. A call to a name that is not
+  registered fails the evaluation.
+- Error fallback: `$x.try_or(fallback)` is the value of `$x` (the receiver, including the method
+  calls before `.try_or()`), or `fallback` when evaluating the receiver fails, e.g.
+  `$s.length().try_or(0)`. An error in `fallback` itself is not caught.
 
 ### Operators precedence
 
@@ -79,7 +115,13 @@ The operators have the following precedence (highest to lowest):
 | `!` (prefix)                | not associative  |
 | `*`, `/`                    | left-associative |
 | `+`, `-`                    | left-associative |
-| `>`, `>=`, `<`, `<=`, `==`  | not associative  |
+| `&`                         | left-associative |
+| `|`                         | left-associative |
+| `^`                         | left-associative |
+| `>`, `>=`, `<`, `<=`, `===`, `==`, `!==`, `!=` | not associative |
+
+`===` and `!==` are the strict comparisons: comparing values of different types is an error.
+`==` and `!=` compare across types (datalog v3.3): values of different types are not equal.
 | `&&`                        | left-associative |
 | `||`                        | left-associative |
 
@@ -101,8 +143,25 @@ e.g. `right($file, "read") <- resource($file), owner($user, $file), $user == "us
 
 # Check
 
-A check starts with `check if`, followed by one or more rule bodies, separated with ` or `.
+A check starts with `check if`, `check all` or `reject if`, followed by one or more rule bodies,
+separated with ` or `.
+
+`check if` passes when one of the bodies has at least one match. `check all` passes when one of the
+bodies has at least one match and every match of that body satisfies its expressions, e.g.
+`check all operation($op), allowed_operations($allowed), $allowed.contains($op)`. `reject if`
+passes when none of the bodies has a match.
 
 # Policy
 
 A policy starts with either `allow if` or `deny if`, followed by one or more rule bodies, separated with ` or `.
+
+# Scope
+
+A rule body, a check body or a policy body may end with a `trusting` clause that selects which
+blocks of the token it reads facts from: `trusting authority`, `trusting previous` (every block up
+to the current one) or `trusting <public key>` (the third-party blocks signed by that key, written
+`ed25519/<hex>` or `secp256r1/<hex>`). Entries are separated with commas, e.g.
+`check if group("admin") trusting previous, ed25519/acdd6d5b53bfee478bf689f8e012fe7988bf755e3d7c5152947abc149bc20189`.
+
+Without a clause, a body reads the authority block, the authorizer and its own block. A block or an
+authorizer may set the default for all its bodies with a `trusting ...;` statement.

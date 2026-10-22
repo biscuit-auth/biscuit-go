@@ -6,6 +6,7 @@ package biscuit
 import (
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,8 +14,149 @@ import (
 	"github.com/eclipse-biscuit/biscuit-go/v2/datalog"
 )
 
+// Block versions this library accepts: 3 is datalog v3.0, 4 is datalog v3.1,
+// 5 is datalog v3.2, 6 is datalog v3.3.
 const MinSchemaVersion uint32 = 3
-const MaxSchemaVersion uint32 = 3
+const MaxSchemaVersion uint32 = 6
+
+// Block versions, by the datalog release that introduced them.
+const (
+	blockVersion3_0 uint32 = 3
+	blockVersion3_1 uint32 = 4
+	// blockVersion3_2 is the minimum for a third-party block.
+	blockVersion3_2 uint32 = 5
+	blockVersion3_3 uint32 = 6
+)
+
+// schemaVersion is the lowest block version able to carry the given content.
+func schemaVersion(facts datalog.FactSet, scopes []datalog.Scope, rules []datalog.Rule, checks []datalog.Check) uint32 {
+	for _, f := range facts {
+		if containsV33Term(f.Predicate) {
+			return blockVersion3_3
+		}
+	}
+	for _, c := range checks {
+		if c.Kind == datalog.CheckKindReject {
+			return blockVersion3_3
+		}
+		for _, q := range c.Queries {
+			if containsV33Rule(q) {
+				return blockVersion3_3
+			}
+		}
+	}
+	for _, r := range rules {
+		if containsV33Rule(r) {
+			return blockVersion3_3
+		}
+	}
+	if hasScopes(scopes, rules, checks) {
+		return blockVersion3_1
+	}
+	for _, c := range checks {
+		if c.Kind != datalog.CheckKindOne {
+			return blockVersion3_1
+		}
+		for _, q := range c.Queries {
+			if containsV31Op(q.Expressions) {
+				return blockVersion3_1
+			}
+		}
+	}
+	for _, r := range rules {
+		if containsV31Op(r.Expressions) {
+			return blockVersion3_1
+		}
+	}
+	return blockVersion3_0
+}
+
+// containsV33Rule reports whether a rule uses a datalog v3.3 feature in its
+// predicates or expressions.
+func containsV33Rule(r datalog.Rule) bool {
+	if containsV33Term(r.Head) {
+		return true
+	}
+	for _, p := range r.Body {
+		if containsV33Term(p) {
+			return true
+		}
+	}
+	return containsV33Op(r.Expressions)
+}
+
+// containsV33Term reports whether a predicate holds a term type introduced
+// in datalog v3.3: null.
+func containsV33Term(p datalog.Predicate) bool {
+	for _, t := range p.Terms {
+		if isV33Term(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func isV33Term(t datalog.Term) bool {
+	switch t := t.(type) {
+	case datalog.Null, datalog.Array, datalog.Map:
+		return true
+	case datalog.Set:
+		for _, e := range t {
+			if isV33Term(e) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// containsV33Op reports whether an expression uses an operator or a term
+// introduced in datalog v3.3: the heterogeneous == and !=, null, closures.
+func containsV33Op(expressions []datalog.Expression) bool {
+	for _, e := range expressions {
+		for _, op := range e {
+			switch op := op.(type) {
+			case datalog.Value:
+				if isV33Term(op.ID) {
+					return true
+				}
+			case datalog.Closure:
+				return true
+			case datalog.UnaryOp:
+				switch op.UnaryOpFunc.Type() {
+				case datalog.UnaryTypeOf, datalog.UnaryFfi:
+					return true
+				}
+			case datalog.BinaryOp:
+				switch op.BinaryOpFunc.Type() {
+				case datalog.BinaryHeterogeneousEqual, datalog.BinaryHeterogeneousNotEqual,
+					datalog.BinaryLazyAnd, datalog.BinaryLazyOr, datalog.BinaryAll, datalog.BinaryAny, datalog.BinaryGet,
+					datalog.BinaryFfi, datalog.BinaryTryOr:
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// containsV31Op reports whether an expression uses an operator introduced
+// in datalog v3.1: bitwise operators and !==.
+func containsV31Op(expressions []datalog.Expression) bool {
+	for _, e := range expressions {
+		for _, op := range e {
+			b, ok := op.(datalog.BinaryOp)
+			if !ok {
+				continue
+			}
+			switch b.BinaryOpFunc.Type() {
+			case datalog.BinaryBitwiseAnd, datalog.BinaryBitwiseOr, datalog.BinaryBitwiseXor, datalog.BinaryNotEqual:
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // defaultSymbolTable predefines some symbols available in every implementation, to avoid
 // transmitting them with every token
@@ -25,8 +167,29 @@ type Block struct {
 	facts   *datalog.FactSet
 	rules   []datalog.Rule
 	checks  []datalog.Check
-	context string
-	version uint32
+	// scopes is the block-level `trusting` clause, the default scope of
+	// the rules and checks of the block.
+	scopes []datalog.Scope
+	// publicKeys are the keys the scopes of this block add to the key
+	// table of the token.
+	publicKeys []datalog.PublicKey
+	// externalKey is the key a third party signed the block with; nil for
+	// a first-party block. A third-party block has its own symbol and key
+	// tables, which the token tables do not include.
+	externalKey *datalog.PublicKey
+	context     string
+	version     uint32
+}
+
+// symbolTable is the table the content of the block refers to: the token's
+// for a first-party block, the defaults plus its own for a third-party block.
+func (b *Block) symbolTable(token *datalog.SymbolTable) *datalog.SymbolTable {
+	if b.externalKey == nil {
+		return token
+	}
+	symbols := defaultSymbolTable.Clone()
+	symbols.Extend(b.symbols)
+	return symbols
 }
 
 func (b *Block) Code(symbols *datalog.SymbolTable) string {
@@ -47,11 +210,17 @@ func (b *Block) Code(symbols *datalog.SymbolTable) string {
 		checks[i] = debug.Check(c)
 	}
 
+	var scopes string
+	if len(b.scopes) > 0 {
+		scopes = strings.TrimPrefix(datalog.ScopesString(b.scopes), " ") + ";\n"
+	}
+
 	return fmt.Sprintf(`Block {
-		%v
+		%s%v
 		%s
 		%s
 	}`,
+		scopes,
 		strings.Join(facts, ";\n"),
 		strings.Join(rules, ";\n"),
 		strings.Join(checks, ";\n"),
@@ -109,6 +278,7 @@ type ParsedBlock struct {
 	Facts  FactSet
 	Rules  []Rule
 	Checks []Check
+	Scopes []Scope
 }
 
 type ParsedAuthorizer struct {
@@ -171,6 +341,34 @@ func fromDatalogID(symbols *datalog.SymbolTable, id datalog.Term) (Term, error) 
 		a = Bytes(id.(datalog.Bytes))
 	case datalog.TermTypeBool:
 		a = Bool(id.(datalog.Bool))
+	case datalog.TermTypeNull:
+		a = Null{}
+	case datalog.TermTypeArray:
+		dlArray := id.(datalog.Array)
+		array := make(Array, len(dlArray))
+		for i, e := range dlArray {
+			elt, err := fromDatalogID(symbols, e)
+			if err != nil {
+				return nil, err
+			}
+			array[i] = elt
+		}
+		a = array
+	case datalog.TermTypeMap:
+		dlMap := id.(datalog.Map)
+		m := make(Map, len(dlMap))
+		for i, e := range dlMap {
+			key, err := fromDatalogID(symbols, e.Key)
+			if err != nil {
+				return nil, err
+			}
+			value, err := fromDatalogID(symbols, e.Value)
+			if err != nil {
+				return nil, err
+			}
+			m[i] = MapEntry{Key: key, Value: value}
+		}
+		a = m
 	case datalog.TermTypeSet:
 		setIDs := id.(datalog.Set)
 		set := make(Set, 0, len(setIDs))
@@ -193,6 +391,8 @@ type Rule struct {
 	Head        Predicate
 	Body        []Predicate
 	Expressions []Expression
+	// Scopes is the `trusting` clause; empty means the scopes of the block.
+	Scopes []Scope
 }
 
 func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
@@ -209,6 +409,7 @@ func (r Rule) convert(symbols *datalog.SymbolTable) datalog.Rule {
 		Head:        r.Head.convert(symbols),
 		Body:        dlBody,
 		Expressions: dlExpressions,
+		Scopes:      slices.Clone(r.Scopes),
 	}
 }
 
@@ -240,6 +441,7 @@ func fromDatalogRule(symbols *datalog.SymbolTable, dlRule datalog.Rule) (*Rule, 
 		Head:        *head,
 		Body:        body,
 		Expressions: expressions,
+		Scopes:      slices.Clone(dlRule.Scopes),
 	}, nil
 }
 
@@ -275,6 +477,12 @@ func fromDatalogExpression(symbols *datalog.SymbolTable, dlExpr datalog.Expressi
 				return nil, fmt.Errorf("failed to convert datalog binary expression: %w", err)
 			}
 			expr[i] = b
+		case datalog.OpTypeClosure:
+			c, err := fromDatalogClosure(symbols, dlOP.(datalog.Closure))
+			if err != nil {
+				return nil, err
+			}
+			expr[i] = c
 		default:
 			return nil, fmt.Errorf("unsupported datalog expression type: %v", dlOP.Type())
 		}
@@ -293,7 +501,40 @@ const (
 	OpTypeValue OpType = iota
 	OpTypeUnary
 	OpTypeBinary
+	// OpTypeClosure is datalog v3.3; using it makes the block version 6.
+	OpTypeClosure
 )
+
+// Closure is an expression evaluated by the operator that consumes it, with
+// Params bound by that operator: the right side of && and || (BinaryLazyAnd,
+// BinaryLazyOr), the predicate of .all() and .any() (BinaryAll, BinaryAny),
+// or the receiver of .try_or() (BinaryTryOr).
+type Closure struct {
+	Params []Variable
+	Body   Expression
+}
+
+func (Closure) Type() OpType {
+	return OpTypeClosure
+}
+func (c Closure) convert(symbols *datalog.SymbolTable) datalog.Op {
+	params := make([]datalog.Variable, len(c.Params))
+	for i, p := range c.Params {
+		params[i] = p.convert(symbols).(datalog.Variable)
+	}
+	return datalog.Closure{Params: params, Body: c.Body.convert(symbols)}
+}
+func fromDatalogClosure(symbols *datalog.SymbolTable, dlClosure datalog.Closure) (Op, error) {
+	params := make([]Variable, len(dlClosure.Params))
+	for i, p := range dlClosure.Params {
+		params[i] = Variable(symbols.Var(p))
+	}
+	body, err := fromDatalogExpression(symbols, dlClosure.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert datalog closure: %w", err)
+	}
+	return Closure{Params: params, Body: body}, nil
+}
 
 type Value struct {
 	Term Term
@@ -322,6 +563,8 @@ const (
 	UnaryNegate
 	UnaryParens
 	UnaryLength
+	// UnaryTypeOf is datalog v3.3; using it makes the block version 6.
+	UnaryTypeOf
 )
 
 func (UnaryOp) Type() OpType {
@@ -335,6 +578,8 @@ func (op UnaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Parens{}}
 	case UnaryLength:
 		return datalog.UnaryOp{UnaryOpFunc: datalog.Length{}}
+	case UnaryTypeOf:
+		return datalog.UnaryOp{UnaryOpFunc: datalog.TypeOf{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid unary op type: %v", op))
 	}
@@ -348,9 +593,41 @@ func fromDatalogUnaryOp(symbols *datalog.SymbolTable, dlUnary datalog.UnaryOp) (
 		return UnaryParens, nil
 	case datalog.UnaryLength:
 		return UnaryLength, nil
+	case datalog.UnaryTypeOf:
+		return UnaryTypeOf, nil
+	case datalog.UnaryFfi:
+		return ExternUnary{Name: symbols.Str(dlUnary.UnaryOpFunc.(datalog.Ffi).Name)}, nil
 	default:
 		return UnaryUndefined, fmt.Errorf("unsupported datalog unary op: %v", dlUnary.UnaryOpFunc.Type())
 	}
+}
+
+// ExternUnary is the datalog v3.3 call `$value.extern::name()` of a function
+// registered on the authorizer with WithExternFuncs; using it makes the block
+// version 6.
+type ExternUnary struct {
+	Name string
+}
+
+func (ExternUnary) Type() OpType {
+	return OpTypeUnary
+}
+func (op ExternUnary) convert(symbols *datalog.SymbolTable) datalog.Op {
+	return datalog.UnaryOp{UnaryOpFunc: datalog.Ffi{Name: symbols.Insert(op.Name)}}
+}
+
+// ExternBinary is the datalog v3.3 call `$left.extern::name($right)` of a
+// function registered on the authorizer with WithExternFuncs; using it makes
+// the block version 6.
+type ExternBinary struct {
+	Name string
+}
+
+func (ExternBinary) Type() OpType {
+	return OpTypeBinary
+}
+func (op ExternBinary) convert(symbols *datalog.SymbolTable) datalog.Op {
+	return datalog.BinaryOp{BinaryOpFunc: datalog.FfiBinary{Name: symbols.Insert(op.Name)}}
 }
 
 type binaryOpType byte
@@ -376,6 +653,22 @@ const (
 	BinaryOr
 	BinaryIntersection
 	BinaryUnion
+	// Datalog v3.1 operators; using one makes the block version 4.
+	BinaryBitwiseAnd
+	BinaryBitwiseOr
+	BinaryBitwiseXor
+	BinaryNotEqual
+	// Datalog v3.3 operators; using one makes the block version 6.
+	BinaryHeterogeneousEqual
+	BinaryHeterogeneousNotEqual
+	BinaryLazyAnd
+	BinaryLazyOr
+	BinaryAll
+	BinaryAny
+	BinaryGet
+	// BinaryTryOr is datalog v3.3; its receiver is a Closure without
+	// parameters and its right operand the fallback value.
+	BinaryTryOr
 )
 
 func (BinaryOp) Type() OpType {
@@ -417,6 +710,30 @@ func (op BinaryOp) convert(symbols *datalog.SymbolTable) datalog.Op {
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Intersection{}}
 	case BinaryUnion:
 		return datalog.BinaryOp{BinaryOpFunc: datalog.Union{}}
+	case BinaryBitwiseAnd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseAnd{}}
+	case BinaryBitwiseOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseOr{}}
+	case BinaryBitwiseXor:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.BitwiseXor{}}
+	case BinaryNotEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.NotEqual{}}
+	case BinaryHeterogeneousEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousEqual{}}
+	case BinaryHeterogeneousNotEqual:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.HeterogeneousNotEqual{}}
+	case BinaryLazyAnd:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LazyAnd{}}
+	case BinaryLazyOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.LazyOr{}}
+	case BinaryAll:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.All{}}
+	case BinaryAny:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Any{}}
+	case BinaryGet:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.Get{}}
+	case BinaryTryOr:
+		return datalog.BinaryOp{BinaryOpFunc: datalog.TryOr{}}
 	default:
 		panic(fmt.Sprintf("biscuit: cannot convert invalid binary op type: %v", op))
 	}
@@ -458,13 +775,77 @@ func fromDatalogBinaryOp(symbols *datalog.SymbolTable, dbBinary datalog.BinaryOp
 		return BinaryIntersection, nil
 	case datalog.BinaryUnion:
 		return BinaryUnion, nil
+	case datalog.BinaryBitwiseAnd:
+		return BinaryBitwiseAnd, nil
+	case datalog.BinaryBitwiseOr:
+		return BinaryBitwiseOr, nil
+	case datalog.BinaryBitwiseXor:
+		return BinaryBitwiseXor, nil
+	case datalog.BinaryNotEqual:
+		return BinaryNotEqual, nil
+	case datalog.BinaryHeterogeneousEqual:
+		return BinaryHeterogeneousEqual, nil
+	case datalog.BinaryHeterogeneousNotEqual:
+		return BinaryHeterogeneousNotEqual, nil
+	case datalog.BinaryLazyAnd:
+		return BinaryLazyAnd, nil
+	case datalog.BinaryLazyOr:
+		return BinaryLazyOr, nil
+	case datalog.BinaryAll:
+		return BinaryAll, nil
+	case datalog.BinaryAny:
+		return BinaryAny, nil
+	case datalog.BinaryGet:
+		return BinaryGet, nil
+	case datalog.BinaryTryOr:
+		return BinaryTryOr, nil
+	case datalog.BinaryFfi:
+		return ExternBinary{Name: symbols.Str(dbBinary.BinaryOpFunc.(datalog.FfiBinary).Name)}, nil
 	default:
 		return BinaryUndefined, fmt.Errorf("unsupported datalog binary op: %v", dbBinary.BinaryOpFunc.Type())
 	}
 }
 
+// CheckKind selects how the queries of a Check are evaluated.
+type CheckKind byte
+
+const (
+	// CheckKindOne (`check if`) passes when one query has at least one match.
+	CheckKindOne CheckKind = iota
+	// CheckKindAll (`check all`) passes when one query has at least one match
+	// and every match of that query satisfies its expressions. Requires a
+	// datalog v3.1 block (version 4).
+	CheckKindAll
+	// CheckKindReject (`reject if`) passes when no query has a match.
+	// Requires a datalog v3.3 block (version 6).
+	CheckKindReject
+)
+
+func (k CheckKind) convert() datalog.CheckKind {
+	switch k {
+	case CheckKindAll:
+		return datalog.CheckKindAll
+	case CheckKindReject:
+		return datalog.CheckKindReject
+	default:
+		return datalog.CheckKindOne
+	}
+}
+
+func fromDatalogCheckKind(k datalog.CheckKind) CheckKind {
+	switch k {
+	case datalog.CheckKindAll:
+		return CheckKindAll
+	case datalog.CheckKindReject:
+		return CheckKindReject
+	default:
+		return CheckKindOne
+	}
+}
+
 type Check struct {
 	Queries []Rule
+	Kind    CheckKind
 }
 
 func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
@@ -475,6 +856,7 @@ func (c Check) convert(symbols *datalog.SymbolTable) datalog.Check {
 
 	return datalog.Check{
 		Queries: queries,
+		Kind:    c.Kind.convert(),
 	}
 }
 
@@ -490,6 +872,7 @@ func fromDatalogCheck(symbols *datalog.SymbolTable, dlCheck datalog.Check) (*Che
 
 	return &Check{
 		Queries: queries,
+		Kind:    fromDatalogCheckKind(dlCheck.Kind),
 	}, nil
 }
 
@@ -528,6 +911,11 @@ const (
 	TermTypeBytes
 	TermTypeBool
 	TermTypeSet
+	// TermTypeNull, TermTypeArray and TermTypeMap are datalog v3.3; using
+	// them makes the block version 6.
+	TermTypeNull
+	TermTypeArray
+	TermTypeMap
 )
 
 type Term interface {
@@ -584,6 +972,15 @@ func (b Bool) convert(symbols *datalog.SymbolTable) datalog.Term {
 }
 func (b Bool) String() string { return fmt.Sprintf("%t", b) }
 
+// Null is the absence of a value (datalog v3.3).
+type Null struct{}
+
+func (Null) Type() TermType { return TermTypeNull }
+func (Null) convert(symbols *datalog.SymbolTable) datalog.Term {
+	return datalog.Null{}
+}
+func (Null) String() string { return "null" }
+
 type Set []Term
 
 func (a Set) Type() TermType { return TermTypeSet }
@@ -599,8 +996,56 @@ func (a Set) String() string {
 	for _, e := range a {
 		elts = append(elts, e.String())
 	}
+	if len(elts) == 0 {
+		return "{,}"
+	}
 	sort.Strings(elts)
+	return fmt.Sprintf("{%s}", strings.Join(elts, ", "))
+}
+
+// Array is an ordered sequence of terms of any type (datalog v3.3).
+type Array []Term
+
+func (a Array) Type() TermType { return TermTypeArray }
+func (a Array) convert(symbols *datalog.SymbolTable) datalog.Term {
+	array := make(datalog.Array, len(a))
+	for i, e := range a {
+		array[i] = e.convert(symbols)
+	}
+	return array
+}
+func (a Array) String() string {
+	elts := make([]string, len(a))
+	for i, e := range a {
+		elts[i] = e.String()
+	}
 	return fmt.Sprintf("[%s]", strings.Join(elts, ", "))
+}
+
+// MapEntry is one key/value pair of a Map; the key is an Integer or a String.
+type MapEntry struct {
+	Key   Term
+	Value Term
+}
+
+// Map associates Integer or String keys with terms of any type (datalog
+// v3.3). Entry order does not matter; a key given twice keeps its last value.
+type Map []MapEntry
+
+func (m Map) Type() TermType { return TermTypeMap }
+func (m Map) convert(symbols *datalog.SymbolTable) datalog.Term {
+	entries := make([]datalog.MapEntry, len(m))
+	for i, e := range m {
+		entries[i] = datalog.MapEntry{Key: e.Key.convert(symbols), Value: e.Value.convert(symbols)}
+	}
+	return datalog.NewMap(entries...)
+}
+func (m Map) String() string {
+	entries := make([]string, len(m))
+	for i, e := range m {
+		entries[i] = fmt.Sprintf("%s: %s", e.Key, e.Value)
+	}
+	return fmt.Sprintf("{%s}", strings.Join(entries, ", "))
 }
 
 type PolicyKind byte
